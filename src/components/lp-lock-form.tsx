@@ -35,13 +35,13 @@ import { toast } from "sonner";
 
 const formSchema = z.object({
   poolId: z.string().min(1, {
-    message: "Pool ID là bắt buộc",
+    message: "Pool ID is required",
   }),
   lockPeriod: z.string().min(1, {
-    message: "Thời gian khóa là bắt buộc",
+    message: "Lock period is required",
   }),
   amount: z.string().min(1, {
-    message: "Số lượng là bắt buộc",
+    message: "Amount is required",
   }),
 });
 
@@ -49,7 +49,7 @@ export default function LpLockForm() {
   const [userLpBalance, setUserLpBalance] = useState("1000.00");
 
   const fetchUserLpBalance = async (poolId: string) => {
-    console.log(`Đang lấy số dư cho pool ${poolId}`);
+    console.log(`Fetching balance for pool ${poolId}`);
     return "1000.00";
   };
 
@@ -64,12 +64,12 @@ export default function LpLockForm() {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      console.log("Khóa token:", values);
-      toast.success("Khóa token thành công", {
-        description: `Bạn đã khóa ${values.amount} LP token trong ${values.lockPeriod}`,
+      console.log("Locking token:", values);
+      toast.success("Token locked successfully", {
+        description: `You have locked ${values.amount} LP tokens for ${values.lockPeriod}`,
       });
     } catch (error) {
-      toast.error("Khóa token thất bại. Vui lòng thử lại.");
+      toast.error("Failed to lock token. Please try again.");
     }
   };
 
@@ -104,10 +104,10 @@ export default function LpLockForm() {
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Info className="ml-2 h-4 w-4 text-gray-500" />
+                        <Info className="ml-2 h-4 w-4 text-gray-500 mb-[3px]" />
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>Nhập mã định danh duy nhất cho pool thanh khoản</p>
+                        <p>Enter the unique identifier for the liquidity pool</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -115,7 +115,7 @@ export default function LpLockForm() {
                 <FormControl>
                   <Input
                     className="border-gray-300 bg-white text-gray-900 focus:border-purple-500 focus:ring-purple-500"
-                    placeholder="Nhập Pool ID"
+                    placeholder="Enter Pool ID"
                     {...field}
                     onChange={(e) => handlePoolIdChange(e.target.value)}
                   />
@@ -130,7 +130,7 @@ export default function LpLockForm() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm">
                   <Wallet className="h-4 w-4 text-purple-400" />
-                  <span className="text-gray-700">Số dư LP của bạn</span>
+                  <span className="text-gray-700">Your LP Balance</span>
                 </div>
                 <div className="font-medium text-gray-900">
                   {userLpBalance} LP
@@ -144,38 +144,40 @@ export default function LpLockForm() {
             name="lockPeriod"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-gray-900">
-                  Thời gian khóa
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Info className="ml-2 h-4 w-4 text-gray-500" />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Chọn thời gian bạn muốn khóa LP token</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                >
-                  <FormControl>
-                    <SelectTrigger className="border-gray-300 bg-white text-gray-900 focus:border-purple-500 focus:ring-purple-500">
-                      <SelectValue placeholder="Chọn thời gian khóa" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent className="border-gray-300 bg-white text-gray-900">
-                    <SelectItem value="6months">6 tháng</SelectItem>
-                    <SelectItem value="1year">1 năm</SelectItem>
-                    <SelectItem value="2years">2 năm</SelectItem>
-                    <SelectItem value="3years">3 năm</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center justify-between">
+                  <FormLabel className="text-gray-900">
+                    Lock Period
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="ml-2 h-4 w-4 text-gray-500 mb-[3px]" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Choose how long you want to lock your LP tokens</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="border-gray-300 bg-white text-gray-900 focus:border-purple-500 focus:ring-purple-500">
+                        <SelectValue placeholder="Select lock period" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className="border-gray-300 bg-white text-gray-900">
+                      <SelectItem value="6months">6 months</SelectItem>
+                      <SelectItem value="1year">1 year</SelectItem>
+                      <SelectItem value="2years">2 years</SelectItem>
+                      <SelectItem value="3years">3 years</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <FormDescription className="flex items-center gap-1 text-gray-500">
                   <CalendarClock className="h-3 w-3" />
-                  Thời gian khóa lâu hơn có thể mang lại phần thưởng cao hơn
+                  Longer lock periods may yield higher rewards
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -187,7 +189,7 @@ export default function LpLockForm() {
             name="amount"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-gray-900">Số lượng khóa</FormLabel>
+                <FormLabel className="text-gray-900">Lock Amount</FormLabel>
                 <div className="flex items-center gap-2">
                   <FormControl>
                     <Input
@@ -203,7 +205,7 @@ export default function LpLockForm() {
                     className="border-gray-300 bg-white text-gray-700 hover:bg-purple-100 hover:text-purple-900"
                     onClick={setHalf}
                   >
-                    Nửa
+                    Half
                   </Button>
                   <Button
                     type="button"
@@ -212,7 +214,7 @@ export default function LpLockForm() {
                     className="border-gray-300 bg-white text-gray-700 hover:bg-purple-100 hover:text-purple-900"
                     onClick={setMax}
                   >
-                    Tối đa
+                    Max
                   </Button>
                 </div>
                 <FormMessage />
@@ -222,17 +224,17 @@ export default function LpLockForm() {
 
           <div className="rounded-md border border-gray-300 bg-gray-50 p-4">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-500">Ước tính APR</span>
+              <span className="text-gray-500">Estimated APR</span>
               <span className="font-medium text-purple-600">12.5%</span>
             </div>
             <div className="mt-2 flex items-center justify-between text-sm">
-              <span className="text-gray-500">Ngày mở khóa</span>
+              <span className="text-gray-500">Unlock Date</span>
               <span className="font-medium text-gray-900">
                 {form.watch("lockPeriod") === "6months" && "19/11/2025"}
                 {form.watch("lockPeriod") === "1year" && "19/05/2026"}
                 {form.watch("lockPeriod") === "2years" && "19/05/2027"}
                 {form.watch("lockPeriod") === "3years" && "19/05/2028"}
-                {!form.watch("lockPeriod") && "Chọn thời gian khóa"}
+                {!form.watch("lockPeriod") && "Select lock period"}
               </span>
             </div>
           </div>
@@ -241,7 +243,7 @@ export default function LpLockForm() {
             type="submit"
             className="w-full bg-gradient-to-r from-purple-600 to-purple-800 text-white hover:from-purple-700 hover:to-purple-900"
           >
-            Khóa LP Token
+            Lock LP Token
           </Button>
         </form>
       </Form>
