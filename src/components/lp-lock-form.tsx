@@ -116,7 +116,6 @@ export default function LpLockForm() {
       };
 
       const amountFloat = parseFloat(values.amount);
-      console.log(`Số lượng token gửi đi (UI): ${amountFloat}`);
 
       const response = await fetch("/api/deposit", {
         method: "POST",
@@ -143,9 +142,7 @@ export default function LpLockForm() {
               signedTx.serialize()
             );
             await connection.confirmTransaction(txId);
-            console.log("Giao dịch thành công, txId:", txId);
           } catch (error: any) {
-            console.error("Lỗi khi ký/gửi giao dịch:", error);
             throw new Error("Không thể ký hoặc gửi giao dịch");
           }
         }
@@ -178,7 +175,6 @@ export default function LpLockForm() {
       if (poolId) {
         try {
           setLoading(true);
-          console.log(`Đang lấy số dư và mint cho pool ${poolId}`);
           const response = await fetch("/api/fetch-lp", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -188,7 +184,6 @@ export default function LpLockForm() {
             }),
           });
           const result = await response.json();
-          console.log(result);
           if (response.ok && result) {
             setUserLpBalance(result.balance.toFixed(3));
             setTokenMint(result.lpMint);
@@ -196,7 +191,6 @@ export default function LpLockForm() {
             throw new Error(result.error || "Không tìm thấy thông tin pool");
           }
         } catch (error: any) {
-          console.error("Lỗi khi lấy số dư và mint:", error);
           toast.error(
             error.message ||
               "Không thể lấy thông tin pool. Vui lòng kiểm tra Pool ID."

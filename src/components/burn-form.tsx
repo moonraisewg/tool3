@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
-import { Info, Wallet, Loader2 } from 'lucide-react';
+import { useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { Info, Wallet, Loader2 } from "lucide-react";
 
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -15,42 +15,48 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const formSchema = z.object({
   poolId: z.string().min(1, {
-    message: 'Pool ID is required',
+    message: "Pool ID is required",
   }),
-  amount: z.string()
+  amount: z
+    .string()
     .min(1, {
-      message: 'Amount is required',
+      message: "Amount is required",
     })
     .refine((val) => !isNaN(Number(val)) && Number(val) > 0, {
-      message: 'Amount must be greater than 0',
+      message: "Amount must be greater than 0",
     }),
 });
 
 export default function Burn() {
   const [isLoading, setIsLoading] = useState(false);
-  const [userLpBalance, setUserLpBalance] = useState('100.00');
+  const [userLpBalance, setUserLpBalance] = useState("100.00");
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      poolId: '',
-      amount: '',
+      poolId: "",
+      amount: "",
     },
   });
 
   const fetchUserLpBalance = async (poolId: string) => {
     console.log(`Fetching balance for pool ${poolId}`);
-    return '1000.00';
+    return "1000.00";
   };
 
   const handlePoolIdChange = async (value: string) => {
-    form.setValue('poolId', value);
+    form.setValue("poolId", value);
     if (value) {
       const balance = await fetchUserLpBalance(value);
       setUserLpBalance(balance);
@@ -60,12 +66,11 @@ export default function Burn() {
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       setIsLoading(true);
-      // TODO: Implement burn logic here
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      alert('Burn successful!');
+      alert("Burn successful!");
       form.reset();
     } catch (error) {
-      alert('An error occurred while burning tokens');
+      alert("An error occurred while burning tokens");
     } finally {
       setIsLoading(false);
     }
@@ -99,7 +104,9 @@ export default function Burn() {
                         <Info className="ml-2 h-4 w-4 text-gray-500 mb-[3px]" />
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>Enter the unique identifier for the liquidity pool</p>
+                        <p>
+                          Enter the unique identifier for the liquidity pool
+                        </p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -124,7 +131,9 @@ export default function Burn() {
                   <Wallet className="h-4 w-4 text-red-400" />
                   <span className="text-gray-700">Your LP Balance</span>
                 </div>
-                <div className="font-medium text-gray-900">{userLpBalance} LP</div>
+                <div className="font-medium text-gray-900">
+                  {userLpBalance} LP
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -187,14 +196,15 @@ export default function Burn() {
                 Processing...
               </span>
             ) : (
-              'Burn Tokens'
+              "Burn Tokens"
             )}
           </Button>
         </form>
       </Form>
 
       <div className="text-sm text-red-600 bg-red-50 p-4 rounded-lg">
-        ⚠️ Warning: The burn action cannot be undone. Please double-check the amount before proceeding.
+        ⚠️ Warning: The burn action cannot be undone. Please double-check the
+        amount before proceeding.
       </div>
     </div>
   );
