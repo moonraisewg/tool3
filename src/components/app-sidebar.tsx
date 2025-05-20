@@ -27,9 +27,9 @@ const data = {
       url: "/lock-lp",
     },
     {
-      title: "Burn LP",
+      title: "Withdraw LP",
       icon: Anvil,
-      url: "#",
+      url: "/withdraw-lp",
     },
   ],
 };

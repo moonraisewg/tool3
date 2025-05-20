@@ -20,9 +20,9 @@ export const findUserLockPda = async (vault: PublicKey, user: PublicKey) => {
 /**
  * Derive PDA for vault
  */
-export const findVaultPda = async (poolId: PublicKey, tokenMint: PublicKey) => {
+export const findVaultPda = async (poolId: PublicKey) => {
   return PublicKey.findProgramAddressSync(
-    [Buffer.from(SEED_VAULT), poolId.toBuffer(), tokenMint.toBuffer()],
+    [Buffer.from(SEED_VAULT), poolId.toBuffer()],
     PROGRAM_ID
   );
 };

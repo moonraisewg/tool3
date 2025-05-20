@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PublicKey, Keypair } from "@solana/web3.js";
-import { getAssociatedTokenAddress } from "@solana/spl-token";
+import { PublicKey } from "@solana/web3.js";
+import { getAssociatedTokenAddress, getMint } from "@solana/spl-token";
 import {
   findUserLockPda,
   findVaultPda,
@@ -9,13 +9,8 @@ import {
 } from "@/service/solana/pda";
 import { checkVaultExists } from "@/lib/vaultCheck";
 import { deposit, initializeVault } from "@/service/solana/action";
-import bs58 from "bs58";
-
-const ADMIN_PRIVATE_KEY = process.env.ADMIN_PRIVATE_KEY;
-if (!ADMIN_PRIVATE_KEY) {
-  throw new Error("ADMIN_PRIVATE_KEY not set in .env");
-}
-const adminKeypair = Keypair.fromSecretKey(bs58.decode(ADMIN_PRIVATE_KEY));
+import { owner } from "@/service/raydium-sdk";
+import { connection } from "@/service/solana/connection";
 
 interface DepositRequestBody {
   walletPublicKey: string;
@@ -28,6 +23,7 @@ interface DepositRequestBody {
 export async function POST(req: NextRequest) {
   try {
     const body: DepositRequestBody = await req.json();
+    console.log("API nhận request deposit:", body);
 
     if (
       !body.walletPublicKey ||
@@ -46,6 +42,18 @@ export async function POST(req: NextRequest) {
     const poolId = new PublicKey(body.poolId);
     const tokenMint = new PublicKey(body.tokenMint);
 
+    const mintInfo = await getMint(connection, tokenMint);
+    const decimals = mintInfo.decimals;
+
+    const amountFloat = parseFloat(body.amount.toString());
+    if (isNaN(amountFloat) || amountFloat <= 0) {
+      return NextResponse.json(
+        { error: "Amount must be a positive number" },
+        { status: 400 }
+      );
+    }
+    const amountDecimal = Math.round(amountFloat * Math.pow(10, decimals));
+
     if (body.amount <= 0) {
       return NextResponse.json(
         { error: "Amount must be positive" },
@@ -60,21 +68,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    let vaultCheck = await checkVaultExists(poolId, tokenMint);
+    let vaultCheck = await checkVaultExists(poolId);
     if (!vaultCheck.exists) {
       console.log("Vault does not exist, initializing vault...");
-      const [vault] = await findVaultPda(poolId, tokenMint);
+      const [vault] = await findVaultPda(poolId);
       const [vaultTokenAccount] = await findVaultTokenPda(poolId, vault);
       const [vaultAuthority] = await findVaultAuthorityPda(poolId, vault);
 
-      // Tính bump
       const [, bump] = await PublicKey.findProgramAddress(
-        [Buffer.from("vault"), poolId.toBuffer(), tokenMint.toBuffer()],
-        new PublicKey("Hog1fQ9MwCd6qQFoVYczbbXwEWNd3m1bnNakPGg4frK") // PROGRAM_ID
+        [Buffer.from("vault"), poolId.toBuffer()],
+        new PublicKey("Hog1fQ9MwCd6qQFoVYczbbXwEWNd3m1bnNakPGg4frK")
       );
 
       const txId = await initializeVault({
-        adminKeypair,
+        owner,
         poolId,
         bump,
         vault,
@@ -85,8 +92,7 @@ export async function POST(req: NextRequest) {
 
       console.log("Vault initialized, txId:", txId);
 
-      // Kiểm tra lại vault
-      vaultCheck = await checkVaultExists(poolId, tokenMint);
+      vaultCheck = await checkVaultExists(poolId);
       if (!vaultCheck.exists) {
         return NextResponse.json(
           { error: "Failed to initialize vault" },
@@ -106,7 +112,7 @@ export async function POST(req: NextRequest) {
     // Gọi hàm deposit
     const serializedTransaction = await deposit({
       publicKey: walletPublicKey,
-      amount: body.amount,
+      amount: amountDecimal,
       unlockTimestamp: body.unlockTimestamp,
       vault,
       userLock,

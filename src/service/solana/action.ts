@@ -11,7 +11,7 @@ import {
 } from "@solana/web3.js";
 
 export const initializeVault = async ({
-  adminKeypair,
+  owner,
   poolId,
   bump,
   vault,
@@ -19,7 +19,7 @@ export const initializeVault = async ({
   vaultAuthority,
   tokenMint,
 }: {
-  adminKeypair: Keypair;
+  owner: Keypair;
   poolId: PublicKey;
   bump: number;
   vault: PublicKey;
@@ -33,7 +33,7 @@ export const initializeVault = async ({
     .initializeVault(poolId, bump)
     .accounts({
       vault,
-      initializer: adminKeypair.publicKey,
+      initializer: owner.publicKey,
       tokenMint,
       vaultTokenAccount,
       vaultAuthority,
@@ -48,10 +48,10 @@ export const initializeVault = async ({
 
   const { blockhash } = await program.provider.connection.getLatestBlockhash();
   transaction.recentBlockhash = blockhash;
-  transaction.feePayer = adminKeypair.publicKey;
+  transaction.feePayer = owner.publicKey;
 
   // Ký và gửi giao dịch
-  transaction.sign(adminKeypair);
+  transaction.sign(owner);
   const txId = await program.provider.connection.sendRawTransaction(
     transaction.serialize()
   );

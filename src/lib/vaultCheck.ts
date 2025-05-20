@@ -9,11 +9,10 @@ interface VaultCheckResult {
 }
 
 export const checkVaultExists = async (
-  poolId: PublicKey,
-  tokenMint: PublicKey
+  poolId: PublicKey
 ): Promise<VaultCheckResult> => {
   try {
-    const [vault] = await findVaultPda(poolId, tokenMint);
+    const [vault] = await findVaultPda(poolId);
     const [vaultTokenAccount] = await findVaultTokenPda(poolId, vault);
 
     const vaultInfo = await connection.getAccountInfo(vault);

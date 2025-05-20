@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const vaultCheck = await checkVaultExists(poolId, tokenMint);
+    const vaultCheck = await checkVaultExists(poolId);
     if (!vaultCheck.exists) {
       return NextResponse.json(
         { error: "Vault not initialized. Please contact admin." },
