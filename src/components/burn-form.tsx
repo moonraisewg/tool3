@@ -25,7 +25,7 @@ import {
 import { toast } from "sonner";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { connection } from "../service/solana/connection";
-import { Transaction, VersionedTransaction } from "@solana/web3.js";
+import { VersionedTransaction } from "@solana/web3.js";
 
 const formSchema = z.object({
   poolId: z.string().min(1, {
@@ -95,11 +95,14 @@ export default function Burn() {
           setIsLoading(true);
           const balance = await fetchUserLpBalance(poolId);
           setUserLpBalance(balance);
-        } catch (error: any) {
-          toast.error(
-            error.message ||
-            "Cannot get pool information. Please check Pool ID."
-          );
+        } catch (error: unknown) {
+          let message = "Cannot get pool information. Please check Pool ID.";
+
+          if (error instanceof Error) {
+            message = error.message;
+          }
+
+          toast.error(message);
           setUserLpBalance("0.00");
         } finally {
           setIsLoading(false);
@@ -174,12 +177,17 @@ export default function Burn() {
             }
 
             console.log("Transaction confirmed:", txId);
-          } catch (error: any) {
+          } catch (error: unknown) {
             console.error("Transaction error:", error);
-            if (error.message === "User rejected the request") {
-              throw new Error("You rejected the transaction");
+
+            if (error instanceof Error) {
+              if (error.message === "User rejected the request") {
+                throw new Error("You rejected the transaction");
+              }
+              throw new Error("Cannot sign or send transaction: " + error.message);
             }
-            throw new Error("Cannot sign or send transaction: " + error.message);
+
+            throw new Error("Unknown error occurred while signing or sending transaction");
           }
         }
 
@@ -193,8 +201,11 @@ export default function Burn() {
       } else {
         throw new Error("Not receiving transactions from API");
       }
-    } catch (error: any) {
-      toast.error(error.message || "Burn token failed. Please try again.");
+    } catch (error: unknown) {
+      const message = error instanceof Error
+        ? error.message
+        : "Burn token failed. Please try again.";
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -257,20 +268,6 @@ export default function Burn() {
             )}
           />
 
-          <Card className="border-gray-300 bg-white">
-            <CardContent className="py-0 px-4 pt-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm">
-                  <Wallet className="h-4 w-4 text-green-400" />
-                  <span className="text-gray-700">Your LP Balance</span>
-                </div>
-                <div className="font-medium text-gray-900">
-                  {isLoading ? "Loading..." : `${userLpBalance} LP`}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
           <FormField
             control={form.control}
             name="amount"
@@ -320,6 +317,20 @@ export default function Burn() {
               </FormItem>
             )}
           />
+
+          <Card className="border-gray-300 bg-white">
+            <CardContent className="py-0 px-4 pt-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm">
+                  <Wallet className="h-4 w-4 text-green-400" />
+                  <span className="text-gray-700">Your LP Balance</span>
+                </div>
+                <div className="font-medium text-gray-900">
+                  {isLoading ? "Loading..." : `${userLpBalance} LP`}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           <Button
             type="submit"

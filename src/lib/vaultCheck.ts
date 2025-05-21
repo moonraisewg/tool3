@@ -38,7 +38,7 @@ export const checkVaultExists = async (
       vaultTokenAccount,
       tokenMint: vaultData.tokenMint,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error checking vault:", error);
     return {
       exists: false,

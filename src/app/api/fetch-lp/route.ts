@@ -21,11 +21,13 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error in fetch-lp API:", error);
-    return NextResponse.json(
-      { error: error.message || "Unable to get pool information" },
-      { status: 500 }
-    );
+
+    let errorMessage = "Unable to get pool information";
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

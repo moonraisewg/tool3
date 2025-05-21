@@ -61,7 +61,7 @@ export default function LpLockForm() {
 
     switch (period) {
       case "6months":
-        unlockDate = add(now, { minutes: 2 });
+        unlockDate = add(now, { minutes: 10 });
         break;
       case "1year":
         unlockDate = add(now, { years: 1 });
@@ -140,7 +140,8 @@ export default function LpLockForm() {
               signedTx.serialize()
             );
             await connection.confirmTransaction(txId);
-          } catch (error: any) {
+          } catch (error: unknown) {
+            console.error("Transaction error:", error);
             throw new Error("Cannot sign or send transaction");
           }
         }
@@ -151,8 +152,12 @@ export default function LpLockForm() {
       } else {
         throw new Error("No transaction received from API");
       }
-    } catch (error: any) {
-      toast.error(error.message || "Lock token failed. Please try again.");
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Lock token failed. Please try again.";
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -190,11 +195,12 @@ export default function LpLockForm() {
           } else {
             throw new Error(result.error || "Pool information not found");
           }
-        } catch (error: any) {
-          toast.error(
-            error.message ||
-            "Cannot get pool information. Please check Pool ID."
-          );
+        } catch (error: unknown) {
+          const message = error instanceof Error
+            ? error.message
+            : "Cannot get pool information. Please check Pool ID.";
+
+          toast.error(message);
           setUserLpBalance("0.00");
           setTokenMint("");
         } finally {
@@ -261,19 +267,47 @@ export default function LpLockForm() {
             )}
           />
 
-          <Card className="border-gray-300 bg-white">
-            <CardContent className="py-2 px-4 pt-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm">
-                  <Wallet className="h-4 w-4 text-purple-400" />
-                  <span className="text-gray-700">Your LP Balance</span>
+          <FormField
+            control={form.control}
+            name="amount"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-gray-900">Lock Amount</FormLabel>
+                <div className="flex items-center gap-2">
+                  <FormControl>
+                    <Input
+                      className="border-gray-300 bg-white text-gray-900 focus:border-purple-500 focus:ring-purple-500"
+                      placeholder="0.00"
+                      {...field}
+                      disabled={loading}
+                    />
+                  </FormControl>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="border-gray-300 bg-white text-gray-700 hover:bg-purple-100 hover:text-purple-900"
+                    onClick={setHalf}
+                    disabled={loading}
+                  >
+                    Half
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="border-gray-300 bg-white text-gray-700 hover:bg-purple-100 hover:text-purple-900"
+                    onClick={setMax}
+                    disabled={loading}
+                  >
+                    Max
+                  </Button>
                 </div>
-                <div className="font-medium text-gray-900">
-                  {loading ? "Loading..." : `${userLpBalance} LP`}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
 
           <FormField
             control={form.control}
@@ -321,46 +355,22 @@ export default function LpLockForm() {
             )}
           />
 
-          <FormField
-            control={form.control}
-            name="amount"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-gray-900">Lock Amount</FormLabel>
-                <div className="flex items-center gap-2">
-                  <FormControl>
-                    <Input
-                      className="border-gray-300 bg-white text-gray-900 focus:border-purple-500 focus:ring-purple-500"
-                      placeholder="0.00"
-                      {...field}
-                      disabled={loading}
-                    />
-                  </FormControl>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="border-gray-300 bg-white text-gray-700 hover:bg-purple-100 hover:text-purple-900"
-                    onClick={setHalf}
-                    disabled={loading}
-                  >
-                    Half
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="border-gray-300 bg-white text-gray-700 hover:bg-purple-100 hover:text-purple-900"
-                    onClick={setMax}
-                    disabled={loading}
-                  >
-                    Max
-                  </Button>
+
+          <Card className="border-gray-300 bg-white">
+            <CardContent className="py-2 px-4 pt-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm">
+                  <Wallet className="h-4 w-4 text-purple-400" />
+                  <span className="text-gray-700">Your LP Balance</span>
                 </div>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                <div className="font-medium text-gray-900">
+                  {loading ? "Loading..." : `${userLpBalance} LP`}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+
 
           <div className="rounded-md border border-gray-300 bg-gray-50 p-4">
             <div className="flex items-center justify-between text-sm">

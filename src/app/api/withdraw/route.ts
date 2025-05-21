@@ -66,16 +66,24 @@ export async function POST(req: NextRequest) {
       success: true,
       transactions: [serializedTransaction],
     });
-  } catch (error: any) {
-    let errorMessage = error.message || "Failed to process withdraw";
-    if (error.message.includes("LockNotYetExpired")) {
-      errorMessage = "Lock period has not yet expired";
-    } else if (error.message.includes("InsufficientBalance")) {
-      errorMessage = "Insufficient balance to withdraw";
-    } else if (error.message.includes("ArithmeticUnderflow")) {
-      errorMessage = "Arithmetic underflow error during withdrawal";
+  } catch (error: unknown) {
+    let errorMessage = "Failed to process withdraw";
+
+    if (error instanceof Error) {
+      if (error.message.includes("LockNotYetExpired")) {
+        errorMessage = "Lock period has not yet expired";
+      } else if (error.message.includes("InsufficientBalance")) {
+        errorMessage = "Insufficient balance to withdraw";
+      } else if (error.message.includes("ArithmeticUnderflow")) {
+        errorMessage = "Arithmetic underflow error during withdrawal";
+      } else {
+        errorMessage = error.message;
+      }
+      console.error("Withdraw error:", error);
+    } else {
+      console.error("Withdraw error (unknown type):", error);
     }
-    console.error("Withdraw error:", error);
+
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

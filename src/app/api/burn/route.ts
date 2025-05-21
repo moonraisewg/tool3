@@ -34,6 +34,7 @@ export async function POST(req: NextRequest) {
         );
       }
     } catch (error) {
+      console.error("Wallet address error:", error);
       return NextResponse.json(
         { error: "Invalid wallet address" },
         { status: 400 }
@@ -73,16 +74,25 @@ export async function POST(req: NextRequest) {
       success: true,
       transactions: [serializedTransaction],
     });
-  } catch (error: any) {
-    let errorMessage = error.message || "Failed to process burn";
-    if (error.message.includes("InsufficientBalance")) {
-      errorMessage = "Insufficient LP token balance to burn";
-    } else if (error.message.includes("ArithmeticUnderflow")) {
-      errorMessage = "Arithmetic underflow error during burn";
-    } else if (error.message.includes("InvalidPublicKey")) {
-      errorMessage = "Invalid wallet address";
+  } catch (error: unknown) {
+    let errorMessage = "Failed to process burn";
+
+    if (error instanceof Error) {
+      if (error.message.includes("InsufficientBalance")) {
+        errorMessage = "Insufficient LP token balance to burn";
+      } else if (error.message.includes("ArithmeticUnderflow")) {
+        errorMessage = "Arithmetic underflow error during burn";
+      } else if (error.message.includes("InvalidPublicKey")) {
+        errorMessage = "Invalid wallet address";
+      } else {
+        errorMessage = error.message;
+      }
+
+      console.error("Burn error:", error);
+    } else {
+      console.error("Burn error: unknown", error);
     }
-    console.error("Burn error:", error);
+
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

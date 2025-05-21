@@ -117,7 +117,8 @@ export default function Withdraw() {
               signedTx.serialize()
             );
             await connection.confirmTransaction(txId);
-          } catch (error: any) {
+          } catch (error: unknown) {
+            console.error("Error signing or sending transaction:", error);
             throw new Error("Unable to sign or send the transaction.");
           }
         }
@@ -128,18 +129,19 @@ export default function Withdraw() {
       } else {
         throw new Error("Did not receive the transaction from the API.");
       }
-    } catch (error: any) {
-      toast.error(
-        error.message || "Token withdrawal failed. Please try again."
-      );
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Token withdrawal failed. Please try again.";
+      toast.error(message);
     } finally {
       setLoading(false);
     }
   };
 
   const setHalf = () => {
-    // const halfAmount = (Number.parseFloat(userLpBalance) / 2).toFixed(3);
-    const halfAmount = (Number.parseFloat(userLpBalance) / 2).toFixed(6);
+    const halfAmount = (Number.parseFloat(userLpBalance) / 2).toFixed(3);
     form.setValue("amount", halfAmount);
   };
 
@@ -174,8 +176,7 @@ export default function Withdraw() {
           });
           const result = await response.json();
           if (response.ok && result) {
-            // setUserLpBalance(result.amount.toFixed(3));
-            setUserLpBalance(result.amount);
+            setUserLpBalance(result.amount.toFixed(3));
             setUnlockInfo({
               isUnlocked: result.isUnlocked,
               unlockTimestamp: Number(result.unlockTimestamp),
@@ -184,11 +185,12 @@ export default function Withdraw() {
           } else {
             throw new Error(result.error || "Pool information not found.");
           }
-        } catch (error: any) {
-          toast.error(
-            error.message ||
-            "Unable to fetch pool information. Please check the Pool ID."
-          );
+        } catch (error: unknown) {
+          const message = error instanceof Error
+            ? error.message
+            : "Unable to fetch pool information. Please check the Pool ID.";
+
+          toast.error(message);
           setUserLpBalance("0.00");
         } finally {
           setLoading(false);
@@ -248,19 +250,6 @@ export default function Withdraw() {
               </FormItem>
             )}
           />
-          <Card className="border-gray-300 bg-white">
-            <CardContent className="py-0 px-4 pt-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm">
-                  <Wallet className="h-4 w-4 text-purple-400" />
-                  <span className="text-gray-700">Your LP Balance</span>
-                </div>
-                <div className="font-medium text-gray-900">
-                  {userLpBalance} LP
-                </div>
-              </div>
-            </CardContent>
-          </Card>
 
           <FormField
             control={form.control}
@@ -307,6 +296,20 @@ export default function Withdraw() {
               </FormItem>
             )}
           />
+
+          <Card className="border-gray-300 bg-white">
+            <CardContent className="py-0 px-4 pt-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm">
+                  <Wallet className="h-4 w-4 text-purple-400" />
+                  <span className="text-gray-700">Your LP Balance</span>
+                </div>
+                <div className="font-medium text-gray-900">
+                  {userLpBalance} LP
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           <Button
             type="submit"

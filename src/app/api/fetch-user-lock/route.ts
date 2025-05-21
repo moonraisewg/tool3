@@ -49,10 +49,16 @@ export async function POST(req: NextRequest) {
         userLockInfo.unlockTimestamp.toNumber() - Date.now() / 1000
       ),
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching user lock info:", error);
+
+    let errorMessage = "Failed to fetch user lock info";
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+
     return NextResponse.json(
-      { error: error.message || "Failed to fetch user lock info" },
+      { error: errorMessage },
       { status: 500 }
     );
   }
