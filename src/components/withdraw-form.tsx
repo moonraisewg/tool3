@@ -138,7 +138,7 @@ export default function Withdraw() {
   };
 
   const setHalf = () => {
-    const halfAmount = (Number.parseFloat(userLpBalance) / 2).toFixed(3);
+    const halfAmount = (Number.parseFloat(userLpBalance) / 2).toFixed(6);
     form.setValue("amount", halfAmount);
   };
 
@@ -173,7 +173,7 @@ export default function Withdraw() {
           });
           const result = await response.json();
           if (response.ok && result) {
-            setUserLpBalance(result.amount.toFixed(3));
+            setUserLpBalance(result.amount);
             setUnlockInfo({
               isUnlocked: result.isUnlocked,
               unlockTimestamp: Number(result.unlockTimestamp),
@@ -185,7 +185,7 @@ export default function Withdraw() {
         } catch (error: any) {
           toast.error(
             error.message ||
-              "Unable to fetch pool information. Please check the Pool ID."
+            "Unable to fetch pool information. Please check the Pool ID."
           );
           setUserLpBalance("0.00");
         } finally {
@@ -309,11 +309,10 @@ export default function Withdraw() {
           <Button
             type="submit"
             disabled={loading || (!!unlockInfo && !unlockInfo.isUnlocked)}
-            className={`w-full text-white cursor-pointer ${
-              !!unlockInfo && !unlockInfo.isUnlocked
+            className={`w-full text-white cursor-pointer ${!!unlockInfo && !unlockInfo.isUnlocked
                 ? "bg-red-600 hover:bg-red-700 disabled:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 : "bg-gradient-to-r from-purple-600 to-purple-800 hover:from-purple-700 hover:to-purple-900 disabled:opacity-50 disabled:cursor-not-allowed"
-            }`}
+              }`}
           >
             {loading ? (
               <span className="flex items-center justify-center">

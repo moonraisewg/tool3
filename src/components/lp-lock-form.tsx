@@ -61,7 +61,7 @@ export default function LpLockForm() {
 
     switch (period) {
       case "6months":
-        unlockDate = add(now, { minutes: 10 });
+        unlockDate = add(now, { minutes: 2 });
         break;
       case "1year":
         unlockDate = add(now, { years: 1 });
@@ -193,7 +193,7 @@ export default function LpLockForm() {
         } catch (error: any) {
           toast.error(
             error.message ||
-              "Không thể lấy thông tin pool. Vui lòng kiểm tra Pool ID."
+            "Không thể lấy thông tin pool. Vui lòng kiểm tra Pool ID."
           );
           setUserLpBalance("0.00");
           setTokenMint("");
@@ -371,9 +371,9 @@ export default function LpLockForm() {
               <span className="text-gray-500">Unlock Date</span>
               {form.watch("lockPeriod")
                 ? format(
-                    fromUnixTime(getLockTimestamp(form.watch("lockPeriod"))),
-                    "dd/MM/yyyy"
-                  )
+                  fromUnixTime(getLockTimestamp(form.watch("lockPeriod"))),
+                  "dd/MM/yyyy"
+                )
                 : "--"}
             </div>
           </div>
