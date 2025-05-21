@@ -5,7 +5,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Info, Wallet, Loader2 } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -26,12 +25,12 @@ import {
 
 const formSchema = z.object({
   poolId: z.string().min(1, {
-    message: "Pool ID is required",
+    message: "Pool ID is requigreen",
   }),
   amount: z
     .string()
     .min(1, {
-      message: "Amount is required",
+      message: "Amount is requigreen",
     })
     .refine((val) => !isNaN(Number(val)) && Number(val) > 0, {
       message: "Amount must be greater than 0",
@@ -63,18 +62,7 @@ export default function Burn() {
     }
   };
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    try {
-      setIsLoading(true);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      alert("Burn successful!");
-      form.reset();
-    } catch (error) {
-      alert("An error occurred while burning tokens");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const onSubmit = async () => {};
 
   const setHalf = () => {
     const halfAmount = (Number.parseFloat(userLpBalance) / 2).toFixed(2);
@@ -113,7 +101,7 @@ export default function Burn() {
                 </FormLabel>
                 <FormControl>
                   <Input
-                    className="border-gray-300 bg-white text-gray-900 focus:border-red-500 focus:ring-red-500"
+                    className="border-gray-300 bg-white text-gray-900 focus:border-green-500 focus:ring-green-500"
                     placeholder="Enter Pool ID"
                     {...field}
                     onChange={(e) => handlePoolIdChange(e.target.value)}
@@ -128,7 +116,7 @@ export default function Burn() {
             <CardContent className="py-0 px-4 pt-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm">
-                  <Wallet className="h-4 w-4 text-red-400" />
+                  <Wallet className="h-4 w-4 text-green-400" />
                   <span className="text-gray-700">Your LP Balance</span>
                 </div>
                 <div className="font-medium text-gray-900">
@@ -150,7 +138,7 @@ export default function Burn() {
                       type="number"
                       min="0"
                       step="1"
-                      className="border-gray-300 bg-white text-gray-900 focus:border-red-500 focus:ring-red-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      className="border-gray-300 bg-white text-gray-900 focus:border-green-500 focus:ring-green-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       placeholder="0.00"
                       {...field}
                       onChange={(e) => {
@@ -165,7 +153,7 @@ export default function Burn() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="border-gray-300 bg-white text-gray-700 hover:bg-red-100 hover:text-red-900 cursor-pointer"
+                    className="border-gray-300 bg-white text-gray-700 hover:bg-green-100 hover:text-green-900 cursor-pointer"
                     onClick={setHalf}
                   >
                     Half
@@ -174,7 +162,7 @@ export default function Burn() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="border-gray-300 bg-white text-gray-700 hover:bg-red-100 hover:text-red-900 cursor-pointer"
+                    className="border-gray-300 bg-white text-gray-700 hover:bg-green-100 hover:text-green-900 cursor-pointer"
                     onClick={setMax}
                   >
                     Max
@@ -188,7 +176,7 @@ export default function Burn() {
           <Button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-gradient-to-r from-red-600 to-red-800 text-white hover:from-red-700 hover:to-red-900 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            className="w-full bg-gradient-to-r from-green-600 to-green-800 text-white hover:from-green-700 hover:to-green-900 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             {isLoading ? (
               <span className="flex items-center justify-center">
@@ -201,11 +189,6 @@ export default function Burn() {
           </Button>
         </form>
       </Form>
-
-      <div className="text-sm text-red-600 bg-red-50 p-4 rounded-lg">
-        ⚠️ Warning: The burn action cannot be undone. Please double-check the
-        amount before proceeding.
-      </div>
     </div>
   );
 }

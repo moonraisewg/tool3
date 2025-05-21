@@ -1,27 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PublicKey } from "@solana/web3.js";
-import { getAssociatedTokenAddress } from "@solana/spl-token";
-import { findUserLockPda, findVaultAuthorityPda } from "@/service/solana/pda";
+import { getAssociatedTokenAddress, getMint } from "@solana/spl-token";
 import { checkVaultExists } from "@/lib/vaultCheck";
 import { withdraw } from "@/service/solana/action";
+import { connection } from "@/service/solana/connection";
 
 interface WithdrawRequestBody {
   walletPublicKey: string;
   amount: number;
   poolId: string;
-  tokenMint: string;
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body: WithdrawRequestBody = await req.json();
-
-    if (
-      !body.walletPublicKey ||
-      !body.amount ||
-      !body.poolId ||
-      !body.tokenMint
-    ) {
+    console.log(body);
+    if (!body.walletPublicKey || !body.amount || !body.poolId) {
       return NextResponse.json(
         { error: "Missing required parameters" },
         { status: 400 }
@@ -30,7 +24,6 @@ export async function POST(req: NextRequest) {
 
     const walletPublicKey = new PublicKey(body.walletPublicKey);
     const poolId = new PublicKey(body.poolId);
-    const tokenMint = new PublicKey(body.tokenMint);
 
     if (body.amount <= 0) {
       return NextResponse.json(
@@ -49,22 +42,24 @@ export async function POST(req: NextRequest) {
 
     const vault = vaultCheck.vault;
     const vaultTokenAccount = vaultCheck.vaultTokenAccount;
-    const [userLock] = await findUserLockPda(vault, walletPublicKey);
-    const [vaultAuthority] = await findVaultAuthorityPda(poolId, vault);
     const userTokenAccount = await getAssociatedTokenAddress(
-      tokenMint,
+      vaultCheck.tokenMint,
       walletPublicKey
     );
 
+    const tokenMint = vaultCheck.tokenMint;
+
+    const mintInfo = await getMint(connection, tokenMint);
+    const decimals = mintInfo.decimals;
+    const amountFloat = parseFloat(body.amount.toString());
+    const amountDecimal = Math.round(amountFloat * Math.pow(10, decimals));
+
     const serializedTransaction = await withdraw({
       publicKey: walletPublicKey,
-      amount: body.amount,
+      amount: amountDecimal,
       vault,
-      userLock,
       userTokenAccount,
       vaultTokenAccount,
-      vaultAuthority,
-      tokenMint,
     });
 
     return NextResponse.json({

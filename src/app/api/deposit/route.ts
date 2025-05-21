@@ -1,16 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PublicKey } from "@solana/web3.js";
 import { getAssociatedTokenAddress, getMint } from "@solana/spl-token";
-import {
-  findUserLockPda,
-  findVaultPda,
-  findVaultTokenPda,
-  findVaultAuthorityPda,
-} from "@/service/solana/pda";
 import { checkVaultExists } from "@/lib/vaultCheck";
 import { deposit, initializeVault } from "@/service/solana/action";
 import { owner } from "@/service/raydium-sdk";
 import { connection } from "@/service/solana/connection";
+import { PROGRAM_ID } from "@/service/solana/program";
 
 interface DepositRequestBody {
   walletPublicKey: string;
@@ -71,22 +66,16 @@ export async function POST(req: NextRequest) {
     let vaultCheck = await checkVaultExists(poolId);
     if (!vaultCheck.exists) {
       console.log("Vault does not exist, initializing vault...");
-      const [vault] = await findVaultPda(poolId);
-      const [vaultTokenAccount] = await findVaultTokenPda(poolId, vault);
-      const [vaultAuthority] = await findVaultAuthorityPda(poolId, vault);
 
       const [, bump] = await PublicKey.findProgramAddress(
         [Buffer.from("vault"), poolId.toBuffer()],
-        new PublicKey("Hog1fQ9MwCd6qQFoVYczbbXwEWNd3m1bnNakPGg4frK")
+        PROGRAM_ID
       );
 
       const txId = await initializeVault({
         owner,
         poolId,
         bump,
-        vault,
-        vaultTokenAccount,
-        vaultAuthority,
         tokenMint,
       });
 
@@ -103,38 +92,26 @@ export async function POST(req: NextRequest) {
 
     const vault = vaultCheck.vault;
     const vaultTokenAccount = vaultCheck.vaultTokenAccount;
-    const [userLock] = await findUserLockPda(vault, walletPublicKey);
     const userTokenAccount = await getAssociatedTokenAddress(
       tokenMint,
       walletPublicKey
     );
 
-    // Gọi hàm deposit
     const serializedTransaction = await deposit({
       publicKey: walletPublicKey,
       amount: amountDecimal,
       unlockTimestamp: body.unlockTimestamp,
       vault,
-      userLock,
       userTokenAccount,
       vaultTokenAccount,
-      tokenMint,
     });
 
     return NextResponse.json({
       success: true,
       transactions: [serializedTransaction],
     });
-  } catch (error: any) {
-    let errorMessage = error.message || "Failed to process deposit";
-    if (error.message.includes("InvalidMint")) {
-      errorMessage = "Invalid token mint";
-    } else if (error.message.includes("InvalidUnlockTimestamp")) {
-      errorMessage = "Unlock timestamp is invalid";
-    } else if (error.message.includes("ArithmeticOverflow")) {
-      errorMessage = "Arithmetic overflow error during deposit";
-    }
-    console.error("Deposit error:", error);
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+  } catch (err) {
+    console.error("Deposit error:", err);
+    return NextResponse.json({ err }, { status: 500 });
   }
 }
