@@ -18,7 +18,6 @@ interface DepositRequestBody {
 export async function POST(req: NextRequest) {
   try {
     const body: DepositRequestBody = await req.json();
-    console.log("API nhận request deposit:", body);
 
     if (
       !body.walletPublicKey ||

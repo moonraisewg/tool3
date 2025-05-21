@@ -3,17 +3,17 @@ import { PublicKey } from "@solana/web3.js";
 import { checkVaultExists } from "@/lib/vaultCheck";
 import { withdrawLiquidityFromRaydium } from "@/service/raydium-sdk";
 import { connection } from "@/service/solana/connection";
+import { getMint } from "@solana/spl-token";
 
 interface BurnRequestBody {
   walletPublicKey: string;
-  amount: string;
+  amount: number;
   poolId: string;
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body: BurnRequestBody = await req.json();
-    console.log("API nhận request burn:", body);
 
     if (!body.walletPublicKey || !body.amount || !body.poolId) {
       return NextResponse.json(
@@ -25,7 +25,6 @@ export async function POST(req: NextRequest) {
     const walletPublicKey = new PublicKey(body.walletPublicKey);
     const poolId = body.poolId;
 
-    // Kiểm tra ví có tồn tại và có số dư không
     try {
       const accountInfo = await connection.getAccountInfo(walletPublicKey);
       if (!accountInfo) {
@@ -41,8 +40,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const amount = parseFloat(body.amount);
-    if (isNaN(amount) || amount <= 0) {
+    if (body.amount <= 0) {
       return NextResponse.json(
         { error: "Amount must be positive" },
         { status: 400 }
@@ -58,10 +56,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const lpMint = new PublicKey(vaultCheck.tokenMint);
+    const mintInfo = await getMint(connection, lpMint);
+    const decimals = mintInfo.decimals;
+    const amountFloat = parseFloat(body.amount.toString());
+    const amountDecimal = Math.round(amountFloat * Math.pow(10, decimals));
+
     // Tạo transaction để burn LP token và nhận token gốc
     const serializedTransaction = await withdrawLiquidityFromRaydium({
       poolId,
-      lpAmount: body.amount,
+      lpAmount: amountDecimal,
       userPublicKey: walletPublicKey.toString(),
     });
 

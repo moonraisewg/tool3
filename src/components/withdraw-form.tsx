@@ -80,7 +80,7 @@ export default function Withdraw() {
     try {
       setLoading(true);
       if (!publicKey || !signTransaction) {
-        toast.error("Vui lòng kết nối ví trước");
+        toast.error("Please connect wallet first");
         return;
       }
 
@@ -138,6 +138,7 @@ export default function Withdraw() {
   };
 
   const setHalf = () => {
+    // const halfAmount = (Number.parseFloat(userLpBalance) / 2).toFixed(3);
     const halfAmount = (Number.parseFloat(userLpBalance) / 2).toFixed(6);
     form.setValue("amount", halfAmount);
   };
@@ -173,6 +174,7 @@ export default function Withdraw() {
           });
           const result = await response.json();
           if (response.ok && result) {
+            // setUserLpBalance(result.amount.toFixed(3));
             setUserLpBalance(result.amount);
             setUnlockInfo({
               isUnlocked: result.isUnlocked,
@@ -310,8 +312,8 @@ export default function Withdraw() {
             type="submit"
             disabled={loading || (!!unlockInfo && !unlockInfo.isUnlocked)}
             className={`w-full text-white cursor-pointer ${!!unlockInfo && !unlockInfo.isUnlocked
-                ? "bg-red-600 hover:bg-red-700 disabled:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                : "bg-gradient-to-r from-purple-600 to-purple-800 hover:from-purple-700 hover:to-purple-900 disabled:opacity-50 disabled:cursor-not-allowed"
+              ? "bg-red-600 hover:bg-red-700 disabled:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              : "bg-gradient-to-r from-purple-600 to-purple-800 hover:from-purple-700 hover:to-purple-900 disabled:opacity-50 disabled:cursor-not-allowed"
               }`}
           >
             {loading ? (

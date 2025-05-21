@@ -92,13 +92,13 @@ export const fetchLpMintAndBalanceFromRaydium = async (
         );
         balance = balanceInfo.value.uiAmount ?? 0;
       } catch (error) {
-        console.warn("Không thể lấy số dư LP token:", error);
+        console.warn("Unable to get LP token balance:", error);
       }
     }
 
     return { lpMint, balance };
   } catch (error) {
-    console.error(`Lỗi khi fetch LP info từ pool ${poolId}:`, error);
+    console.error(`Error fetching LP info from pool ${poolId}:`, error);
     return null;
   }
 };
@@ -109,12 +109,11 @@ export const withdrawLiquidityFromRaydium = async ({
   userPublicKey,
 }: {
   poolId: string;
-  lpAmount: string;
+  lpAmount: number;
   userPublicKey: string;
 }): Promise<string> => {
   try {
     const userPubkey = new PublicKey(userPublicKey);
-    // Tạo instance Raydium mới với owner là user
     const userRaydium = await Raydium.load({
       owner: new PublicKey(userPubkey),
       connection,
@@ -126,19 +125,12 @@ export const withdrawLiquidityFromRaydium = async ({
     const { poolInfo, poolKeys } = await getPoolInfoById(poolId);
     const slippage = new Percent(1, 100);
 
-    // Chuyển đổi số lượng LP token thành số nguyên với decimals
-    const lpDecimals = 9; // Raydium LP token thường có 9 decimals
-    const amount = parseFloat(lpAmount);
-    const lpAmountWithDecimals = new BN(Math.floor(amount * Math.pow(10, lpDecimals)));
+    const lpAmountWithDecimals = new BN(lpAmount);
 
-    // Kiểm tra số lượng LP token
     if (lpAmountWithDecimals.lte(new BN(0))) {
-      throw new Error("Số lượng LP token phải lớn hơn 0");
+      throw new Error("The number of LP tokens must be greater than 0");
     }
 
-    console.log("Số lượng LP token sau khi chuyển đổi:", lpAmountWithDecimals.toString());
-
-    // Tạo transaction unsigned, fee payer là user
     const { transaction } = await userRaydium.cpmm.withdrawLiquidity({
       poolInfo,
       poolKeys,
@@ -148,11 +140,10 @@ export const withdrawLiquidityFromRaydium = async ({
       feePayer: userPubkey,
     });
 
-    // Serialize transaction và chuyển thành base64
     const serialized = transaction.serialize();
     return Buffer.from(serialized).toString('base64');
   } catch (error) {
-    console.error("Lỗi khi tạo transaction rút thanh khoản:", error);
+    console.error("Error when creating liquidity withdrawal transaction:", error);
     throw error;
   }
 };

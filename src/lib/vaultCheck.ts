@@ -39,7 +39,7 @@ export const checkVaultExists = async (
       tokenMint: vaultData.tokenMint,
     };
   } catch (error: any) {
-    console.error("Lỗi khi kiểm tra vault:", error);
+    console.error("Error checking vault:", error);
     return {
       exists: false,
       vault: PublicKey.default,

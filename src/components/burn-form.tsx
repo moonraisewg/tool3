@@ -68,6 +68,8 @@ export default function Burn() {
       const result = await response.json();
       if (response.ok && result) {
         return result.balance.toFixed(3);
+      } else {
+        toast.error(result.error || "Failed to fetch LP balance. Please try again.")
       }
       return "0.00";
     } catch (error) {
@@ -85,7 +87,7 @@ export default function Burn() {
       event.preventDefault();
       const poolId = form.getValues("poolId");
       if (!publicKey) {
-        toast.error("Vui lòng kết nối ví trước khi nhập Pool ID");
+        toast.error("Please connect your wallet before entering Pool ID");
         return;
       }
       if (poolId) {
@@ -96,14 +98,14 @@ export default function Burn() {
         } catch (error: any) {
           toast.error(
             error.message ||
-            "Không thể lấy thông tin pool. Vui lòng kiểm tra Pool ID."
+            "Cannot get pool information. Please check Pool ID."
           );
           setUserLpBalance("0.00");
         } finally {
           setIsLoading(false);
         }
       } else {
-        toast.error("Vui lòng nhập Pool ID");
+        toast.error("Please enter Pool ID");
       }
     }
   };
@@ -112,23 +114,21 @@ export default function Burn() {
     try {
       setIsLoading(true);
       if (!publicKey || !signTransaction) {
-        toast.error("Vui lòng kết nối ví trước");
+        toast.error("Please connect your wallet first");
         return;
       }
 
-      // Chuyển đổi số lượng thành số thập phân với 9 chữ số thập phân
       const burnAmount = parseFloat(values.amount);
       if (isNaN(burnAmount) || burnAmount <= 0) {
-        toast.error("Số lượng burn phải lớn hơn 0");
+        toast.error("Burn amount must be greater than 0");
         return;
       }
 
       if (burnAmount > parseFloat(userLpBalance)) {
-        toast.error("Số lượng burn không được vượt quá số dư LP token");
+        toast.error("Burn amount cannot exceed your LP token balance");
         return;
       }
 
-      // Format số lượng với 9 chữ số thập phân
       const formattedAmount = burnAmount.toFixed(9);
 
       const burnData = {
@@ -148,31 +148,26 @@ export default function Burn() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Burn token thất bại");
+        throw new Error(data.error || "Burn token failed");
       }
 
       if (data.success && data.transactions && data.transactions.length > 0) {
         for (const serializedTx of data.transactions) {
           try {
-            // Chuyển đổi base64 thành buffer
             const transactionBuffer = Buffer.from(serializedTx, "base64");
 
-            // Sử dụng VersionedTransaction thay vì Transaction
             const transaction = VersionedTransaction.deserialize(transactionBuffer);
 
-            // Ký transaction
             const signedTx = await signTransaction(transaction);
             if (!signedTx) {
               throw new Error("Transaction was not signed");
             }
 
-            // Gửi transaction đã ký
             const txId = await connection.sendRawTransaction(
               signedTx.serialize(),
               { skipPreflight: false, preflightCommitment: "confirmed" }
             );
 
-            // Đợi transaction được confirm
             const confirmation = await connection.confirmTransaction(txId, "confirmed");
             if (confirmation.value.err) {
               throw new Error("Transaction failed to confirm");
@@ -182,25 +177,24 @@ export default function Burn() {
           } catch (error: any) {
             console.error("Transaction error:", error);
             if (error.message === "User rejected the request") {
-              throw new Error("Bạn đã từ chối ký giao dịch");
+              throw new Error("You rejected the transaction");
             }
-            throw new Error("Không thể ký hoặc gửi giao dịch: " + error.message);
+            throw new Error("Cannot sign or send transaction: " + error.message);
           }
         }
 
-        toast.success("Burn token thành công", {
-          description: `Bạn đã burn ${values.amount} LP token`,
+        toast.success("Burn token successful", {
+          description: `You have burned ${values.amount} LP tokens`,
         });
 
-        // Reset form và cập nhật balance
         form.reset();
         const newBalance = await fetchUserLpBalance(values.poolId);
         setUserLpBalance(newBalance);
       } else {
-        throw new Error("Không nhận được giao dịch từ API");
+        throw new Error("Not receiving transactions from API");
       }
     } catch (error: any) {
-      toast.error(error.message || "Burn token thất bại. Vui lòng thử lại.");
+      toast.error(error.message || "Burn token failed. Please try again.");
     } finally {
       setIsLoading(false);
     }

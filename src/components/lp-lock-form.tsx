@@ -92,18 +92,18 @@ export default function LpLockForm() {
     try {
       setLoading(true);
       if (!publicKey || !signTransaction) {
-        toast.error("Vui lòng kết nối ví trước");
+        toast.error("Please connect your wallet first");
         return;
       }
 
       if (!tokenMint) {
-        toast.error("Không tìm thấy thông tin token");
+        toast.error("Token information not found");
         return;
       }
 
       const unlockTimestamp = getLockTimestamp(values.lockPeriod);
       if (unlockTimestamp === 0) {
-        toast.error("Thời gian khóa không hợp lệ");
+        toast.error("Invalid lock period");
         return;
       }
 
@@ -126,7 +126,7 @@ export default function LpLockForm() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Khóa token thất bại");
+        throw new Error(data.error || "Lock token failed");
       }
 
       if (data.success && data.transactions && data.transactions.length > 0) {
@@ -141,18 +141,18 @@ export default function LpLockForm() {
             );
             await connection.confirmTransaction(txId);
           } catch (error: any) {
-            throw new Error("Không thể ký hoặc gửi giao dịch");
+            throw new Error("Cannot sign or send transaction");
           }
         }
 
-        toast.success("Khóa token thành công", {
-          description: `Bạn đã khóa ${values.amount} LP token trong ${values.lockPeriod}`,
+        toast.success("Lock token successful", {
+          description: `You have locked ${values.amount} LP tokens for ${values.lockPeriod}`,
         });
       } else {
-        throw new Error("Không nhận được giao dịch từ API");
+        throw new Error("No transaction received from API");
       }
     } catch (error: any) {
-      toast.error(error.message || "Khóa token thất bại. Vui lòng thử lại.");
+      toast.error(error.message || "Lock token failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -169,7 +169,7 @@ export default function LpLockForm() {
       event.preventDefault();
       const poolId = form.getValues("poolId");
       if (!publicKey) {
-        toast.error("Vui lòng kết nối ví trước khi nhập Pool ID");
+        toast.error("Please connect your wallet before entering Pool ID");
         return;
       }
       if (poolId) {
@@ -188,12 +188,12 @@ export default function LpLockForm() {
             setUserLpBalance(result.balance.toFixed(3));
             setTokenMint(result.lpMint);
           } else {
-            throw new Error(result.error || "Không tìm thấy thông tin pool");
+            throw new Error(result.error || "Pool information not found");
           }
         } catch (error: any) {
           toast.error(
             error.message ||
-            "Không thể lấy thông tin pool. Vui lòng kiểm tra Pool ID."
+            "Cannot get pool information. Please check Pool ID."
           );
           setUserLpBalance("0.00");
           setTokenMint("");
@@ -201,7 +201,7 @@ export default function LpLockForm() {
           setLoading(false);
         }
       } else {
-        toast.error("Vui lòng nhập Pool ID");
+        toast.error("Please enter Pool ID");
       }
     }
   };
