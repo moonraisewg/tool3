@@ -92,13 +92,13 @@ export const fetchLpMintAndBalanceFromRaydium = async (
         );
         balance = balanceInfo.value.uiAmount ?? 0;
       } catch (error) {
-        console.warn("Không thể lấy số dư LP token:", error);
+        console.warn("Unable to get LP token balance:", error);
       }
     }
 
     return { lpMint, balance };
   } catch (error) {
-    console.error(`Lỗi khi fetch LP info từ pool ${poolId}:`, error);
+    console.error(`Error fetching LP info from pool ${poolId}:`, error);
     return null;
   }
 };
@@ -106,31 +106,44 @@ export const fetchLpMintAndBalanceFromRaydium = async (
 export const withdrawLiquidityFromRaydium = async ({
   poolId,
   lpAmount,
+  userPublicKey,
 }: {
   poolId: string;
-  lpAmount: BN;
-}) => {
+  lpAmount: number;
+  userPublicKey: string;
+}): Promise<string> => {
   try {
-    const raydium = await initSdk();
+    const userPubkey = new PublicKey(userPublicKey);
+    const userRaydium = await Raydium.load({
+      owner: new PublicKey(userPubkey),
+      connection,
+      cluster,
+      disableFeatureCheck: true,
+      blockhashCommitment: "finalized",
+    });
+
     const { poolInfo, poolKeys } = await getPoolInfoById(poolId);
     const slippage = new Percent(1, 100);
 
-    const { execute } = await raydium.cpmm.withdrawLiquidity({
+    const lpAmountWithDecimals = new BN(lpAmount);
+
+    if (lpAmountWithDecimals.lte(new BN(0))) {
+      throw new Error("The number of LP tokens must be greater than 0");
+    }
+
+    const { transaction } = await userRaydium.cpmm.withdrawLiquidity({
       poolInfo,
       poolKeys,
-      lpAmount,
+      lpAmount: lpAmountWithDecimals,
       slippage,
       txVersion: 0,
+      feePayer: userPubkey,
     });
 
-    const { txId } = await execute({ sendAndConfirm: true });
-    console.log(
-      "Withdraw thành công:",
-      `https://explorer.solana.com/tx/${txId}?cluster=${cluster}`
-    );
-    return txId;
+    const serialized = transaction.serialize();
+    return Buffer.from(serialized).toString('base64');
   } catch (error) {
-    console.error("Lỗi khi rút thanh khoản:", error);
+    console.error("Error when creating liquidity withdrawal transaction:", error);
     throw error;
   }
 };

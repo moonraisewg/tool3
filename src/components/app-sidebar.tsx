@@ -18,7 +18,7 @@ const data = {
     {
       title: "Dashboard",
       icon: Home,
-      url: "#",
+      url: "/",
       isActive: true,
     },
     {

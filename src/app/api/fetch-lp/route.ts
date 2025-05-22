@@ -6,7 +6,7 @@ export async function POST(request: NextRequest) {
 
   if (!poolId) {
     return NextResponse.json(
-      { error: "Vui lòng cung cấp Pool ID" },
+      { error: "Please provide Pool ID" },
       { status: 400 }
     );
   }
@@ -17,15 +17,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(result);
     } else {
       return NextResponse.json(
-        { error: "Không tìm thấy thông tin pool hoặc ví chưa kết nối" },
+        { error: "Pool information not found or wallet not connected" },
         { status: 404 }
       );
     }
-  } catch (error: any) {
-    console.error("Lỗi trong API fetch-lp:", error);
-    return NextResponse.json(
-      { error: error.message || "Không thể lấy thông tin pool" },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    console.error("Error in fetch-lp API:", error);
+
+    let errorMessage = "Unable to get pool information";
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

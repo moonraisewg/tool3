@@ -92,18 +92,18 @@ export default function LpLockForm() {
     try {
       setLoading(true);
       if (!publicKey || !signTransaction) {
-        toast.error("Vui lòng kết nối ví trước");
+        toast.error("Please connect your wallet first");
         return;
       }
 
       if (!tokenMint) {
-        toast.error("Không tìm thấy thông tin token");
+        toast.error("Token information not found");
         return;
       }
 
       const unlockTimestamp = getLockTimestamp(values.lockPeriod);
       if (unlockTimestamp === 0) {
-        toast.error("Thời gian khóa không hợp lệ");
+        toast.error("Invalid lock period");
         return;
       }
 
@@ -126,7 +126,7 @@ export default function LpLockForm() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Khóa token thất bại");
+        throw new Error(data.error || "Lock token failed");
       }
 
       if (data.success && data.transactions && data.transactions.length > 0) {
@@ -140,19 +140,24 @@ export default function LpLockForm() {
               signedTx.serialize()
             );
             await connection.confirmTransaction(txId);
-          } catch (error: any) {
-            throw new Error("Không thể ký hoặc gửi giao dịch");
+          } catch (error: unknown) {
+            console.error("Transaction error:", error);
+            throw new Error("Cannot sign or send transaction");
           }
         }
 
-        toast.success("Khóa token thành công", {
-          description: `Bạn đã khóa ${values.amount} LP token trong ${values.lockPeriod}`,
+        toast.success("Lock token successful", {
+          description: `You have locked ${values.amount} LP tokens for ${values.lockPeriod}`,
         });
       } else {
-        throw new Error("Không nhận được giao dịch từ API");
+        throw new Error("No transaction received from API");
       }
-    } catch (error: any) {
-      toast.error(error.message || "Khóa token thất bại. Vui lòng thử lại.");
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Lock token failed. Please try again.";
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -169,7 +174,7 @@ export default function LpLockForm() {
       event.preventDefault();
       const poolId = form.getValues("poolId");
       if (!publicKey) {
-        toast.error("Vui lòng kết nối ví trước khi nhập Pool ID");
+        toast.error("Please connect your wallet before entering Pool ID");
         return;
       }
       if (poolId) {
@@ -188,20 +193,21 @@ export default function LpLockForm() {
             setUserLpBalance(result.balance.toFixed(3));
             setTokenMint(result.lpMint);
           } else {
-            throw new Error(result.error || "Không tìm thấy thông tin pool");
+            throw new Error(result.error || "Pool information not found");
           }
-        } catch (error: any) {
-          toast.error(
-            error.message ||
-              "Không thể lấy thông tin pool. Vui lòng kiểm tra Pool ID."
-          );
+        } catch (error: unknown) {
+          const message = error instanceof Error
+            ? error.message
+            : "Cannot get pool information. Please check Pool ID.";
+
+          toast.error(message);
           setUserLpBalance("0.00");
           setTokenMint("");
         } finally {
           setLoading(false);
         }
       } else {
-        toast.error("Vui lòng nhập Pool ID");
+        toast.error("Please enter Pool ID");
       }
     }
   };
@@ -261,19 +267,47 @@ export default function LpLockForm() {
             )}
           />
 
-          <Card className="border-gray-300 bg-white">
-            <CardContent className="py-2 px-4 pt-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm">
-                  <Wallet className="h-4 w-4 text-purple-400" />
-                  <span className="text-gray-700">Your LP Balance</span>
+          <FormField
+            control={form.control}
+            name="amount"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-gray-900">Lock Amount</FormLabel>
+                <div className="flex items-center gap-2">
+                  <FormControl>
+                    <Input
+                      className="border-gray-300 bg-white text-gray-900 focus:border-purple-500 focus:ring-purple-500"
+                      placeholder="0.00"
+                      {...field}
+                      disabled={loading}
+                    />
+                  </FormControl>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="border-gray-300 bg-white text-gray-700 hover:bg-purple-100 hover:text-purple-900"
+                    onClick={setHalf}
+                    disabled={loading}
+                  >
+                    Half
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="border-gray-300 bg-white text-gray-700 hover:bg-purple-100 hover:text-purple-900"
+                    onClick={setMax}
+                    disabled={loading}
+                  >
+                    Max
+                  </Button>
                 </div>
-                <div className="font-medium text-gray-900">
-                  {loading ? "Loading..." : `${userLpBalance} LP`}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
 
           <FormField
             control={form.control}
@@ -321,46 +355,22 @@ export default function LpLockForm() {
             )}
           />
 
-          <FormField
-            control={form.control}
-            name="amount"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-gray-900">Lock Amount</FormLabel>
-                <div className="flex items-center gap-2">
-                  <FormControl>
-                    <Input
-                      className="border-gray-300 bg-white text-gray-900 focus:border-purple-500 focus:ring-purple-500"
-                      placeholder="0.00"
-                      {...field}
-                      disabled={loading}
-                    />
-                  </FormControl>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="border-gray-300 bg-white text-gray-700 hover:bg-purple-100 hover:text-purple-900"
-                    onClick={setHalf}
-                    disabled={loading}
-                  >
-                    Half
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="border-gray-300 bg-white text-gray-700 hover:bg-purple-100 hover:text-purple-900"
-                    onClick={setMax}
-                    disabled={loading}
-                  >
-                    Max
-                  </Button>
+
+          <Card className="border-gray-300 bg-white">
+            <CardContent className="py-2 px-4 pt-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm">
+                  <Wallet className="h-4 w-4 text-purple-400" />
+                  <span className="text-gray-700">Your LP Balance</span>
                 </div>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                <div className="font-medium text-gray-900">
+                  {loading ? "Loading..." : `${userLpBalance} LP`}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+
 
           <div className="rounded-md border border-gray-300 bg-gray-50 p-4">
             <div className="flex items-center justify-between text-sm">
@@ -371,9 +381,9 @@ export default function LpLockForm() {
               <span className="text-gray-500">Unlock Date</span>
               {form.watch("lockPeriod")
                 ? format(
-                    fromUnixTime(getLockTimestamp(form.watch("lockPeriod"))),
-                    "dd/MM/yyyy"
-                  )
+                  fromUnixTime(getLockTimestamp(form.watch("lockPeriod"))),
+                  "dd/MM/yyyy"
+                )
                 : "--"}
             </div>
           </div>
