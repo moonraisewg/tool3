@@ -222,8 +222,11 @@ export default function LpLockForm() {
   };
 
   return (
-    <div className="rounded-lg border border-gray-500 bg-white p-6 shadow-sm">
-      <Form {...form}>
+    <div className="border-gear p-2 w-[550px]">
+      <div className="text-2xl font-bold text-gray-900 mb-6 flex items-center justify-center">
+        Lock LP Tokens
+      </div>
+      <Form {...form} >
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <FormField
             control={form.control}
@@ -390,13 +393,16 @@ export default function LpLockForm() {
 
           <Button
             type="submit"
-            className="w-full bg-gradient-to-r from-purple-600 to-purple-800 text-white hover:from-purple-700 hover:to-purple-900"
+            className="w-full"
+            variant="default"
             disabled={loading}
           >
             Lock LP Token
           </Button>
         </form>
       </Form>
+
     </div>
+
   );
 }
