@@ -126,3 +126,26 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+
+.border-gear {
+  box-shadow:
+    8px 0 white, 
+    -8px 0 white, 
+    0 -8px white, 
+    0 8px white,
+    2px 0 0 4px white,
+    -2px 0 0 4px white,
+    0 -2px 0 4px white,
+    0 2px 0 4px white,
+    10px 0 rgb(88, 88, 88), 
+    -10px 0 rgb(88, 88, 88),
+    0 -10px rgb(88, 88, 88), 
+    0 10px rgb(88, 88, 88),
+    0 0 0 6px rgb(88, 88, 88),
+    0 4px 0 4px rgb(88, 88, 88),
+    0 -4px 0 4px rgb(88, 88, 88),
+    4px 0 0 4px rgb(88, 88, 88),
+    -4px 0 0 4px rgb(88, 88, 88);
+  margin: 10px auto;
+}
