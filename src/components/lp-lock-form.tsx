@@ -61,7 +61,7 @@ export default function LpLockForm() {
 
     switch (period) {
       case "6months":
-        unlockDate = add(now, { minutes: 10 });
+        unlockDate = add(now, { minutes: 5 });
         break;
       case "1year":
         unlockDate = add(now, { years: 1 });
@@ -129,26 +129,31 @@ export default function LpLockForm() {
         throw new Error(data.error || "Lock token failed");
       }
 
-      if (data.success && data.transactions && data.transactions.length > 0) {
-        for (const serializedTx of data.transactions) {
+      if (data.success && data.transaction) {
+        try {
           const transaction = Transaction.from(
-            Buffer.from(serializedTx, "base64")
+            Buffer.from(data.transaction, "base64")
           );
-          try {
-            const signedTx = await signTransaction(transaction);
-            const txId = await connection.sendRawTransaction(
-              signedTx.serialize()
-            );
-            await connection.confirmTransaction(txId);
-          } catch (error: unknown) {
-            console.error("Transaction error:", error);
-            throw new Error("Cannot sign or send transaction");
-          }
-        }
 
-        toast.success("Lock token successful", {
-          description: `You have locked ${values.amount} LP tokens for ${values.lockPeriod}`,
-        });
+          const signedTx = await signTransaction(transaction);
+
+          const txId = await connection.sendRawTransaction(
+            signedTx.serialize()
+          );
+
+          await connection.confirmTransaction({
+            signature: txId,
+            blockhash: data.blockhash,
+            lastValidBlockHeight: data.lastValidBlockHeight,
+          });
+
+          toast.success("Lock token successful", {
+            description: `You have locked ${values.amount} LP tokens for ${values.lockPeriod}`,
+          });
+        } catch (error: unknown) {
+          console.error("Transaction error:", error);
+          throw new Error("Cannot sign or send transaction");
+        }
       } else {
         throw new Error("No transaction received from API");
       }
@@ -196,9 +201,10 @@ export default function LpLockForm() {
             throw new Error(result.error || "Pool information not found");
           }
         } catch (error: unknown) {
-          const message = error instanceof Error
-            ? error.message
-            : "Cannot get pool information. Please check Pool ID.";
+          const message =
+            error instanceof Error
+              ? error.message
+              : "Cannot get pool information. Please check Pool ID.";
 
           toast.error(message);
           setUserLpBalance("0.00");
@@ -226,7 +232,7 @@ export default function LpLockForm() {
       <div className="text-2xl font-bold text-gray-900 mb-6 flex items-center justify-center">
         Lock LP Tokens
       </div>
-      <Form {...form} >
+      <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <FormField
             control={form.control}
@@ -311,7 +317,6 @@ export default function LpLockForm() {
             )}
           />
 
-
           <FormField
             control={form.control}
             name="lockPeriod"
@@ -358,7 +363,6 @@ export default function LpLockForm() {
             )}
           />
 
-
           <Card className="border-gray-300 bg-white">
             <CardContent className="py-2 px-4 pt-4">
               <div className="flex items-center justify-between">
@@ -373,8 +377,6 @@ export default function LpLockForm() {
             </CardContent>
           </Card>
 
-
-
           <div className="rounded-md border border-gray-300 bg-gray-50 p-4">
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-500">Estimated APR</span>
@@ -384,9 +386,9 @@ export default function LpLockForm() {
               <span className="text-gray-500">Unlock Date</span>
               {form.watch("lockPeriod")
                 ? format(
-                  fromUnixTime(getLockTimestamp(form.watch("lockPeriod"))),
-                  "dd/MM/yyyy"
-                )
+                    fromUnixTime(getLockTimestamp(form.watch("lockPeriod"))),
+                    "dd/MM/yyyy"
+                  )
                 : "--"}
             </div>
           </div>
@@ -401,8 +403,6 @@ export default function LpLockForm() {
           </Button>
         </form>
       </Form>
-
     </div>
-
   );
 }

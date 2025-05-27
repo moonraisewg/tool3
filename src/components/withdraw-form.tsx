@@ -103,31 +103,36 @@ export default function Withdraw() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Token withdrawal failed.");
+        throw new Error(data.error || "Token withdrawal failed");
       }
 
-      if (data.success && data.transactions && data.transactions.length > 0) {
-        for (const serializedTx of data.transactions) {
+      if (data.success && data.transaction) {
+        try {
           const transaction = Transaction.from(
-            Buffer.from(serializedTx, "base64")
+            Buffer.from(data.transaction, "base64")
           );
-          try {
-            const signedTx = await signTransaction(transaction);
-            const txId = await connection.sendRawTransaction(
-              signedTx.serialize()
-            );
-            await connection.confirmTransaction(txId);
-          } catch (error: unknown) {
-            console.error("Error signing or sending transaction:", error);
-            throw new Error("Unable to sign or send the transaction.");
-          }
-        }
 
-        toast.success("Withdraw token successfully", {
-          description: `You have withdrawn ${values.amount} LP token `,
-        });
+          const signedTx = await signTransaction(transaction);
+
+          const txId = await connection.sendRawTransaction(
+            signedTx.serialize()
+          );
+
+          await connection.confirmTransaction({
+            signature: txId,
+            blockhash: data.blockhash,
+            lastValidBlockHeight: data.lastValidBlockHeight,
+          });
+
+          toast.success("Withdraw token successful", {
+            description: `You have withdrawn ${values.amount} LP tokens`,
+          });
+        } catch (error: unknown) {
+          console.error("Transaction error:", error);
+          throw new Error("Cannot sign or send transaction");
+        }
       } else {
-        throw new Error("Did not receive the transaction from the API.");
+        throw new Error("No transaction received from API");
       }
     } catch (error: unknown) {
       const message =
@@ -186,9 +191,10 @@ export default function Withdraw() {
             throw new Error(result.error || "Pool information not found.");
           }
         } catch (error: unknown) {
-          const message = error instanceof Error
-            ? error.message
-            : "Unable to fetch pool information. Please check the Pool ID.";
+          const message =
+            error instanceof Error
+              ? error.message
+              : "Unable to fetch pool information. Please check the Pool ID.";
 
           toast.error(message);
           setUserLpBalance("0.00");
@@ -257,7 +263,9 @@ export default function Withdraw() {
               name="amount"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-gray-900">Withdraw Amount</FormLabel>
+                  <FormLabel className="text-gray-900">
+                    Withdraw Amount
+                  </FormLabel>
                   <div className="flex items-center gap-2">
                     <FormControl>
                       <Input
@@ -315,10 +323,11 @@ export default function Withdraw() {
             <Button
               type="submit"
               disabled={loading || (!!unlockInfo && !unlockInfo.isUnlocked)}
-              className={`w-full text-white cursor-pointer ${!!unlockInfo && !unlockInfo.isUnlocked
-                ? "disabled:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                : " disabled:opacity-50 disabled:cursor-not-allowed"
-                }`}
+              className={`w-full text-white cursor-pointer ${
+                !!unlockInfo && !unlockInfo.isUnlocked
+                  ? "disabled:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  : " disabled:opacity-50 disabled:cursor-not-allowed"
+              }`}
               variant="default"
             >
               {loading ? (
@@ -334,6 +343,7 @@ export default function Withdraw() {
             </Button>
           </form>
         </Form>
-      </div></div >
+      </div>
+    </div>
   );
 }
