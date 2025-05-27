@@ -7,7 +7,7 @@ import WalletProviderComponent from "@/components/wallet-provider";
 import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
-  title: "DiptsTool",
+  title: "Tool3",
 };
 
 export default function RootLayout({
