@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import Header from "@/components/header";
 import WalletProviderComponent from "@/components/wallet-provider";
@@ -22,8 +22,12 @@ export default function RootLayout({
           <AppSidebar />
           <div className="flex flex-col flex-1">
             <WalletProviderComponent>
-              <Header />
-              <main className="flex-1">{children}</main>
+              <div className="flex justify-between items-center px-4 py-4 border-b border-gray-800 h-[60px]">
+                <SidebarTrigger />
+                <Header />
+              </div>
+
+              <main className="flex-1"> {children}</main>
               <Toaster />
             </WalletProviderComponent>
           </div>
