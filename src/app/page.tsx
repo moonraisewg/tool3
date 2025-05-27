@@ -23,9 +23,9 @@ export default function Home() {
             </div>
 
             {/* Right Column - Stats */}
-            <div className="bg-gray-900/50 rounded-xl p-4">
+            <div className="bg-gray-900/50 rounded-xl p-4 max-w-[100vw]">
               <div>diptszyx</div>
-              <span>AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz</span>
+              <span className="truncate block">AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz</span>
             </div>
           </div>
         </div>
