@@ -41,7 +41,7 @@ export function AppSidebar() {
     <Sidebar className="border-r border-gray-800">
       <SidebarHeader className="border-b border-gray-800 h-[60px]">
         <div className="flex items-center gap-2 px-4 py-2">
-          <span className="text-lg">DIPTS TOOL</span>
+          <span className="text-lg">TOOL3</span>
         </div>
       </SidebarHeader>
       <SidebarContent>

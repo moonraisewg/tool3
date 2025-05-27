@@ -90,8 +90,6 @@ export default function Withdraw() {
         poolId: values.poolId,
       };
 
-      console.log(withdrawData);
-
       const response = await fetch("/api/withdraw", {
         method: "POST",
         headers: {
@@ -323,11 +321,10 @@ export default function Withdraw() {
             <Button
               type="submit"
               disabled={loading || (!!unlockInfo && !unlockInfo.isUnlocked)}
-              className={`w-full text-white cursor-pointer ${
-                !!unlockInfo && !unlockInfo.isUnlocked
+              className={`w-full text-white cursor-pointer ${!!unlockInfo && !unlockInfo.isUnlocked
                   ? "disabled:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
                   : " disabled:opacity-50 disabled:cursor-not-allowed"
-              }`}
+                }`}
               variant="default"
             >
               {loading ? (

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PublicKey, Transaction } from "@solana/web3.js";
 import { getAssociatedTokenAddress, getMint } from "@solana/spl-token";
-import { checkVaultExists, getTokenProgram } from "@/lib/helper";
+import { checkVaultExists } from "@/lib/helper";
 import { deposit, initializeVault } from "@/service/solana/action";
 
 import { connection } from "@/service/solana/connection";
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
 
     const transaction = new Transaction();
 
-    let vaultCheck = await checkVaultExists(poolId);
+    const vaultCheck = await checkVaultExists(poolId);
     const {
       vault,
       vaultTokenAccount,
@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
       lastValidBlockHeight,
     });
   } catch (error: unknown) {
-    let errorMessage = "Failed to process withdraw";
+    const errorMessage = "Failed to process withdraw";
 
     console.error("Deposit error:", error);
 

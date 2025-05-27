@@ -4,13 +4,12 @@ import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { CalendarClock, Info, Wallet } from "lucide-react";
+import { Info, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -354,10 +353,6 @@ export default function LpLockForm() {
                     <SelectItem value="3years">3 years</SelectItem>
                   </SelectContent>
                 </Select>
-                <FormDescription className="flex items-center gap-1 text-gray-500">
-                  <CalendarClock className="h-3 w-3" />
-                  Longer lock periods may yield higher rewards
-                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -379,16 +374,12 @@ export default function LpLockForm() {
 
           <div className="rounded-md border border-gray-300 bg-gray-50 p-4">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-500">Estimated APR</span>
-              <span className="font-medium text-purple-600">5%</span>
-            </div>
-            <div className="mt-2 flex items-center justify-between text-sm">
               <span className="text-gray-500">Unlock Date</span>
               {form.watch("lockPeriod")
                 ? format(
-                    fromUnixTime(getLockTimestamp(form.watch("lockPeriod"))),
-                    "dd/MM/yyyy"
-                  )
+                  fromUnixTime(getLockTimestamp(form.watch("lockPeriod"))),
+                  "dd/MM/yyyy"
+                )
                 : "--"}
             </div>
           </div>
