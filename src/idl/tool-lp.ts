@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/tool_lp.json`.
  */
 export type ToolLp = {
-  address: "Hog1fQ9MwCd6qQFoVYczbbXwEWNd3m1bnNakPGg4frK";
+  address: "DduTe3VFPwWGN2EBh8FZ1GSnXe7VFotp1A8eej7qwgX2";
   metadata: {
     name: "toolLp";
     version: "0.1.0";
@@ -56,11 +56,20 @@ export type ToolLp = {
         },
         {
           name: "tokenMint";
-          relations: ["vault"];
+        },
+        {
+          name: "poolState";
+        },
+        {
+          name: "token0Vault";
+          writable: true;
+        },
+        {
+          name: "token1Vault";
+          writable: true;
         },
         {
           name: "tokenProgram";
-          address: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
         },
         {
           name: "clock";
@@ -96,8 +105,8 @@ export type ToolLp = {
                 value: [118, 97, 117, 108, 116];
               },
               {
-                kind: "arg";
-                path: "poolId";
+                kind: "account";
+                path: "poolState";
               }
             ];
           };
@@ -106,6 +115,21 @@ export type ToolLp = {
           name: "initializer";
           writable: true;
           signer: true;
+        },
+        {
+          name: "token0Vault";
+        },
+        {
+          name: "token1Vault";
+        },
+        {
+          name: "vault0Mint";
+        },
+        {
+          name: "vault1Mint";
+        },
+        {
+          name: "poolState";
         },
         {
           name: "tokenMint";
@@ -120,8 +144,8 @@ export type ToolLp = {
                 value: [118, 97, 117, 108, 116, 45, 116, 111, 107, 101, 110];
               },
               {
-                kind: "arg";
-                path: "poolId";
+                kind: "account";
+                path: "poolState";
               },
               {
                 kind: "account";
@@ -129,6 +153,14 @@ export type ToolLp = {
               }
             ];
           };
+        },
+        {
+          name: "vaultToken0Account";
+          writable: true;
+        },
+        {
+          name: "vaultToken1Account";
+          writable: true;
         },
         {
           name: "vaultAuthority";
@@ -155,8 +187,8 @@ export type ToolLp = {
                 ];
               },
               {
-                kind: "arg";
-                path: "poolId";
+                kind: "account";
+                path: "poolState";
               },
               {
                 kind: "account";
@@ -171,36 +203,136 @@ export type ToolLp = {
         },
         {
           name: "tokenProgram";
-          address: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
         },
         {
-          name: "rent";
-          address: "SysvarRent111111111111111111111111111111111";
-        }
-      ];
-      args: [
-        {
-          name: "poolId";
-          type: "pubkey";
+          name: "token0Program";
         },
         {
-          name: "bump";
-          type: "u8";
+          name: "token1Program";
+        },
+        {
+          name: "associatedTokenProgram";
+          address: "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
         }
       ];
+      args: [];
     },
     {
-      name: "proxyWithdraw";
-      discriminator: [118, 12, 163, 77, 70, 15, 67, 252];
+      name: "withdraw";
+      discriminator: [183, 18, 70, 156, 148, 109, 161, 34];
       accounts: [
+        {
+          name: "vault";
+          writable: true;
+        },
+        {
+          name: "user";
+          writable: true;
+          signer: true;
+        },
+        {
+          name: "userLock";
+          writable: true;
+          pda: {
+            seeds: [
+              {
+                kind: "const";
+                value: [117, 115, 101, 114, 45, 108, 111, 99, 107];
+              },
+              {
+                kind: "account";
+                path: "vault";
+              },
+              {
+                kind: "account";
+                path: "user";
+              }
+            ];
+          };
+        },
+        {
+          name: "vaultTokenAccount";
+          writable: true;
+        },
+        {
+          name: "vaultToken0Account";
+          writable: true;
+        },
+        {
+          name: "vaultToken1Account";
+          writable: true;
+        },
+        {
+          name: "userToken0Account";
+          writable: true;
+        },
+        {
+          name: "userToken1Account";
+          writable: true;
+        },
+        {
+          name: "admin";
+          address: "4WbU9nksassGissHNW7bSXZrYDsLKrjSDE7WxnLWfys1";
+        },
+        {
+          name: "adminToken0Account";
+          writable: true;
+        },
+        {
+          name: "adminToken1Account";
+          writable: true;
+        },
+        {
+          name: "token0Vault";
+          writable: true;
+        },
+        {
+          name: "token1Vault";
+          writable: true;
+        },
+        {
+          name: "vaultAuthority";
+          pda: {
+            seeds: [
+              {
+                kind: "const";
+                value: [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  45,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ];
+              },
+              {
+                kind: "account";
+                path: "vault.pool_state";
+                account: "vault";
+              },
+              {
+                kind: "account";
+                path: "vault";
+              }
+            ];
+          };
+        },
+        {
+          name: "poolState";
+          writable: true;
+        },
         {
           name: "cpSwapProgram";
           address: "CPMDWBwJDtYax9qW7AyRuVC19Cc4L4Vcy4n2BHAbHkCW";
-        },
-        {
-          name: "owner";
-          docs: ["Pays to mint the position"];
-          signer: true;
         },
         {
           name: "authority";
@@ -246,163 +378,44 @@ export type ToolLp = {
           };
         },
         {
-          name: "poolState";
-          docs: ["Pool state account"];
-          writable: true;
-        },
-        {
-          name: "ownerLpToken";
-          docs: ["Owner lp token account"];
-          writable: true;
-        },
-        {
-          name: "token0Account";
-          docs: ["The owner's token account for receive token_0"];
-          writable: true;
-        },
-        {
-          name: "token1Account";
-          docs: ["The owner's token account for receive token_1"];
-          writable: true;
-        },
-        {
-          name: "token0Vault";
-          docs: ["The address that holds pool tokens for token_0"];
-          writable: true;
-        },
-        {
-          name: "token1Vault";
-          docs: ["The address that holds pool tokens for token_1"];
-          writable: true;
-        },
-        {
-          name: "tokenProgram";
-          docs: ["token Program"];
-          address: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
-        },
-        {
-          name: "tokenProgram2022";
-          docs: ["Token program 2022"];
-          address: "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
+          name: "tokenMint";
+          relations: ["vault"];
         },
         {
           name: "vault0Mint";
-          docs: ["The mint of token_0 vault"];
         },
         {
           name: "vault1Mint";
-          docs: ["The mint of token_1 vault"];
         },
         {
           name: "lpMint";
-          docs: ["Pool lp token mint"];
           writable: true;
+        },
+        {
+          name: "token0Program";
+        },
+        {
+          name: "token1Program";
+        },
+        {
+          name: "tokenProgram";
+        },
+        {
+          name: "tokenProgram2022";
+          address: "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
         },
         {
           name: "memoProgram";
           docs: ["memo program"];
           address: "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";
-        }
-      ];
-      args: [
-        {
-          name: "lpTokenAmount";
-          type: "u64";
         },
         {
-          name: "minimumToken0Amount";
-          type: "u64";
+          name: "associatedTokenProgram";
+          address: "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
         },
         {
-          name: "minimumToken1Amount";
-          type: "u64";
-        }
-      ];
-    },
-    {
-      name: "withdraw";
-      discriminator: [183, 18, 70, 156, 148, 109, 161, 34];
-      accounts: [
-        {
-          name: "vault";
-          writable: true;
-        },
-        {
-          name: "user";
-          writable: true;
-          signer: true;
-        },
-        {
-          name: "userLock";
-          writable: true;
-          pda: {
-            seeds: [
-              {
-                kind: "const";
-                value: [117, 115, 101, 114, 45, 108, 111, 99, 107];
-              },
-              {
-                kind: "account";
-                path: "vault";
-              },
-              {
-                kind: "account";
-                path: "user";
-              }
-            ];
-          };
-        },
-        {
-          name: "userTokenAccount";
-          writable: true;
-        },
-        {
-          name: "vaultTokenAccount";
-          writable: true;
-        },
-        {
-          name: "vaultAuthority";
-          pda: {
-            seeds: [
-              {
-                kind: "const";
-                value: [
-                  118,
-                  97,
-                  117,
-                  108,
-                  116,
-                  45,
-                  97,
-                  117,
-                  116,
-                  104,
-                  111,
-                  114,
-                  105,
-                  116,
-                  121
-                ];
-              },
-              {
-                kind: "account";
-                path: "vault.pool_id";
-                account: "vault";
-              },
-              {
-                kind: "account";
-                path: "vault";
-              }
-            ];
-          };
-        },
-        {
-          name: "tokenMint";
-          relations: ["vault"];
-        },
-        {
-          name: "tokenProgram";
-          address: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
+          name: "systemProgram";
+          address: "11111111111111111111111111111111";
         },
         {
           name: "clock";
@@ -411,7 +424,7 @@ export type ToolLp = {
       ];
       args: [
         {
-          name: "amount";
+          name: "lpTokenAmount";
           type: "u64";
         }
       ];
@@ -471,6 +484,21 @@ export type ToolLp = {
       code: 6005;
       name: "invalidUnlockTimestamp";
       msg: "Invalid unlock timestamp";
+    },
+    {
+      code: 6006;
+      name: "invalidTokenVault";
+      msg: "Invalid token vault";
+    },
+    {
+      code: 6007;
+      name: "invalidTokenProgram";
+      msg: "Invalid token program";
+    },
+    {
+      code: 6008;
+      name: "vaultTokenAccountNotInitialized";
+      msg: "Vault token account not initialized";
     }
   ];
   types: [
@@ -488,7 +516,7 @@ export type ToolLp = {
             type: "pubkey";
           },
           {
-            name: "poolId";
+            name: "poolState";
             type: "pubkey";
           },
           {
@@ -656,6 +684,14 @@ export type ToolLp = {
           {
             name: "unlockTimestamp";
             type: "i64";
+          },
+          {
+            name: "depositTokenPerLp0";
+            type: "u64";
+          },
+          {
+            name: "depositTokenPerLp1";
+            type: "u64";
           }
         ];
       };
@@ -666,7 +702,7 @@ export type ToolLp = {
         kind: "struct";
         fields: [
           {
-            name: "poolId";
+            name: "poolState";
             type: "pubkey";
           },
           {
@@ -702,11 +738,27 @@ export type ToolLp = {
             type: "pubkey";
           },
           {
-            name: "poolId";
+            name: "poolState";
             type: "pubkey";
           },
           {
-            name: "amount";
+            name: "lpAmount";
+            type: "u64";
+          },
+          {
+            name: "token0Amount";
+            type: "u64";
+          },
+          {
+            name: "token1Amount";
+            type: "u64";
+          },
+          {
+            name: "fee0Amount";
+            type: "u64";
+          },
+          {
+            name: "fee1Amount";
             type: "u64";
           },
           {

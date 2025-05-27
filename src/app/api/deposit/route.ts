@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PublicKey } from "@solana/web3.js";
+import { PublicKey, Transaction } from "@solana/web3.js";
 import { getAssociatedTokenAddress, getMint } from "@solana/spl-token";
-import { checkVaultExists } from "@/lib/vaultCheck";
+import { checkVaultExists, getTokenProgram } from "@/lib/helper";
 import { deposit, initializeVault } from "@/service/solana/action";
-import { owner } from "@/service/raydium-sdk";
+
 import { connection } from "@/service/solana/connection";
-import { PROGRAM_ID } from "@/service/solana/program";
 
 interface DepositRequestBody {
   walletPublicKey: string;
@@ -38,7 +37,6 @@ export async function POST(req: NextRequest) {
 
     const mintInfo = await getMint(connection, tokenMint);
     const decimals = mintInfo.decimals;
-
     const amountFloat = parseFloat(body.amount.toString());
     if (isNaN(amountFloat) || amountFloat <= 0) {
       return NextResponse.json(
@@ -48,13 +46,6 @@ export async function POST(req: NextRequest) {
     }
     const amountDecimal = Math.round(amountFloat * Math.pow(10, decimals));
 
-    if (body.amount <= 0) {
-      return NextResponse.json(
-        { error: "Amount must be positive" },
-        { status: 400 }
-      );
-    }
-
     if (body.unlockTimestamp <= Math.floor(Date.now() / 1000)) {
       return NextResponse.json(
         { error: "Unlock timestamp must be in the future" },
@@ -62,55 +53,85 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const transaction = new Transaction();
+
     let vaultCheck = await checkVaultExists(poolId);
+    const {
+      vault,
+      vaultTokenAccount,
+      raydiumToken0Vault,
+      raydiumToken1Vault,
+      token0Mint,
+      token1Mint,
+      token0Program,
+      token1Program,
+      tokenProgram,
+      projectVaultToken0Account,
+      projectVaultToken1Account,
+    } = vaultCheck;
+
     if (!vaultCheck.exists) {
       console.log("Vault does not exist, initializing vault...");
 
-      const [, bump] = await PublicKey.findProgramAddress(
-        [Buffer.from("vault"), poolId.toBuffer()],
-        PROGRAM_ID
-      );
-
-      const txId = await initializeVault({
-        owner,
-        poolId,
-        bump,
+      const initInstruction = await initializeVault({
+        publicKey: walletPublicKey,
+        poolState: poolId,
         tokenMint,
+        tokenProgram,
+        token0Program,
+        token0Vault: raydiumToken0Vault,
+        token1Program,
+        token1Vault: raydiumToken1Vault,
+        vault0Mint: token0Mint,
+        vault1Mint: token1Mint,
+        vaultToken0Account: projectVaultToken0Account,
+        vaultToken1Account: projectVaultToken1Account,
       });
-
-      console.log("Vault initialized, txId:", txId);
-
-      vaultCheck = await checkVaultExists(poolId);
-      if (!vaultCheck.exists) {
-        return NextResponse.json(
-          { error: "Failed to initialize vault" },
-          { status: 500 }
-        );
-      }
+      transaction.add(initInstruction);
     }
 
-    const vault = vaultCheck.vault;
-    const vaultTokenAccount = vaultCheck.vaultTokenAccount;
     const userTokenAccount = await getAssociatedTokenAddress(
       tokenMint,
-      walletPublicKey
+      walletPublicKey,
+      false,
+      tokenProgram
     );
 
-    const serializedTransaction = await deposit({
+    const depositInstruction = await deposit({
       publicKey: walletPublicKey,
       amount: amountDecimal,
       unlockTimestamp: body.unlockTimestamp,
-      vault,
       userTokenAccount,
       vaultTokenAccount,
+      token0Vault: raydiumToken0Vault,
+      token1Vault: raydiumToken1Vault,
+      tokenProgram,
+      poolState: poolId,
+      vault,
+      tokenMint,
     });
+    transaction.add(depositInstruction);
+
+    const { blockhash, lastValidBlockHeight } =
+      await connection.getLatestBlockhash();
+    transaction.recentBlockhash = blockhash;
+    transaction.feePayer = walletPublicKey;
+
+    const serializedTransaction = transaction
+      .serialize({ requireAllSignatures: false })
+      .toString("base64");
 
     return NextResponse.json({
       success: true,
-      transactions: [serializedTransaction],
+      transaction: serializedTransaction,
+      blockhash,
+      lastValidBlockHeight,
     });
-  } catch (err) {
-    console.error("Deposit error:", err);
-    return NextResponse.json({ err }, { status: 500 });
+  } catch (error: unknown) {
+    let errorMessage = "Failed to process withdraw";
+
+    console.error("Deposit error:", error);
+
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

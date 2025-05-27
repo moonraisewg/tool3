@@ -13,7 +13,7 @@ export const getUserLockInfo = async ({
   amount: BN;
   unlockTimestamp: BN;
 }> => {
-  const [userLock] = await findUserLockPda(vault, userPublicKey);
+  const [userLock] = findUserLockPda(vault, userPublicKey);
   try {
     const userLockAccount = await program.account.userLock.fetch(userLock);
 

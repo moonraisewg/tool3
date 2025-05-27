@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PublicKey } from "@solana/web3.js";
 import { getUserLockInfo } from "@/hooks/fetch-user-lock";
-import { checkVaultExists } from "@/lib/vaultCheck";
+import { checkVaultExists } from "@/lib/helper";
 import { getMint } from "@solana/spl-token";
 import { connection } from "@/service/solana/connection";
 
@@ -57,9 +57,6 @@ export async function POST(req: NextRequest) {
       errorMessage = error.message;
     }
 
-    return NextResponse.json(
-      { error: errorMessage },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
