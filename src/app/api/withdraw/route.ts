@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { PublicKey, Transaction, SendTransactionError } from "@solana/web3.js";
 import {
-  PublicKey,
-  Transaction,
-  SendTransactionError
-} from "@solana/web3.js";
-import { getAssociatedTokenAddress, getMint } from "@solana/spl-token";
+  getAssociatedTokenAddress,
+  getMint,
+  createAssociatedTokenAccountInstruction,
+} from "@solana/spl-token";
 import { checkVaultExists } from "@/lib/helper";
 import { withdraw } from "@/service/solana/action";
 import { connection } from "@/service/solana/connection";
@@ -64,28 +64,6 @@ export async function POST(req: NextRequest) {
     } = vaultCheck;
     const poolState = poolId;
 
-    if (
-      !token0Mint ||
-      !token1Mint ||
-      !poolState ||
-      !raydiumToken0Vault ||
-      !raydiumToken1Vault ||
-      !lpMint
-    ) {
-      console.error("Incomplete vault data:", {
-        token0Mint,
-        token1Mint,
-        poolState,
-        raydiumToken0Vault,
-        raydiumToken1Vault,
-        lpMint,
-      });
-      return NextResponse.json(
-        { error: "Incomplete vault data. Please contact admin." },
-        { status: 400 }
-      );
-    }
-
     const lpMintInfo = await getMint(connection, new PublicKey(lpMint));
     const decimals = lpMintInfo.decimals;
 
@@ -112,10 +90,6 @@ export async function POST(req: NextRequest) {
       token1Program
     );
 
-    const ownerLpToken = await getAssociatedTokenAddress(
-      lpMint,
-      walletPublicKey
-    );
     const adminToken0Account = await getAssociatedTokenAddress(
       token0Mint,
       new PublicKey("4WbU9nksassGissHNW7bSXZrYDsLKrjSDE7WxnLWfys1"),
@@ -129,58 +103,77 @@ export async function POST(req: NextRequest) {
       token1Program
     );
 
-    const accountStates = await Promise.all([
-      connection.getAccountInfo(vault),
-      connection.getAccountInfo(vaultTokenAccount),
-      connection.getAccountInfo(raydiumToken0Vault),
-      connection.getAccountInfo(raydiumToken1Vault),
-      connection.getAccountInfo(token0Mint),
-      connection.getAccountInfo(token1Mint),
-      connection.getAccountInfo(poolState),
-      connection.getAccountInfo(lpMint),
-      connection.getAccountInfo(userToken0Account),
-      connection.getAccountInfo(userToken1Account),
-      connection.getAccountInfo(ownerLpToken),
-      connection.getAccountInfo(adminToken0Account),
-      connection.getAccountInfo(adminToken1Account),
-    ]);
+    const transaction = new Transaction();
 
-    if (
-      !accountStates[0] ||
-      !accountStates[1] ||
-      !accountStates[2] ||
-      !accountStates[3] ||
-      !accountStates[4] ||
-      !accountStates[5] ||
-      !accountStates[6] ||
-      !accountStates[7] ||
-      !accountStates[8] ||
-      !accountStates[9] ||
-      !accountStates[10] ||
-      !accountStates[11] ||
-      !accountStates[12]
-    ) {
-      console.error("Missing required accounts:", {
-        vault: !accountStates[0],
-        vaultTokenAccount: !accountStates[1],
-        token0Vault: !accountStates[2],
-        token1Vault: !accountStates[3],
-        token0Mint: !accountStates[4],
-        token1Mint: !accountStates[5],
-        poolState: !accountStates[6],
-        lpMint: !accountStates[7],
-        userToken0Account: !accountStates[8],
-        userToken1Account: !accountStates[9],
-        ownerLpToken: !accountStates[10],
-        adminToken0Account: !accountStates[11],
-        adminToken1Account: !accountStates[12],
-      });
-      return NextResponse.json(
-        { error: "One or more required accounts are not initialized" },
-        { status: 400 }
+    try {
+      const userToken0AccountInfo = await connection.getAccountInfo(
+        userToken0Account
+      );
+      if (!userToken0AccountInfo) {
+        console.log(
+          "Creating user token 0 account:",
+          userToken0Account.toBase58()
+        );
+        transaction.add(
+          createAssociatedTokenAccountInstruction(
+            walletPublicKey,
+            userToken0Account,
+            walletPublicKey,
+            token0Mint,
+            token0Program
+          )
+        );
+      }
+    } catch (error) {
+      console.log(
+        "Error checking user token 0 account, creating new one:",
+        error
+      );
+      transaction.add(
+        createAssociatedTokenAccountInstruction(
+          walletPublicKey,
+          userToken0Account,
+          walletPublicKey,
+          token0Mint,
+          token0Program
+        )
       );
     }
 
+    try {
+      const userToken1AccountInfo = await connection.getAccountInfo(
+        userToken1Account
+      );
+      if (!userToken1AccountInfo) {
+        console.log(
+          "Creating user token 1 account:",
+          userToken1Account.toBase58()
+        );
+        transaction.add(
+          createAssociatedTokenAccountInstruction(
+            walletPublicKey,
+            userToken1Account,
+            walletPublicKey,
+            token1Mint,
+            token1Program
+          )
+        );
+      }
+    } catch (error) {
+      console.log(
+        "Error checking user token 1 account, creating new one:",
+        error
+      );
+      transaction.add(
+        createAssociatedTokenAccountInstruction(
+          walletPublicKey,
+          userToken1Account,
+          walletPublicKey,
+          token1Mint,
+          token1Program
+        )
+      );
+    }
 
     const withdrawInstruction = await withdraw({
       publicKey: walletPublicKey,
@@ -204,10 +197,11 @@ export async function POST(req: NextRequest) {
       vaultTokenAccount,
     });
 
+    transaction.add(withdrawInstruction);
+
     const { blockhash, lastValidBlockHeight } =
       await connection.getLatestBlockhash();
 
-    const transaction = new Transaction().add(withdrawInstruction);
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = walletPublicKey;
 
@@ -230,8 +224,9 @@ export async function POST(req: NextRequest) {
         message: error.message,
         logs,
       });
-      errorMessage = `Transaction failed: ${error.message
-        }. Logs: ${JSON.stringify(logs)}`;
+      errorMessage = `Transaction failed: ${
+        error.message
+      }. Logs: ${JSON.stringify(logs)}`;
     } else if (error instanceof Error) {
       if (error.message.includes("LockNotYetExpired")) {
         errorMessage = "Lock period has not yet expired";
