@@ -2,8 +2,8 @@ import Withdraw from "@/components/withdraw-form";
 
 export default function WithdrawLP() {
   return (
-    <div className="min-h-screen py-8">
-      <div className="container mx-auto px-4 overflow-y-auto max-h-screen">
+    <div className="h-full flex md:items-center mt-10 md:mt-0">
+      <div className="container mx-auto px-4">
         <Withdraw />
       </div>
     </div>
