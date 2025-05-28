@@ -1,5 +1,5 @@
 'use client'
-import { Home, LockIcon, Anvil } from "lucide-react";
+import { Home, LockIcon, Anvil, Repeat } from "lucide-react";
 
 import {
   Sidebar,
@@ -32,6 +32,11 @@ const data = {
       title: "Withdraw LP",
       icon: Anvil,
       url: "/withdraw-lp",
+    },
+    {
+      title: "Transfer",
+      icon: Repeat,
+      url: "/transfer",
     },
   ],
 };

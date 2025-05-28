@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { connection } from "../service/solana/connection";
 import { Transaction } from "@solana/web3.js";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const formatRemainingTime = (seconds: number): string => {
   if (seconds <= 0) return "Locked";
@@ -59,6 +60,7 @@ const formSchema = z.object({
 });
 
 export default function Withdraw() {
+  const isMobile = useIsMobile()
   const [loading, setLoading] = useState(false);
   const [userLpBalance, setUserLpBalance] = useState("0.00");
   const { publicKey, signTransaction } = useWallet();
@@ -206,141 +208,139 @@ export default function Withdraw() {
   };
 
   return (
-    <div className="flex items-center justify-center h-[calc(100vh-100px)]">
-      <div className="space-y-6 border-gear p-4 w-[550px] py-8">
-        <div className="text-2xl font-bold text-gray-900 mb-10 flex items-center justify-center ">
-          Withdraw LP Tokens
-        </div>
-
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <FormField
-              control={form.control}
-              name="poolId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-gray-900">
-                    Pool ID
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Info className="ml-2 h-4 w-4 text-gray-500 mb-[3px]" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>
-                            Enter the unique identifier for the liquidity pool
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <Input
-                        className="border-gray-300 bg-white text-gray-900 focus:border-purple-500 focus:ring-purple-500"
-                        placeholder="Enter Pool ID"
-                        {...field}
-                        onChange={(e) => handlePoolIdChange(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        disabled={loading}
-                      />
-                      {loading && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          <div className="h-5 w-5 animate-spin rounded-full border-4 border-purple-600 border-t-transparent"></div>
-                        </div>
-                      )}
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="amount"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-gray-900">
-                    Withdraw Amount
-                  </FormLabel>
-                  <div className="flex items-center gap-2">
-                    <FormControl>
-                      <Input
-                        type="number"
-                        className="border-gray-300 bg-white text-gray-900 focus:border-purple-500 focus:ring-purple-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        placeholder="0.00"
-                        disabled={!!unlockInfo && !unlockInfo.isUnlocked}
-                        {...field}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          if (Number(value) >= 0) {
-                            field.onChange(value);
-                          }
-                        }}
-                      />
-                    </FormControl>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="border-gray-300 bg-white text-gray-700 hover:bg-purple-100 hover:text-purple-900 cursor-pointer"
-                      onClick={setHalf}
-                    >
-                      Half
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="border-gray-300 bg-white text-gray-700 hover:bg-purple-100 hover:text-purple-900 cursor-pointer"
-                      onClick={setMax}
-                    >
-                      Max
-                    </Button>
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <Card className="border-gray-300 bg-white">
-              <CardContent className="py-0 px-4 pt-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Wallet className="h-4 w-4 text-purple-400" />
-                    <span className="text-gray-700">Your LP Balance</span>
-                  </div>
-                  <div className="font-medium text-gray-900">
-                    {userLpBalance} LP
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Button
-              type="submit"
-              disabled={loading || (!!unlockInfo && !unlockInfo.isUnlocked)}
-              className={`w-full text-white cursor-pointer ${!!unlockInfo && !unlockInfo.isUnlocked
-                  ? "disabled:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                  : " disabled:opacity-50 disabled:cursor-not-allowed"
-                }`}
-              variant="default"
-            >
-              {loading ? (
-                <span className="flex items-center justify-center">
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processing...
-                </span>
-              ) : !!unlockInfo && !unlockInfo.isUnlocked ? (
-                formatRemainingTime(unlockInfo.remainingTime)
-              ) : (
-                "Withdraw Tokens"
-              )}
-            </Button>
-          </form>
-        </Form>
+    <div className={`md:p-2 max-w-[550px] mx-auto my-2 ${!isMobile && "border-gear"}`}>
+      <div className="text-2xl font-bold text-gray-900 mb-10 flex items-center justify-center ">
+        Withdraw LP Tokens
       </div>
+
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <FormField
+            control={form.control}
+            name="poolId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-gray-900">
+                  Pool ID
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="ml-2 h-4 w-4 text-gray-500 mb-[3px]" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>
+                          Enter the unique identifier for the liquidity pool
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </FormLabel>
+                <FormControl>
+                  <div className="relative">
+                    <Input
+                      className="border-gray-300 bg-white text-gray-900 focus:border-purple-500 focus:ring-purple-500"
+                      placeholder="Enter Pool ID"
+                      {...field}
+                      onChange={(e) => handlePoolIdChange(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      disabled={loading}
+                    />
+                    {loading && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <div className="h-5 w-5 animate-spin rounded-full border-4 border-purple-600 border-t-transparent"></div>
+                      </div>
+                    )}
+                  </div>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="amount"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-gray-900">
+                  Withdraw Amount
+                </FormLabel>
+                <div className="flex items-center gap-2">
+                  <FormControl>
+                    <Input
+                      type="number"
+                      className="border-gray-300 bg-white text-gray-900 focus:border-purple-500 focus:ring-purple-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      placeholder="0.00"
+                      disabled={!!unlockInfo && !unlockInfo.isUnlocked}
+                      {...field}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (Number(value) >= 0) {
+                          field.onChange(value);
+                        }
+                      }}
+                    />
+                  </FormControl>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="border-gray-300 bg-white text-gray-700 hover:bg-purple-100 hover:text-purple-900 cursor-pointer"
+                    onClick={setHalf}
+                  >
+                    Half
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="border-gray-300 bg-white text-gray-700 hover:bg-purple-100 hover:text-purple-900 cursor-pointer"
+                    onClick={setMax}
+                  >
+                    Max
+                  </Button>
+                </div>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <Card className="border-gray-300 bg-white">
+            <CardContent className="py-2 px-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm">
+                  <Wallet className="h-4 w-4 text-purple-400" />
+                  <span className="text-gray-700">Your LP Balance</span>
+                </div>
+                <div className="font-medium text-gray-900">
+                  {userLpBalance} LP
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Button
+            type="submit"
+            disabled={loading || (!!unlockInfo && !unlockInfo.isUnlocked)}
+            className={`w-full text-white cursor-pointer ${!!unlockInfo && !unlockInfo.isUnlocked
+              ? "disabled:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              : " disabled:opacity-50 disabled:cursor-not-allowed"
+              }`}
+            variant="default"
+          >
+            {loading ? (
+              <span className="flex items-center justify-center">
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Processing...
+              </span>
+            ) : !!unlockInfo && !unlockInfo.isUnlocked ? (
+              formatRemainingTime(unlockInfo.remainingTime)
+            ) : (
+              "Withdraw Tokens"
+            )}
+          </Button>
+        </form>
+      </Form>
     </div>
   );
 }

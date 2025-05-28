@@ -34,6 +34,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { connection } from "../service/solana/connection";
 import { Transaction } from "@solana/web3.js";
 import { add, format, fromUnixTime } from "date-fns";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const formSchema = z.object({
   poolId: z.string().min(1, {
@@ -48,6 +49,7 @@ const formSchema = z.object({
 });
 
 export default function LpLockForm() {
+  const isMobile = useIsMobile()
   const [userLpBalance, setUserLpBalance] = useState("0.00");
   const [tokenMint, setTokenMint] = useState("");
   const [loading, setLoading] = useState(false);
@@ -227,7 +229,7 @@ export default function LpLockForm() {
   };
 
   return (
-    <div className="border-gear p-2 w-[550px]">
+    <div className={`md:p-2 max-w-[550px] mx-auto my-2 ${!isMobile && "border-gear"}`}>
       <div className="text-2xl font-bold text-gray-900 mb-6 flex items-center justify-center">
         Lock LP Tokens
       </div>
@@ -288,6 +290,12 @@ export default function LpLockForm() {
                       placeholder="0.00"
                       {...field}
                       disabled={loading}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (Number(value) >= 0) {
+                          field.onChange(value);
+                        }
+                      }}
                     />
                   </FormControl>
                   <Button
@@ -359,7 +367,7 @@ export default function LpLockForm() {
           />
 
           <Card className="border-gray-300 bg-white">
-            <CardContent className="py-2 px-4 pt-4">
+            <CardContent className="py-2 px-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm">
                   <Wallet className="h-4 w-4 text-purple-400" />

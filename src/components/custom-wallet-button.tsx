@@ -70,7 +70,7 @@ export default function WalletConnectButton() {
               ) : (
                 <>
                   <Wallet className="h-4 w-4" />
-                  Connect
+                  Connect Wallet
                 </>
               )}
             </Button>
