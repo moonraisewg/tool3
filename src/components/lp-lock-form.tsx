@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation"; // 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -49,20 +50,20 @@ const formSchema = z.object({
 });
 
 export default function LpLockForm() {
-  const isMobile = useIsMobile()
+  const isMobile = useIsMobile();
   const [userLpBalance, setUserLpBalance] = useState("0.00");
   const [tokenMint, setTokenMint] = useState("");
   const [loading, setLoading] = useState(false);
   const { publicKey, signTransaction } = useWallet();
+  const searchParams = useSearchParams();
 
   const getLockTimestamp = (period: string): number => {
     const now = new Date();
-
     let unlockDate: Date;
 
     switch (period) {
       case "6months":
-        unlockDate = add(now, { minutes: 5 });
+        unlockDate = add(now, { minutes: 15 });
         break;
       case "1year":
         unlockDate = add(now, { years: 1 });
@@ -88,6 +89,45 @@ export default function LpLockForm() {
       amount: "",
     },
   });
+
+
+  const fetchPoolInfo = useCallback(
+    async (poolId: string) => {
+      if (!publicKey) {
+        toast.error("Please connect your wallet before fetching pool info");
+        return;
+      }
+      try {
+        setLoading(true);
+        const response = await fetch("/api/fetch-lp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            poolId,
+            userPublicKey: publicKey.toString(),
+          }),
+        });
+        const result = await response.json();
+        if (response.ok && result) {
+          setUserLpBalance(result.balance.toFixed(3));
+          setTokenMint(result.lpMint);
+        } else {
+          throw new Error(result.error || "Pool information not found");
+        }
+      } catch (error: unknown) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Cannot get pool information. Please check Pool ID.";
+        toast.error(message);
+        setUserLpBalance("0.00");
+        setTokenMint("");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [publicKey]
+  );
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
@@ -179,40 +219,8 @@ export default function LpLockForm() {
     if (event.key === "Enter") {
       event.preventDefault();
       const poolId = form.getValues("poolId");
-      if (!publicKey) {
-        toast.error("Please connect your wallet before entering Pool ID");
-        return;
-      }
       if (poolId) {
-        try {
-          setLoading(true);
-          const response = await fetch("/api/fetch-lp", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              poolId,
-              userPublicKey: publicKey.toString(),
-            }),
-          });
-          const result = await response.json();
-          if (response.ok && result) {
-            setUserLpBalance(result.balance.toFixed(3));
-            setTokenMint(result.lpMint);
-          } else {
-            throw new Error(result.error || "Pool information not found");
-          }
-        } catch (error: unknown) {
-          const message =
-            error instanceof Error
-              ? error.message
-              : "Cannot get pool information. Please check Pool ID.";
-
-          toast.error(message);
-          setUserLpBalance("0.00");
-          setTokenMint("");
-        } finally {
-          setLoading(false);
-        }
+        await fetchPoolInfo(poolId);
       } else {
         toast.error("Please enter Pool ID");
       }
@@ -227,6 +235,15 @@ export default function LpLockForm() {
   const setMax = () => {
     form.setValue("amount", userLpBalance);
   };
+
+  useEffect(() => {
+    const poolId = searchParams.get("poolId");
+    if (poolId && publicKey) {
+      form.setValue("poolId", poolId);
+      fetchPoolInfo(poolId);
+    }
+  }, [searchParams, publicKey, fetchPoolInfo, form]);
+
 
   return (
     <div className={`md:p-2 max-w-[550px] mx-auto my-2 ${!isMobile && "border-gear"}`}>

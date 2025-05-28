@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { ChevronDown, Wallet } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -56,7 +56,7 @@ const SelectToken: React.FC<SelectTokenProps> = ({ onTokenSelect, onAmountChange
         setIsModalOpen(false);
     };
 
-    async function fetchAllTokens() {
+    const fetchAllTokens = useCallback(async () => {
         if (!publicKey) {
             setTokens([]);
             setSelectedToken(null);
@@ -125,11 +125,8 @@ const SelectToken: React.FC<SelectTokenProps> = ({ onTokenSelect, onAmountChange
         } finally {
             setLoading(false);
         }
-    }
+    }, [publicKey, selectedToken, onTokenSelect]);
 
-    useEffect(() => {
-        fetchAllTokens();
-    }, []);
 
     const setHalf = () => {
         if (selectedToken) {
@@ -153,22 +150,22 @@ const SelectToken: React.FC<SelectTokenProps> = ({ onTokenSelect, onAmountChange
             onAmountChange("");
             return;
         }
-
         const numValue = parseFloat(value);
         if (isNaN(numValue) || numValue < 0) {
             toast.error("Please enter a valid positive number");
             return;
         }
-
         if (selectedToken && numValue > parseFloat(selectedToken.balance)) {
             toast.error(`Amount exceeds available balance of ${selectedToken.balance} ${selectedToken.symbol}`);
             return;
         }
-
         setAmount(value);
         onAmountChange(value);
     };
 
+    useEffect(() => {
+        fetchAllTokens();
+    }, [publicKey, fetchAllTokens]);
 
     return (
         <div className="bg-white border rounded-lg p-3 flex flex-col min-h-[120px] shadow-lg justify-between">

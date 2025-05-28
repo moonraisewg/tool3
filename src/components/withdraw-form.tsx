@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -60,7 +61,7 @@ const formSchema = z.object({
 });
 
 export default function Withdraw() {
-  const isMobile = useIsMobile()
+  const isMobile = useIsMobile();
   const [loading, setLoading] = useState(false);
   const [userLpBalance, setUserLpBalance] = useState("0.00");
   const { publicKey, signTransaction } = useWallet();
@@ -69,6 +70,7 @@ export default function Withdraw() {
     unlockTimestamp: number;
     remainingTime: number;
   } | null>(null);
+  const searchParams = useSearchParams(); // Get URL query parameters
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -77,6 +79,51 @@ export default function Withdraw() {
       amount: "",
     },
   });
+
+
+
+
+  const fetchPoolInfo = useCallback(
+    async (poolId: string) => {
+      if (!publicKey) {
+        toast.error("Please connect your wallet before fetching pool info");
+        return;
+      }
+      try {
+        setLoading(true);
+        const response = await fetch("/api/fetch-user-lock", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            poolId,
+            walletPublicKey: publicKey.toString(),
+          }),
+        });
+        const result = await response.json();
+        if (response.ok && result) {
+          setUserLpBalance(result.amount.toFixed(3));
+          setUnlockInfo({
+            isUnlocked: result.isUnlocked,
+            unlockTimestamp: Number(result.unlockTimestamp),
+            remainingTime: result.remainingTime,
+          });
+        } else {
+          throw new Error(result.error || "Pool information not found.");
+        }
+      } catch (error: unknown) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Unable to fetch pool information. Please check the Pool ID.";
+        toast.error(message);
+        setUserLpBalance("0.00");
+        setUnlockInfo(null);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [publicKey, setUserLpBalance, setUnlockInfo, setLoading]
+  );
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
@@ -164,48 +211,21 @@ export default function Withdraw() {
     if (event.key === "Enter") {
       const poolId = form.getValues("poolId")?.trim();
       event.preventDefault();
-      if (!publicKey) {
-        toast.error("Please connect your wallet before entering the Pool ID.");
-        return;
-      }
       if (poolId) {
-        try {
-          setLoading(true);
-          const response = await fetch("/api/fetch-user-lock", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              poolId,
-              walletPublicKey: publicKey.toString(),
-            }),
-          });
-          const result = await response.json();
-          if (response.ok && result) {
-            setUserLpBalance(result.amount.toFixed(3));
-            setUnlockInfo({
-              isUnlocked: result.isUnlocked,
-              unlockTimestamp: Number(result.unlockTimestamp),
-              remainingTime: result.remainingTime,
-            });
-          } else {
-            throw new Error(result.error || "Pool information not found.");
-          }
-        } catch (error: unknown) {
-          const message =
-            error instanceof Error
-              ? error.message
-              : "Unable to fetch pool information. Please check the Pool ID.";
-
-          toast.error(message);
-          setUserLpBalance("0.00");
-        } finally {
-          setLoading(false);
-        }
+        await fetchPoolInfo(poolId);
       } else {
         toast.error("Please enter the Pool ID.");
       }
     }
   };
+
+  useEffect(() => {
+    const poolId = searchParams.get("poolId")?.trim();
+    if (poolId && publicKey) {
+      form.setValue("poolId", poolId);
+      fetchPoolInfo(poolId);
+    }
+  }, [searchParams, publicKey, fetchPoolInfo, form]);
 
   return (
     <div className={`md:p-2 max-w-[550px] mx-auto my-2 ${!isMobile && "border-gear"}`}>
