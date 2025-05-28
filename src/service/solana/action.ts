@@ -1,6 +1,9 @@
 import { BN } from "@coral-xyz/anchor";
 import { PublicKey, TransactionInstruction } from "@solana/web3.js";
 import { program } from "./program";
+import { findUserLockPda } from "./pda";
+import { getAccount } from "@solana/spl-token";
+import { connection } from "./connection";
 
 export const initializeVault = async ({
   publicKey,
@@ -154,3 +157,74 @@ export const withdraw = async ({
     })
     .instruction();
 };
+
+
+export interface PoolInfo {
+  vaultAddress: PublicKey;
+  poolState: PublicKey;
+  totalLocked: bigint;
+  token0Mint: PublicKey;
+  token1Mint: PublicKey;
+  vault0Amount: bigint;
+  vault1Amount: bigint;
+  lpMintDecimals: number;
+  userLockedAmount: bigint;
+  lpRatio: number;
+}
+
+export async function getAllPoolsWithUserRatio(
+  userPublicKey: PublicKey
+): Promise<PoolInfo[]> {
+  try {
+    const vaultAccounts = await program.account.vault.all();
+
+    const poolInfos: PoolInfo[] = [];
+
+    for (const vaultAccount of vaultAccounts) {
+      const vault = vaultAccount.account;
+      const vaultAddress = vaultAccount.publicKey;
+
+      const poolStateAccount = await program.account.poolState.fetch(vault.poolState);
+
+      const token0VaultAccount = await getAccount(connection, poolStateAccount.token0Vault);
+      const token1VaultAccount = await getAccount(connection, poolStateAccount.token1Vault);
+
+      const vault0Amount = BigInt(token0VaultAccount.amount.toString());
+      const vault1Amount = BigInt(token1VaultAccount.amount.toString());
+
+      const [userLockPda] = findUserLockPda(vaultAddress, userPublicKey);
+      let userLockedAmount = BigInt(0);
+      let lpRatio = 0;
+
+      try {
+        const userLockAccount = await program.account.userLock.fetch(userLockPda);
+        userLockedAmount = BigInt(userLockAccount.amount.toString());
+
+        const lpSupply = BigInt(poolStateAccount.lpSupply.toString());
+        lpRatio = lpSupply > 0 ? (Number(userLockedAmount) / Number(lpSupply)) * 100 : 0;
+      } catch (error) {
+        if (error instanceof Error && !error.message.includes("Account does not exist")) {
+          console.warn(`Unexpected error fetching userLock for ${userLockPda.toBase58()}:`, error);
+        }
+      }
+
+      poolInfos.push({
+        vaultAddress,
+        poolState: vault.poolState,
+        totalLocked: BigInt(vault.totalLocked.toString()),
+        token0Mint: poolStateAccount.token0Mint,
+        token1Mint: poolStateAccount.token1Mint,
+        vault0Amount,
+        vault1Amount,
+        lpMintDecimals: poolStateAccount.lpMintDecimals,
+        userLockedAmount,
+        lpRatio,
+      });
+    }
+
+    return poolInfos;
+  } catch (error) {
+    console.error("Error fetching all pools with user ratio:", error);
+    throw error;
+  }
+}
