@@ -159,72 +159,90 @@ export const withdraw = async ({
 };
 
 
-export interface PoolInfo {
+export interface UserPoolInfo {
   vaultAddress: PublicKey;
   poolState: PublicKey;
-  totalLocked: bigint;
+  lockedAmount: bigint;
+  unlockTimestamp: bigint;
+  depositTokenPerLp0: bigint;
+  depositTokenPerLp1: bigint;
   token0Mint: PublicKey;
   token1Mint: PublicKey;
   vault0Amount: bigint;
   vault1Amount: bigint;
   lpMintDecimals: number;
-  userLockedAmount: bigint;
-  lpRatio: number;
+  lpRatio?: number;
+  vault0Address?: PublicKey;
+  vault1Address?: PublicKey;
 }
 
-export async function getAllPoolsWithUserRatio(
+export async function getUserLockedPools(
   userPublicKey: PublicKey
-): Promise<PoolInfo[]> {
+): Promise<UserPoolInfo[]> {
   try {
-    const vaultAccounts = await program.account.vault.all();
+    const userLockAccounts = await program.account.userLock.all([
+      {
+        memcmp: {
+          offset: 8,
+          bytes: userPublicKey.toBase58(),
+        },
+      },
+    ]);
 
-    const poolInfos: PoolInfo[] = [];
+    const userPoolInfos: UserPoolInfo[] = [];
 
-    for (const vaultAccount of vaultAccounts) {
-      const vault = vaultAccount.account;
-      const vaultAddress = vaultAccount.publicKey;
+    for (const userLock of userLockAccounts) {
+      const userLockData = userLock.account;
+      const userLockPubkey = userLock.publicKey;
 
-      const poolStateAccount = await program.account.poolState.fetch(vault.poolState);
+      const vaultAccounts = await program.account.vault.all();
 
-      const token0VaultAccount = await getAccount(connection, poolStateAccount.token0Vault);
-      const token1VaultAccount = await getAccount(connection, poolStateAccount.token1Vault);
+      for (const vaultAccount of vaultAccounts) {
+        const vault = vaultAccount.account;
+        const vaultAddress = vaultAccount.publicKey;
 
-      const vault0Amount = BigInt(token0VaultAccount.amount.toString());
-      const vault1Amount = BigInt(token1VaultAccount.amount.toString());
+        const [expectedUserLockPda] = findUserLockPda(vaultAddress, userPublicKey);
+        if (expectedUserLockPda.equals(userLockPubkey)) {
+          const poolStateAccount = await program.account.poolState.fetch(vault.poolState);
 
-      const [userLockPda] = findUserLockPda(vaultAddress, userPublicKey);
-      let userLockedAmount = BigInt(0);
-      let lpRatio = 0;
 
-      try {
-        const userLockAccount = await program.account.userLock.fetch(userLockPda);
-        userLockedAmount = BigInt(userLockAccount.amount.toString());
+          const token0VaultAccount = await getAccount(connection, poolStateAccount.token0Vault);
+          const token1VaultAccount = await getAccount(connection, poolStateAccount.token1Vault);
 
-        const lpSupply = BigInt(poolStateAccount.lpSupply.toString());
-        lpRatio = lpSupply > 0 ? (Number(userLockedAmount) / Number(lpSupply)) * 100 : 0;
-      } catch (error) {
-        if (error instanceof Error && !error.message.includes("Account does not exist")) {
-          console.warn(`Unexpected error fetching userLock for ${userLockPda.toBase58()}:`, error);
+          const vault0Amount = BigInt(token0VaultAccount.amount.toString());
+          const vault1Amount = BigInt(token1VaultAccount.amount.toString());
+
+
+          const lpSupply = BigInt(poolStateAccount.lpSupply.toString());
+          const lpRatio = lpSupply > 0 ? (Number(userLockData.amount) / Number(lpSupply)) * 100 : 0;
+
+          console.log("=== Vault ===", JSON.stringify(vault, null, 2));
+          console.log("=== UserLock ===", JSON.stringify(userLockData, null, 2));
+          console.log("=== PoolState ===", JSON.stringify(poolStateAccount, null, 2));
+
+          userPoolInfos.push({
+            vaultAddress,
+            poolState: vault.poolState,
+            lockedAmount: BigInt(userLockData.amount.toString()),
+            unlockTimestamp: BigInt(userLockData.unlockTimestamp.toString()),
+            depositTokenPerLp0: BigInt(userLockData.depositTokenPerLp0.toString()),
+            depositTokenPerLp1: BigInt(userLockData.depositTokenPerLp1.toString()),
+            token0Mint: poolStateAccount.token0Mint,
+            token1Mint: poolStateAccount.token1Mint,
+            vault0Amount,
+            vault1Amount,
+            lpMintDecimals: poolStateAccount.lpMintDecimals,
+            vault0Address: poolStateAccount.token0Vault,
+            vault1Address: poolStateAccount.token1Vault,
+            lpRatio
+          });
         }
       }
-
-      poolInfos.push({
-        vaultAddress,
-        poolState: vault.poolState,
-        totalLocked: BigInt(vault.totalLocked.toString()),
-        token0Mint: poolStateAccount.token0Mint,
-        token1Mint: poolStateAccount.token1Mint,
-        vault0Amount,
-        vault1Amount,
-        lpMintDecimals: poolStateAccount.lpMintDecimals,
-        userLockedAmount,
-        lpRatio,
-      });
     }
 
-    return poolInfos;
+    return userPoolInfos;
   } catch (error) {
-    console.error("Error fetching all pools with user ratio:", error);
+    console.error("Error fetching user locked pools:", error);
     throw error;
   }
 }

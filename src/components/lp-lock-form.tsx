@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useSearchParams } from "next/navigation"; // 
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -36,6 +36,7 @@ import { connection } from "../service/solana/connection";
 import { Transaction } from "@solana/web3.js";
 import { add, format, fromUnixTime } from "date-fns";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { debounce } from "lodash";
 
 const formSchema = z.object({
   poolId: z.string().min(1, {
@@ -90,11 +91,14 @@ export default function LpLockForm() {
     },
   });
 
-
   const fetchPoolInfo = useCallback(
     async (poolId: string) => {
       if (!publicKey) {
         toast.error("Please connect your wallet before fetching pool info");
+        return;
+      }
+      if (!poolId) {
+        toast.error("Please enter a Pool ID");
         return;
       }
       try {
@@ -128,6 +132,12 @@ export default function LpLockForm() {
     },
     [publicKey]
   );
+
+  const debouncedFetchPoolInfo = useMemo(() => {
+    return debounce((poolId: string) => {
+      fetchPoolInfo(poolId);
+    }, 1000);
+  }, [fetchPoolInfo]);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
@@ -188,9 +198,25 @@ export default function LpLockForm() {
             lastValidBlockHeight: data.lastValidBlockHeight,
           });
 
-          toast.success("Lock token successful", {
-            description: `You have locked ${values.amount} LP tokens for ${values.lockPeriod}`,
-          });
+          toast.success(
+            <div>
+              Lock token successful
+              <div>
+                You have locked {values.amount} LP tokens for {values.lockPeriod}
+              </div>
+              <a
+                href={`https://solscan.io/tx/${txId}?cluster=devnet`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-500 underline"
+              >
+                View on Solscan
+              </a>
+            </div>,
+            {
+              duration: 10000,
+            }
+          );
         } catch (error: unknown) {
           console.error("Transaction error:", error);
           throw new Error("Cannot sign or send transaction");
@@ -209,22 +235,9 @@ export default function LpLockForm() {
     }
   };
 
-  const handlePoolIdChange = async (value: string) => {
+  const handlePoolIdChange = (value: string) => {
     form.setValue("poolId", value);
-  };
-
-  const handleKeyDown = async (
-    event: React.KeyboardEvent<HTMLInputElement>
-  ) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      const poolId = form.getValues("poolId");
-      if (poolId) {
-        await fetchPoolInfo(poolId);
-      } else {
-        toast.error("Please enter Pool ID");
-      }
-    }
+    debouncedFetchPoolInfo(value);
   };
 
   const setHalf = () => {
@@ -243,8 +256,6 @@ export default function LpLockForm() {
       fetchPoolInfo(poolId);
     }
   }, [searchParams, publicKey, fetchPoolInfo, form]);
-
-
   return (
     <div className={`md:p-2 max-w-[550px] mx-auto my-2 ${!isMobile && "border-gear"}`}>
       <div className="text-2xl font-bold text-gray-900 mb-6 flex items-center justify-center">
@@ -279,7 +290,6 @@ export default function LpLockForm() {
                       placeholder="Enter Pool ID"
                       {...field}
                       onChange={(e) => handlePoolIdChange(e.target.value)}
-                      onKeyDown={handleKeyDown}
                       disabled={loading}
                     />
                     {loading && (
@@ -319,7 +329,7 @@ export default function LpLockForm() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="border-gray-300 bg-white text-gray-700 hover:bg-purple-100 hover:text-purple-900"
+                    className="border-gray-300 bg-white text-gray-700 hover:bg-purple-100 hover:text-purple-900 cursor-pointer"
                     onClick={setHalf}
                     disabled={loading}
                   >
@@ -329,7 +339,7 @@ export default function LpLockForm() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="border-gray-300 bg-white text-gray-700 hover:bg-purple-100 hover:text-purple-900"
+                    className="border-gray-300 bg-white text-gray-700 hover:bg-purple-100 hover:text-purple-900 cursor-pointer"
                     onClick={setMax}
                     disabled={loading}
                   >
@@ -411,7 +421,7 @@ export default function LpLockForm() {
 
           <Button
             type="submit"
-            className="w-full"
+            className="w-full cursor-pointer"
             variant="default"
             disabled={loading}
           >

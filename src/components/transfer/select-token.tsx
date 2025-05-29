@@ -126,8 +126,6 @@ const SelectToken: React.FC<SelectTokenProps> = ({ onTokenSelect, onAmountChange
             setLoading(false);
         }
     }, [publicKey, selectedToken, onTokenSelect]);
-
-
     const setHalf = () => {
         if (selectedToken) {
             const halfBalance = (parseFloat(selectedToken.balance) / 2).toFixed(selectedToken.decimals || 2);
@@ -205,16 +203,21 @@ const SelectToken: React.FC<SelectTokenProps> = ({ onTokenSelect, onAmountChange
 
             <div className="flex justify-between items-center mb-2 mt-4">
                 <button
+                    type="button"
                     onClick={() => setIsModalOpen(true)}
-                    className="flex items-center gap-2 text-gray-700 hover:text-purple-900 border rounded-md p-2 cursor-pointer "
-                    disabled={loading}
+                    onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                            e.preventDefault();
+                            e.stopPropagation();
+                        }
+                    }}
+                    className={`flex items-center gap-2 text-gray-700 hover:text-purple-900 border rounded-md p-2 $ ${!selectedToken || loading ? "cursor-not-allowed opacity-50" : "cursor-pointer "}`}
+                    disabled={!selectedToken || loading}
                 >
                     {selectedToken ? (
                         <div className="flex items-center gap-2">
                             <Image
-                                src={selectedToken.logoURI ||
-                                    "/image/none-icon.webp"
-                                }
+                                src={selectedToken.logoURI || "/image/none-icon.webp"}
                                 alt={selectedToken.name}
                                 width={24}
                                 height={24}
@@ -227,7 +230,6 @@ const SelectToken: React.FC<SelectTokenProps> = ({ onTokenSelect, onAmountChange
                             <div className="w-6 h-6 rounded-full bg-gray-200" />
                             <div>Loading ...</div>
                         </div>
-
                     )}
                     <ChevronDown className="w-4 h-4" />
                 </button>
@@ -235,6 +237,11 @@ const SelectToken: React.FC<SelectTokenProps> = ({ onTokenSelect, onAmountChange
                     type="number"
                     value={amount}
                     onChange={handleAmountChange}
+                    onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                            e.stopPropagation();
+                        }
+                    }}
                     className="focus-visible:ring-0 focus-visible:border-none focus-visible:outline-none outline-none ring-0 border-none shadow-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-right max-w-[300px] md:!text-[32px] !text-[24px]"
                     placeholder="0.00"
                     disabled={!selectedToken || loading}

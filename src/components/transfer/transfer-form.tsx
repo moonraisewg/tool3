@@ -26,14 +26,6 @@ const formSchema = z.object({
         .regex(/^[\w]{32,44}$/, { message: "Invalid Solana address" }),
     amount: z
         .string()
-        .min(1, { message: "Amount is required" })
-        .refine(
-            (val) => {
-                const num = parseFloat(val);
-                return !isNaN(num) && num > 0;
-            },
-            { message: "Amount must be greater than 0" }
-        ),
 });
 
 export default function TransferForm() {
@@ -63,8 +55,14 @@ export default function TransferForm() {
             }
 
             const amountValue = parseFloat(values.amount);
+
             if (amountValue > parseFloat(selectedToken.balance)) {
                 toast.error("Insufficient balance");
+                return;
+            }
+
+            if (amountValue <= 0 || Number.isNaN(amountValue)) {
+                toast.error("Amount must be greater than 0");
                 return;
             }
 
@@ -136,7 +134,7 @@ export default function TransferForm() {
 
                     <Button
                         type="submit"
-                        className="w-full text-white font-semibold py-2 rounded-lg transition-colors duration-200"
+                        className="w-full text-white font-semibold py-2 rounded-lg transition-colors duration-200 cursor-pointer"
                         variant="default"
                         disabled={loading}
                     >

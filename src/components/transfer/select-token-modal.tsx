@@ -67,37 +67,45 @@ export default function TokenSearchModal({ open, onOpenChange, onTokenSelect, to
                             className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors border-b border-gray-200 last:border-b-0"
                         >
                             <div className="flex items-center space-x-3">
-                                <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
-                                    {token.logoURI && (
+                                <div className="rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+                                    {token.logoURI ? (
                                         <Image
                                             src={token.logoURI}
-                                            alt={`${token.name} logo`}
-                                            className="rounded-full object-cover"
+                                            alt={token.name}
+                                            className="rounded-full"
                                             width={40}
                                             height={40}
+
                                         />
+                                    ) : (
+                                        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-400 to-blue-600 flex items-center justify-center text-white text-[16px] font-bold pt-[1px]">
+                                            <div className="ml-[3px] mt-[3px]">  {token.name?.charAt(0) || "T"}</div>
+                                        </div>
                                     )}
+
                                 </div>
                                 <div>
                                     <div className="flex items-center space-x-2">
-                                        <span className="font-medium text-gray-900">{token.symbol}</span>
+                                        <span className="font-medium text-gray-900">{token.symbol || "UNKNOWN"}</span>
                                     </div>
-                                    <div className="text-sm text-gray-600">{token.name}</div>
+                                    <div className="text-sm text-gray-600">{token.name || "Unknown Token"}</div>
                                     <div className="text-xs text-gray-400">{shortenAddress(token.address)}</div>
                                 </div>
                             </div>
 
-                            {token.balance && (
-                                <div className="text-right">
-                                    <div className="font-medium text-gray-900">
-                                        {parseFloat(token.balance).toFixed(token.decimals || 2)}
+                            {
+                                token.balance && (
+                                    <div className="text-right">
+                                        <div className="font-medium text-gray-900">
+                                            {parseFloat(token.balance).toFixed(token.decimals || 2)}
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                )
+                            }
                         </div>
                     ))}
                 </div>
             </DialogContent>
-        </Dialog>
+        </Dialog >
     );
 }

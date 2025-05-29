@@ -148,8 +148,82 @@ body {
     0 -4px 0 4px rgb(88, 88, 88),
     4px 0 0 4px rgb(88, 88, 88),
     -4px 0 0 4px rgb(88, 88, 88);
+  border: none;
+  border-radius: 0px;
 }
 
+
+
+.border-gear-white {
+  box-shadow:
+    4px 0 white,
+    -4px 0 white,
+    0 -4px white,
+    0 4px white,
+    1px 0 0 2px white,
+    -1px 0 0 2px white,
+    0 -1px 0 2px white,
+    0 1px 0 2px white,
+    5px 0 rgb(88, 88, 88),
+    -5px 0 rgb(88, 88, 88),
+    0 -5px rgb(88, 88, 88),
+    0 5px rgb(88, 88, 88),
+    0 0 0 3px rgb(88, 88, 88),
+    0 2px 0 2px rgb(88, 88, 88),
+    0 -2px 0 2px rgb(88, 88, 88),
+    2px 0 0 2px rgb(88, 88, 88),
+    -2px 0 0 2px rgb(88, 88, 88);
+  border: none;
+  border-radius: 0px;
+}
+
+.border-gear-black {
+  box-shadow:
+    4px 0 #171717,
+    -4px 0 #171717,
+    0 -4px #171717,
+    0 4px #171717,
+    1px 0 0 2px #171717,
+    -1px 0 0 2px #171717,
+    0 -1px 0 2px #171717,
+    0 1px 0 2px #171717,
+    5px 0 #171717,
+    -5px 0 #171717,
+    0 -5px #171717,
+    0 5px #171717,
+    0 0 0 3px #171717,
+    0 2px 0 2px #171717,
+    0 -2px 0 2px #171717,
+    2px 0 0 2px #171717,
+    -2px 0 0 2px #171717;
+  border: none;
+  border-radius: 0px;
+  overflow: hidden;
+}
+
+.border-gear-green {
+  box-shadow:
+    4px 0 #00a63e,
+    -4px 0 #00a63e,
+    0 -4px #00a63e,
+    0 4px #00a63e,
+    1px 0 0 2px #00a63e,
+    -1px 0 0 2px #00a63e,
+    0 -1px 0 2px #00a63e,
+    0 1px 0 2px #00a63e,
+    5px 0 #00a63e,
+    -5px 0 #00a63e,
+    0 -5px #00a63e,
+    0 5px #00a63e,
+    0 0 0 3px #00a63e,
+    0 2px 0 2px #00a63e,
+    0 -2px 0 2px #00a63e,
+    2px 0 0 2px #00a63e,
+    -2px 0 0 2px #00a63e;
+  border: none;
+  border-radius: 0px;
+  overflow: hidden;
+}
 
 .custom-scroll {
   scrollbar-width: thin;
@@ -184,4 +258,25 @@ body {
   display: none;
   height: 0;
   width: 0;
+}
+
+.test {
+
+  box-shadow:
+    2px 0 white,
+    -2px 0 white,
+    0 -2px white,
+    0 2px white,
+
+    1px 0 0 1px white,
+    -1px 0 0 1px white,
+    0 -1px 0 1px white,
+    0 1px 0 1px white,
+
+    3px 0 rgb(88, 88, 88),
+    -3px 0 rgb(88, 88, 88),
+    0 -3px rgb(88, 88, 88),
+    0 3px rgb(88, 88, 88),
+
+    0 0 0 2px rgb(88, 88, 88);
 }
