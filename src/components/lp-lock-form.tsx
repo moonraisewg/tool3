@@ -319,7 +319,7 @@ export default function LpLockForm() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="border-gray-300 bg-white text-gray-700 hover:bg-purple-100 hover:text-purple-900"
+                    className="border-gray-300 bg-white text-gray-700 hover:bg-purple-100 hover:text-purple-900 cursor-pointer"
                     onClick={setHalf}
                     disabled={loading}
                   >
@@ -329,7 +329,7 @@ export default function LpLockForm() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="border-gray-300 bg-white text-gray-700 hover:bg-purple-100 hover:text-purple-900"
+                    className="border-gray-300 bg-white text-gray-700 hover:bg-purple-100 hover:text-purple-900 cursor-pointer"
                     onClick={setMax}
                     disabled={loading}
                   >
@@ -411,7 +411,7 @@ export default function LpLockForm() {
 
           <Button
             type="submit"
-            className="w-full"
+            className="w-full cursor-pointer"
             variant="default"
             disabled={loading}
           >

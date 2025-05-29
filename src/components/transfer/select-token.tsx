@@ -206,8 +206,8 @@ const SelectToken: React.FC<SelectTokenProps> = ({ onTokenSelect, onAmountChange
             <div className="flex justify-between items-center mb-2 mt-4">
                 <button
                     onClick={() => setIsModalOpen(true)}
-                    className="flex items-center gap-2 text-gray-700 hover:text-purple-900 border rounded-md p-2 cursor-pointer "
-                    disabled={loading}
+                    className={`flex items-center gap-2 text-gray-700 hover:text-purple-900 border rounded-md p-2 $ ${!selectedToken || loading ? "cursor-not-allowed opacity-50" : "cursor-pointer "}`}
+                    disabled={!selectedToken || loading}
                 >
                     {selectedToken ? (
                         <div className="flex items-center gap-2">

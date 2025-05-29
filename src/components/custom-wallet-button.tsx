@@ -20,7 +20,6 @@ import Image from "next/image";
 import { WalletName } from "@solana/wallet-adapter-base";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
-// Rút gọn địa chỉ ví
 export function shortenAddress(address: string, chars = 4): string {
   return `${address.slice(0, chars)}...${address.slice(-chars)}`;
 }
@@ -39,7 +38,7 @@ export default function WalletConnectButton() {
       await select(walletName as WalletName);
       setDialogOpen(false);
     } catch (error) {
-      console.error("Lỗi khi chọn ví:", error);
+      console.error("Error when selecting wallet:", error);
     }
   };
 
@@ -48,7 +47,7 @@ export default function WalletConnectButton() {
       await disconnect();
       setDropdownOpen(false);
     } catch (error) {
-      console.error("Lỗi khi ngắt kết nối ví:", error);
+      console.error("Error when disconnecting wallet:", error);
     }
   };
 
@@ -60,7 +59,7 @@ export default function WalletConnectButton() {
             <Button
               disabled={connecting}
               variant="default"
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 !cursor-pointer"
             >
               {connecting ? (
                 <>
@@ -86,7 +85,7 @@ export default function WalletConnectButton() {
                   key={wallet.adapter.name}
                   onClick={() => handleWalletSelect(wallet.adapter.name)}
                   variant="ghost"
-                  className="flex items-center justify-start gap-3 text-white hover:bg-white/10"
+                  className="flex items-center justify-start gap-3 text-white cursor-pointer hover:bg-white/10 hover:text-white"
                 >
                   <Image
                     src={wallet.adapter.icon}
@@ -103,7 +102,7 @@ export default function WalletConnectButton() {
       ) : (
         <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
           <DropdownMenuTrigger asChild>
-            <Button variant="default" className="flex items-center gap-2">
+            <Button variant="default" className="flex items-center gap-2 !cursor-pointer">
               <Wallet className="h-4 w-4" />
               {displayAddress}
             </Button>

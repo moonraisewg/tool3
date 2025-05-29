@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
 import { PublicKey } from "@solana/web3.js";
+import { Token } from "@/types/types";
 
-export interface TokenMetadata {
-    name: string;
-    symbol: string;
-    image?: string;
-    decimals?: number;
-}
+
+const cache = new Map<string, { metadata: Token; timestamp: number }>();
+const CACHE_DURATION = 24 * 60 * 60 * 1000;
 
 export async function POST(request: Request) {
     try {
@@ -19,6 +17,13 @@ export async function POST(request: Request) {
             new PublicKey(mintAddress);
         } catch {
             return NextResponse.json({ error: "Invalid mint address" }, { status: 400 });
+        }
+
+        // Check cache first
+        const cached = cache.get(mintAddress);
+        const now = Date.now();
+        if (cached && now - cached.timestamp < CACHE_DURATION) {
+            return NextResponse.json(cached.metadata);
         }
 
         const HELIUS_API_KEY = process.env.HELIUS_API_KEY;
@@ -50,14 +55,44 @@ export async function POST(request: Request) {
         });
 
         const data = await response.json();
-        if (data?.result?.content?.metadata) {
-            const metadata: TokenMetadata = {
+
+        if (
+            data?.result?.content?.metadata &&
+            Object.keys(data.result.content.metadata).length > 0
+        ) {
+            const metadata: Token = {
+                address: mintAddress,
                 name: data.result.content.metadata.name || "Unknown",
                 symbol: data.result.content.metadata.symbol || "Unknown",
-                image: data.result.content.links?.image || undefined,
+                logoURI: data.result.content.links?.image || undefined,
                 decimals: data.result.token_info?.decimals || 0,
             };
+
+            // Store in cache
+            cache.set(mintAddress, { metadata, timestamp: now });
             return NextResponse.json(metadata);
+        }
+
+        const fallbackRes = await fetch(
+            "https://cdn.jsdelivr.net/gh/solana-labs/token-list@latest/src/tokens/solana.tokenlist.json"
+        );
+        const fallbackData = await fallbackRes.json();
+
+        const tokenList: Token[] = fallbackData?.tokens || [];
+        const found = tokenList.find((token: Token) => token.address === mintAddress);
+
+        if (found) {
+            const fallbackMetadata: Token = {
+                address: mintAddress,
+                name: found.name,
+                symbol: found.symbol,
+                logoURI: found.logoURI,
+                decimals: found.decimals,
+            };
+
+            // Store in cache
+            cache.set(mintAddress, { metadata: fallbackMetadata, timestamp: now });
+            return NextResponse.json(fallbackMetadata);
         }
 
         return NextResponse.json({ error: "Metadata not found" }, { status: 404 });

@@ -9,17 +9,11 @@ import { ArrowUpRight, Coins, Lock, Plus } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
-
-interface TokenMetadata {
-    name: string;
-    symbol: string;
-    image?: string;
-    decimals?: number;
-}
+import { Token } from "@/types/types";
 
 interface EnhancedPoolInfo extends PoolInfo {
-    token0Metadata?: TokenMetadata | null;
-    token1Metadata?: TokenMetadata | null;
+    token0Metadata?: Token | null;
+    token1Metadata?: Token | null;
 }
 
 const ListPools = () => {
@@ -27,7 +21,7 @@ const ListPools = () => {
     const [loading, setLoading] = useState(false);
     const { publicKey } = useWallet();
 
-    const fetchTokenMetadata = async (mintAddress: PublicKey): Promise<TokenMetadata | null> => {
+    const fetchTokenMetadata = async (mintAddress: PublicKey): Promise<Token | null> => {
         try {
             const response = await fetch("/api/token-metadata", {
                 method: "POST",
@@ -39,7 +33,7 @@ const ListPools = () => {
 
             const data = await response.json();
             if (response.ok && data) {
-                return data as TokenMetadata;
+                return data as Token;
             }
             return null;
         } catch (error) {
@@ -59,35 +53,16 @@ const ListPools = () => {
     useEffect(() => {
         const fetchPools = async () => {
             if (!publicKey) return;
-
-            console.log("Fetching all pools with user ratio for:", publicKey.toBase58());
             setLoading(true);
             try {
                 const result = await getAllPoolsWithUserRatio(publicKey);
 
-                console.log(
-                    "All Pools with User Ratio:",
-                    result.map((info) => ({
-                        vaultAddress: info.vaultAddress.toBase58(),
-                        poolState: info.poolState.toBase58(),
-                        totalLocked: info.totalLocked.toString(),
-                        userLockedAmount: info.userLockedAmount.toString(),
-                        lpRatio: info.lpRatio.toFixed(4) + "%",
-                        token0Mint: info.token0Mint.toBase58(),
-                        token1Mint: info.token1Mint.toBase58(),
-                        vault0Amount: info.vault0Amount.toString(),
-                        vault1Amount: info.vault1Amount.toString(),
-                    }))
-                );
-
-                // Fetch metadata
                 const enhancedPools = await Promise.all(
                     result.map(async (pool) => {
                         const [token0Metadata, token1Metadata] = await Promise.all([
                             fetchTokenMetadata(pool.token0Mint),
                             fetchTokenMetadata(pool.token1Mint),
                         ]);
-
                         return {
                             ...pool,
                             token0Metadata,
@@ -95,7 +70,6 @@ const ListPools = () => {
                         };
                     })
                 );
-
                 setPools(enhancedPools);
             } catch (err) {
                 console.error("Error fetching pools:", err);
@@ -103,7 +77,6 @@ const ListPools = () => {
                 setLoading(false);
             }
         };
-
         if (publicKey) {
             fetchPools();
         }
@@ -114,7 +87,7 @@ const ListPools = () => {
             <div className="flex items-center justify-center min-h-[200px]">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-                    <p className="text-gray-500">Đang tải dữ liệu...</p>
+                    <p className="text-gray-500">Getting list of pools ...</p>
                 </div>
             </div>
         );
@@ -125,18 +98,18 @@ const ListPools = () => {
             <div className="flex items-center justify-center min-h-[200px]">
                 <div className="text-center">
                     <Lock className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                    <p className="text-gray-400">Không có pool nào được tìm thấy.</p>
+                    <p className="text-gray-400">No pools found.</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="grid gap-6 grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 md:p-6 p-3 pt-6">
+        <div className="grid gap-6 grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 md:p-6 p-3 py-6">
             {pools.map((pool, index) => (
                 <Card
                     key={index}
-                    className="shadow-lg rounded-2xl border hover:shadow-xl transition-shadow duration-300"
+                    className="shadow-lg rounded-2xl border hover:shadow-xl transition-shadow duration-300 gap-3"
                 >
                     <CardHeader className="pb-0">
                         <CardTitle className="flex items-center gap-2 text-lg">
@@ -152,7 +125,6 @@ const ListPools = () => {
                             </Badge>
                         </div>
 
-                        {/* Total Locked Amount */}
                         <div className="flex items-center justify-between">
                             <span className="text-sm text-gray-600 flex items-center gap-1">
                                 <Lock className="h-4 w-4" />
@@ -176,9 +148,9 @@ const ListPools = () => {
 
                             <div className="bg-gray-50 rounded-lg p-3 mb-3 flex justify-between items-center">
                                 <div className="flex items-center gap-3">
-                                    {pool.token0Metadata?.image ? (
+                                    {pool.token0Metadata?.logoURI ? (
                                         <Image
-                                            src={pool.token0Metadata.image || "/placeholder.svg"}
+                                            src={pool.token0Metadata.logoURI}
                                             alt={pool.token0Metadata.name}
                                             className="rounded-full"
                                             onError={(e) => {
@@ -204,9 +176,9 @@ const ListPools = () => {
 
                             <div className="bg-gray-50 rounded-lg p-3 flex justify-between items-center">
                                 <div className="flex items-center gap-3">
-                                    {pool.token1Metadata?.image ? (
+                                    {pool.token1Metadata?.logoURI ? (
                                         <Image
-                                            src={pool.token1Metadata.image || "/placeholder.svg"}
+                                            src={pool.token1Metadata.logoURI || "image/none-icon.webp"}
                                             alt={pool.token1Metadata.name}
                                             className="rounded-full"
                                             width={32}
