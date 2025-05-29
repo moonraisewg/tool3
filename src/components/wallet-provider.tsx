@@ -1,6 +1,5 @@
 "use client";
 
-import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 import {
   ConnectionProvider,
@@ -14,13 +13,15 @@ import {
 } from "@solana/wallet-adapter-wallets";
 
 import "@solana/wallet-adapter-react-ui/styles.css";
+import { useNetwork } from "@/context/NetworkContext";
+
 
 export default function WalletProviderComponent({
   children,
 }: {
   children: ReactNode;
 }) {
-  const network = WalletAdapterNetwork.Devnet;
+  const { network } = useNetwork();
   const endpoint = useMemo(() => clusterApiUrl(network), [network]);
   const wallets = useMemo(
     () => [new PhantomWalletAdapter(), new SolflareWalletAdapter()],

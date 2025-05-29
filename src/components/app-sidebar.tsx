@@ -1,12 +1,12 @@
-'use client'
-import { Home, LockIcon, Anvil, Repeat } from "lucide-react";
+"use client";
 
+import { Home, LockIcon, Anvil, Repeat } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
-  SidebarGroupContent,
   SidebarGroupLabel,
+  SidebarGroupContent,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -14,6 +14,9 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 import { usePathname } from "next/navigation";
+import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
+import { useNetwork } from "@/context/NetworkContext";
+import Link from "next/link";
 
 const data = {
   navMain: [
@@ -40,8 +43,16 @@ const data = {
     },
   ],
 };
+
 export function AppSidebar() {
   const pathname = usePathname();
+  const { network } = useNetwork();
+
+  // Filter nav items based on network
+  const filteredNavMain = network === WalletAdapterNetwork.Devnet
+    ? data.navMain.filter((item) => item.title === "Transfer")
+    : data.navMain;
+
   return (
     <Sidebar className="border-r border-gray-800">
       <SidebarHeader className="border-b border-gray-800 h-[60px]">
@@ -54,13 +65,13 @@ export function AppSidebar() {
           <SidebarGroupLabel>Main</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {data.navMain.map((item) => (
+              {filteredNavMain.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={pathname === item.url}>
-                    <a href={item.url} className="flex items-center">
+                    <Link href={item.url} className="flex items-center">
                       <item.icon className="mr-2 h-4 w-4" />
                       <span>{item.title}</span>
-                    </a>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}

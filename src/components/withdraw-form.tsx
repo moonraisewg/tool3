@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -28,6 +28,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { connection } from "../service/solana/connection";
 import { Transaction } from "@solana/web3.js";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { debounce } from "lodash";
 
 const formatRemainingTime = (seconds: number): string => {
   if (seconds <= 0) return "Locked";
@@ -80,13 +81,14 @@ export default function Withdraw() {
     },
   });
 
-
-
-
   const fetchPoolInfo = useCallback(
     async (poolId: string) => {
       if (!publicKey) {
         toast.error("Please connect your wallet before fetching pool info");
+        return;
+      }
+      if (!poolId) {
+        toast.error("Please enter a Pool ID");
         return;
       }
       try {
@@ -124,6 +126,16 @@ export default function Withdraw() {
     },
     [publicKey, setUserLpBalance, setUnlockInfo, setLoading]
   );
+
+
+
+  const debouncedFetchPoolInfo = useMemo(() => {
+    return debounce((poolId: string) => {
+      fetchPoolInfo(poolId);
+    }, 1000);
+  }, [fetchPoolInfo]);
+
+
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
@@ -171,9 +183,26 @@ export default function Withdraw() {
             lastValidBlockHeight: data.lastValidBlockHeight,
           });
 
-          toast.success("Withdraw token successful", {
-            description: `You have withdrawn ${values.amount} LP tokens`,
-          });
+          toast.success(
+            <div>
+              Withdraw token successful
+              <div>
+                You have withdrawn {values.amount} LP tokens
+              </div>
+              <a
+                href={`https://solscan.io/tx/${txId}?cluster=devnet`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-500 underline"
+              >
+                View on Solscan
+              </a>
+            </div>,
+            {
+              duration: 10000,
+            }
+          );
+
         } catch (error: unknown) {
           console.error("Transaction error:", error);
           throw new Error("Cannot sign or send transaction");
@@ -201,23 +230,11 @@ export default function Withdraw() {
     form.setValue("amount", userLpBalance);
   };
 
-  const handlePoolIdChange = async (value: string) => {
+  const handlePoolIdChange = (value: string) => {
     form.setValue("poolId", value);
+    debouncedFetchPoolInfo(value);
   };
 
-  const handleKeyDown = async (
-    event: React.KeyboardEvent<HTMLInputElement>
-  ) => {
-    if (event.key === "Enter") {
-      const poolId = form.getValues("poolId")?.trim();
-      event.preventDefault();
-      if (poolId) {
-        await fetchPoolInfo(poolId);
-      } else {
-        toast.error("Please enter the Pool ID.");
-      }
-    }
-  };
 
   useEffect(() => {
     const poolId = searchParams.get("poolId")?.trim();
@@ -262,7 +279,6 @@ export default function Withdraw() {
                       placeholder="Enter Pool ID"
                       {...field}
                       onChange={(e) => handlePoolIdChange(e.target.value)}
-                      onKeyDown={handleKeyDown}
                       disabled={loading}
                     />
                     {loading && (

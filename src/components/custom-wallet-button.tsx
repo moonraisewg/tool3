@@ -102,7 +102,7 @@ export default function WalletConnectButton() {
       ) : (
         <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
           <DropdownMenuTrigger asChild>
-            <Button variant="default" className="flex items-center gap-2 !cursor-pointer">
+            <Button variant="default" className="flex items-center gap-2 !cursor-pointer border-gear-black border-none rounded-none h-[28px]">
               <Wallet className="h-4 w-4" />
               {displayAddress}
             </Button>
