@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
@@ -40,6 +40,7 @@ export default function TokenSearchModal({ open, onOpenChange, onTokenSelect, to
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="bg-white border-gray-200 text-gray-900 sm:max-w-[500px] shadow-lg !p-0">
                 <DialogHeader className="space-y-4">
+                    <DialogTitle className="hidden">Select a token</DialogTitle>
                     <div className="flex items-center space-x-2 bg-gray-100 rounded-lg px-3 py-2">
                         <Search className="h-4 w-4 text-gray-500" />
                         <Input

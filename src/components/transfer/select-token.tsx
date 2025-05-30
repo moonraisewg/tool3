@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { ChevronDown, Wallet } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import TokenSearchModal from "./select-token-modal";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { toast } from "sonner";
 import Image from "next/image";
+import { ChevronDown, Wallet } from "@nsmr/pixelart-react";
 
 export interface Token {
     address: string;
@@ -166,7 +166,7 @@ const SelectToken: React.FC<SelectTokenProps> = ({ onTokenSelect, onAmountChange
     }, [publicKey, fetchAllTokens]);
 
     return (
-        <div className="bg-white border rounded-lg p-3 flex flex-col min-h-[120px] shadow-lg justify-between">
+        <div className="bg-white border-gear-gray p-3 flex flex-col min-h-[120px] shadow-lg justify-between">
             <div className="flex items-center justify-between mb-2">
                 <div>Select token</div>
                 <div className="flex items-center sm:gap-4 gap-1">
@@ -176,12 +176,12 @@ const SelectToken: React.FC<SelectTokenProps> = ({ onTokenSelect, onAmountChange
                             {selectedToken ? `${selectedToken.balance} ${selectedToken.symbol}` : "0.00"}
                         </div>
                     </div>
-                    <div className="flex sm:gap-2 gap-1">
+                    <div className="flex sm:gap-4 gap-2">
                         <Button
                             type="button"
                             variant="outline"
                             size="sm"
-                            className="border-gray-300 bg-white text-gray-700 hover:bg-purple-100 hover:text-purple-900 cursor-pointer"
+                            className="border-gear-gray h-[28px] bg-white text-gray-700 hover:bg-white hover:text-purple-900 cursor-pointer"
                             onClick={setHalf}
                             disabled={!selectedToken || loading}
                         >
@@ -191,7 +191,7 @@ const SelectToken: React.FC<SelectTokenProps> = ({ onTokenSelect, onAmountChange
                             type="button"
                             variant="outline"
                             size="sm"
-                            className="border-gray-300 bg-white text-gray-700 hover:bg-purple-100 hover:text-purple-900 cursor-pointer"
+                            className="border-gear-gray h-[28px] bg-white text-gray-700 hover:bg-white hover:text-purple-900 cursor-pointer"
                             onClick={setMax}
                             disabled={!selectedToken || loading}
                         >
@@ -211,7 +211,7 @@ const SelectToken: React.FC<SelectTokenProps> = ({ onTokenSelect, onAmountChange
                             e.stopPropagation();
                         }
                     }}
-                    className={`flex items-center gap-2 text-gray-700 hover:text-purple-900 border rounded-md p-2 $ ${!selectedToken || loading ? "cursor-not-allowed opacity-50" : "cursor-pointer "}`}
+                    className={`flex items-center gap-2 text-gray-700 hover:text-purple-900 border-gear-gray px-2 py-1 $ ${!selectedToken || loading ? "cursor-not-allowed opacity-50" : "cursor-pointer "}`}
                     disabled={!selectedToken || loading}
                 >
                     {selectedToken ? (
@@ -231,7 +231,7 @@ const SelectToken: React.FC<SelectTokenProps> = ({ onTokenSelect, onAmountChange
                             <div>Loading ...</div>
                         </div>
                     )}
-                    <ChevronDown className="w-4 h-4" />
+                    <ChevronDown size={24} />
                 </button>
                 <Input
                     type="number"
