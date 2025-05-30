@@ -5,12 +5,13 @@ import { Badge } from "@/components/ui/badge";
 import { PublicKey } from "@solana/web3.js";
 import { getUserLockedPools, type UserPoolInfo } from "@/service/solana/action";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { ArrowUpRight, Clock, Coins, ExternalLink, Lock, Plus } from "lucide-react";
+
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { Token } from "@/types/types";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
+import { ExternalLink, Clock, Lock, Coin, Percent, Plus, ArrowUp } from "@nsmr/pixelart-react";
 
 interface EnhancedPoolInfo extends UserPoolInfo {
     token0Metadata?: Token | null;
@@ -52,7 +53,9 @@ const ListPools = () => {
     };
 
     useEffect(() => {
+
         const fetchPools = async () => {
+
             if (!publicKey) return;
             setLoading(true);
             try {
@@ -114,7 +117,7 @@ const ListPools = () => {
                 >
                     <CardHeader className="pb-0 px-2">
                         <CardTitle className="flex items-center gap-2 text-lg">
-                            <Coins className="h-5 w-5 text-blue-600" />
+                            <Coin className="h-5 w-5 text-blue-600" />
                             Liquidity Pool #{index + 1}
                         </CardTitle>
                     </CardHeader>
@@ -132,7 +135,8 @@ const ListPools = () => {
                                             <a href={`https://solscan.io/account/${pool.poolState.toBase58()}?cluster=devnet`}
                                                 target="_blank"
                                                 rel="noopener noreferrer">
-                                                <ExternalLink className="cursor-pointer" size={20} />
+                                                <ExternalLink className="cursor-pointer" size={24} />
+
                                             </a>
                                         </TooltipTrigger>
                                         <TooltipContent>
@@ -145,7 +149,7 @@ const ListPools = () => {
 
                         <div className="flex items-center justify-between">
                             <span className="text-sm text-gray-600 flex items-center gap-1">
-                                <Lock className="h-4 w-4" />
+                                <Lock className="h-4 w-4 mb-[3px]" />
                                 Total Locked:
                             </span>
                             <span className="font-semibold text-green-600">
@@ -155,7 +159,7 @@ const ListPools = () => {
 
                         <div className="flex items-center justify-between">
                             <span className="text-sm text-gray-600 flex items-center gap-1">
-                                <Coins className="h-4 w-4" />
+                                <Percent className="h-4 w-4" />
                                 Your LP Ratio:
                             </span>
                             <span className="font-semibold text-purple-600">{pool?.lpRatio?.toFixed(4)}%</span>
@@ -206,7 +210,7 @@ const ListPools = () => {
                                                 <a href={`https://solscan.io/account/${pool?.vault0Address?.toBase58()}?cluster=devnet`}
                                                     target="_blank"
                                                     rel="noopener noreferrer">
-                                                    <ExternalLink className="cursor-pointer mb-1" size={20} />
+                                                    <ExternalLink className="cursor-pointer mb-1" size={24} />
                                                 </a>
                                             </TooltipTrigger>
                                             <TooltipContent>
@@ -251,7 +255,7 @@ const ListPools = () => {
                                                 <a href={`https://solscan.io/account/${pool?.vault1Address?.toBase58()}?cluster=devnet`}
                                                     target="_blank"
                                                     rel="noopener noreferrer">
-                                                    <ExternalLink className="cursor-pointer mb-1" size={20} />
+                                                    <ExternalLink className="cursor-pointer mb-1" size={24} />
                                                 </a>
                                             </TooltipTrigger>
                                             <TooltipContent>
@@ -271,7 +275,7 @@ const ListPools = () => {
                                         className="w-full flex items-center gap-2 
                                         transition-colors cursor-pointer border-gear-white h-[30px] hover:bg-white"
                                     >
-                                        <Plus className="h-4 w-4" />
+                                        <Plus className="h-4 w-4" size={24} />
                                         Lock More
                                     </Button>
                                 </Link>
@@ -281,7 +285,7 @@ const ListPools = () => {
                                         variant="default"
                                         className="w-full flex items-center gap-2 bg-green-600 transition-colors cursor-pointer border-gear-green h-[30px] hover:bg-green-600"
                                     >
-                                        <ArrowUpRight className="h-4 w-4" />
+                                        <ArrowUp className="h-4 w-4" size={24} />
                                         Withdraw
                                     </Button>
                                 </Link>

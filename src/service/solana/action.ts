@@ -216,9 +216,6 @@ export async function getUserLockedPools(
           const lpSupply = BigInt(poolStateAccount.lpSupply.toString());
           const lpRatio = lpSupply > 0 ? (Number(userLockData.amount) / Number(lpSupply)) * 100 : 0;
 
-          console.log("=== Vault ===", JSON.stringify(vault, null, 2));
-          console.log("=== UserLock ===", JSON.stringify(userLockData, null, 2));
-          console.log("=== PoolState ===", JSON.stringify(poolStateAccount, null, 2));
 
           userPoolInfos.push({
             vaultAddress,

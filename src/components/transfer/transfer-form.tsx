@@ -105,36 +105,38 @@ export default function TransferForm() {
                 Transfer Tokens
             </h2>
             <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                    <FormField
-                        control={form.control}
-                        name="recipient"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel className="text-gray-900">Recipient Address</FormLabel>
-                                <FormControl>
-                                    <Input
-                                        className="border-gray-300 bg-white text-gray-900 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 rounded-lg"
-                                        placeholder="Enter recipient Solana address"
-                                        {...field}
-                                        disabled={loading}
-                                    />
-                                </FormControl>
-                                <FormMessage className="text-red-500 text-sm mt-1" />
-                            </FormItem>
-                        )}
-                    />
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 flex flex-col justify-center">
+                    <div className="px-[5px] space-y-6">
+                        <FormField
+                            control={form.control}
+                            name="recipient"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className="text-gray-900 mb-2">Recipient Address</FormLabel>
+                                    <FormControl>
+                                        <Input
+                                            className="border-gear-gray bg-white text-gray-900 focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                                            placeholder="Enter recipient Solana address"
+                                            {...field}
+                                            disabled={loading}
+                                        />
+                                    </FormControl>
+                                    <FormMessage className="text-red-500 text-sm mt-1" />
+                                </FormItem>
+                            )}
+                        />
 
-                    <SelectToken
-                        onTokenSelect={setSelectedToken}
-                        onAmountChange={(value) => {
-                            form.setValue("amount", value);
-                        }}
-                    />
+                        <SelectToken
+                            onTokenSelect={setSelectedToken}
+                            onAmountChange={(value) => {
+                                form.setValue("amount", value);
+                            }}
+                        />
+                    </div>
 
                     <Button
                         type="submit"
-                        className="w-full text-white font-semibold py-2 rounded-lg transition-colors duration-200 cursor-pointer"
+                        className="w-full text-white font-semibold py-2 rounded-lg transition-colors duration-200 cursor-pointer mt-4"
                         variant="default"
                         disabled={loading}
                     >

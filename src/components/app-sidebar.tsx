@@ -1,6 +1,5 @@
 "use client";
 
-import { Home, LockIcon, Anvil, Repeat } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -17,41 +16,41 @@ import { usePathname } from "next/navigation";
 import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
 import { useNetwork } from "@/context/NetworkContext";
 import Link from "next/link";
+import { Home, Lock, Reload, ArrowUp } from "@nsmr/pixelart-react";
 
-const data = {
-  navMain: [
-    {
-      title: "Dashboard",
-      icon: Home,
-      url: "/",
-      isActive: true,
-    },
-    {
-      title: "Lock LP",
-      icon: LockIcon,
-      url: "/lock-lp",
-    },
-    {
-      title: "Withdraw LP",
-      icon: Anvil,
-      url: "/withdraw-lp",
-    },
+export const route = {
+  mainnet: [
     {
       title: "Transfer",
-      icon: Repeat,
+      icon: Reload,
       url: "/transfer",
     },
   ],
+  devnet: [
+    {
+      title: "Dashboard",
+      icon: Home,
+      url: "/?cluster=devnet",
+    },
+    {
+      title: "Lock LP",
+      icon: Lock,
+      url: "/lock-lp?cluster=devnet",
+    },
+    {
+      title: "Withdraw LP",
+      icon: ArrowUp,
+      url: "/withdraw-lp?cluster=devnet",
+    },
+  ],
 };
+
 
 export function AppSidebar() {
   const pathname = usePathname();
   const { network } = useNetwork();
 
-  // Filter nav items based on network
-  const filteredNavMain = network === WalletAdapterNetwork.Devnet
-    ? data.navMain.filter((item) => item.title === "Transfer")
-    : data.navMain;
+  const navMain = network === WalletAdapterNetwork.Devnet ? route.devnet : route.mainnet;
 
   return (
     <Sidebar className="border-r border-gray-800">
@@ -65,9 +64,9 @@ export function AppSidebar() {
           <SidebarGroupLabel>Main</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {filteredNavMain.map((item) => (
+              {navMain.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={pathname === item.url}>
+                  <SidebarMenuButton asChild isActive={pathname.split('?')[0] === item.url.split('?')[0]}>
                     <Link href={item.url} className="flex items-center">
                       <item.icon className="mr-2 h-4 w-4" />
                       <span>{item.title}</span>
