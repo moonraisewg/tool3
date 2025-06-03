@@ -5,9 +5,10 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogHeader } from "@/components/ui/dialog"
-import { Loader2, Wallet, ChevronRight } from "lucide-react"
+import { Wallet, ChevronRight } from "lucide-react"
 import Image from "next/image"
 import type { WalletName } from "@solana/wallet-adapter-base"
+import { Loader } from "@nsmr/pixelart-react"
 
 export function shortenAddress(address: string, chars = 4): string {
   return `${address.slice(0, chars)}...${address.slice(-chars)}`
@@ -55,7 +56,7 @@ export default function WalletConnectButton() {
             >
               {connecting ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader className="h-4 w-4 animate-spin" />
                   Connecting...
                 </>
               ) : (
@@ -102,7 +103,7 @@ export default function WalletConnectButton() {
                         </div>
                         {selectedWallet === wallet.adapter.name && (
                           <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                            <Loader2 className="w-2 h-2 animate-spin text-white" />
+                            <Loader className="w-2 h-2 animate-spin text-white" />
                           </div>
                         )}
                       </div>

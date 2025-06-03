@@ -16,7 +16,7 @@ import { usePathname } from "next/navigation";
 import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
 import { useNetwork } from "@/context/NetworkContext";
 import Link from "next/link";
-import { Home, Lock, Reload, ArrowUp } from "@nsmr/pixelart-react";
+import { Home, Lock, Reload, ArrowUp, Coin } from "@nsmr/pixelart-react";
 
 export const route = {
   mainnet: [
@@ -24,6 +24,11 @@ export const route = {
       title: "Transfer",
       icon: Reload,
       url: "/transfer",
+    },
+    {
+      title: "Buy SOL devnet",
+      icon: Coin,
+      url: "/sell-sol-devnet",
     },
   ],
   devnet: [

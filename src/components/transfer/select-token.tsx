@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import Image from "next/image";
 import { ChevronDown, Wallet } from "@nsmr/pixelart-react";
 
-export interface Token {
+export interface UserToken {
     address: string;
     name: string;
     balance: string;
@@ -29,11 +29,6 @@ interface Content {
     links?: { image?: string };
 }
 
-interface SelectTokenProps {
-    onTokenSelect: (token: Token | null) => void;
-    onAmountChange: (amount: string) => void;
-}
-
 interface Asset {
     interface: "FungibleToken" | "FungibleAsset";
     id: string;
@@ -41,17 +36,23 @@ interface Asset {
     token_info: TokenInfo;
 }
 
-const SelectToken: React.FC<SelectTokenProps> = ({ onTokenSelect, onAmountChange }) => {
+interface SelectTokenProps {
+    onTokenSelect: (token: UserToken | null) => void;
+    onAmountChange: (amount: string) => void;
+    title?: string
+}
+
+
+const SelectToken: React.FC<SelectTokenProps> = ({ onTokenSelect, onAmountChange, title }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [tokens, setTokens] = useState<Token[]>([]);
-    const [selectedToken, setSelectedToken] = useState<Token | null>(null);
+    const [tokens, setTokens] = useState<UserToken[]>([]);
+    const [selectedToken, setSelectedToken] = useState<UserToken | null>(null);
     const [amount, setAmount] = useState<string>("");
     const [loading, setLoading] = useState<boolean>(false);
     const { publicKey } = useWallet();
 
-    const handleTokenSelect = (token: Token) => {
+    const handleTokenSelect = (token: UserToken) => {
         setSelectedToken(token);
-        setAmount("");
         onTokenSelect(token);
         setIsModalOpen(false);
     };
@@ -83,7 +84,7 @@ const SelectToken: React.FC<SelectTokenProps> = ({ onTokenSelect, onAmountChange
             const assets = data.result?.items || [];
             const nativeBalance = data.result?.nativeBalance?.lamports || 0;
 
-            const formattedTokens: Token[] = assets
+            const formattedTokens: UserToken[] = assets
                 .filter((asset: Asset) => asset.interface === "FungibleToken" || asset.interface === "FungibleAsset")
                 .map((asset: Asset) => {
                     const mint = asset.id;
@@ -98,7 +99,7 @@ const SelectToken: React.FC<SelectTokenProps> = ({ onTokenSelect, onAmountChange
                     };
                 });
 
-            const solToken: Token = {
+            const solToken: UserToken = {
                 address: "NativeSOL",
                 name: "Solana",
                 symbol: "SOL",
@@ -166,9 +167,9 @@ const SelectToken: React.FC<SelectTokenProps> = ({ onTokenSelect, onAmountChange
     }, [publicKey, fetchAllTokens]);
 
     return (
-        <div className="bg-white border-gear-gray p-3 flex flex-col min-h-[120px] shadow-lg justify-between">
-            <div className="flex items-center justify-between mb-2">
-                <div>Select token</div>
+        <div className="bg-white border-gear-gray p-3 flex flex-col min-h-[120px] justify-between pt-5">
+            <div className="flex items-center justify-between mb-2 ml-1">
+                <div>{title || "Select token"}</div>
                 <div className="flex items-center sm:gap-4 gap-1">
                     <div className="flex items-center gap-1">
                         <Wallet className="h-4 w-4 text-purple-400" />
@@ -176,12 +177,12 @@ const SelectToken: React.FC<SelectTokenProps> = ({ onTokenSelect, onAmountChange
                             {selectedToken ? `${selectedToken.balance} ${selectedToken.symbol}` : "0.00"}
                         </div>
                     </div>
-                    <div className="flex sm:gap-4 gap-2">
+                    <div className="flex sm:gap-4 gap-2 mr-[6px]">
                         <Button
                             type="button"
                             variant="outline"
                             size="sm"
-                            className="border-gear-gray h-[28px] bg-white text-gray-700 hover:bg-white hover:text-purple-900 cursor-pointer"
+                            className="border-gear-gray h-[26px] bg-white text-gray-700 hover:bg-white hover:text-purple-900 cursor-pointer"
                             onClick={setHalf}
                             disabled={!selectedToken || loading}
                         >
@@ -191,7 +192,7 @@ const SelectToken: React.FC<SelectTokenProps> = ({ onTokenSelect, onAmountChange
                             type="button"
                             variant="outline"
                             size="sm"
-                            className="border-gear-gray h-[28px] bg-white text-gray-700 hover:bg-white hover:text-purple-900 cursor-pointer"
+                            className="border-gear-gray h-[26px] bg-white text-gray-700 hover:bg-white hover:text-purple-900 cursor-pointer"
                             onClick={setMax}
                             disabled={!selectedToken || loading}
                         >
@@ -201,7 +202,7 @@ const SelectToken: React.FC<SelectTokenProps> = ({ onTokenSelect, onAmountChange
                 </div>
             </div>
 
-            <div className="flex justify-between items-center mb-2 mt-4">
+            <div className="flex justify-between items-center mb-2 mt-4 ml-2">
                 <button
                     type="button"
                     onClick={() => setIsModalOpen(true)}
@@ -223,7 +224,7 @@ const SelectToken: React.FC<SelectTokenProps> = ({ onTokenSelect, onAmountChange
                                 height={24}
                                 className="rounded-full object-cover"
                             />
-                            <div className="mt-[2px]">{selectedToken.symbol}</div>
+                            <div className="mt-[2px]">{title === "You Pay" ? `${selectedToken.symbol} Mainnet` : selectedToken.symbol}</div>
                         </div>
                     ) : (
                         <div className="flex items-center gap-2">
@@ -242,7 +243,7 @@ const SelectToken: React.FC<SelectTokenProps> = ({ onTokenSelect, onAmountChange
                             e.stopPropagation();
                         }
                     }}
-                    className="focus-visible:ring-0 focus-visible:border-none focus-visible:outline-none outline-none ring-0 border-none shadow-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-right max-w-[300px] md:!text-[32px] !text-[24px]"
+                    className="focus-visible:ring-0 focus-visible:border-none focus-visible:outline-none outline-none ring-0 border-none shadow-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-right max-w-[300px] md:!text-[32px] !text-[24px] pr-0"
                     placeholder="0.00"
                     disabled={!selectedToken || loading}
                 />

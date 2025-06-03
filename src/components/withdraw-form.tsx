@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Info, Loader2, Wallet } from "lucide-react";
+import { Info, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -29,6 +29,7 @@ import { connection } from "../service/solana/connection";
 import { Transaction } from "@solana/web3.js";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { debounce } from "lodash";
+import { Loader } from "@nsmr/pixelart-react";
 
 const formatRemainingTime = (seconds: number): string => {
   if (seconds <= 0) return "Locked";
@@ -71,8 +72,7 @@ export default function Withdraw() {
     unlockTimestamp: number;
     remainingTime: number;
   } | null>(null);
-  const searchParams = useSearchParams(); // Get URL query parameters
-
+  const searchParams = useSearchParams();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -371,7 +371,7 @@ export default function Withdraw() {
           >
             {loading ? (
               <span className="flex items-center justify-center">
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader className="mr-2 h-4 w-4 animate-spin" />
                 Processing...
               </span>
             ) : !!unlockInfo && !unlockInfo.isUnlocked ? (

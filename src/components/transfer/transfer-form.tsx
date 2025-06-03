@@ -16,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useWallet } from "@solana/wallet-adapter-react";
-import SelectToken, { Token } from "./select-token";
+import SelectToken, { UserToken } from "./select-token";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const formSchema = z.object({
@@ -30,7 +30,7 @@ const formSchema = z.object({
 
 export default function TransferForm() {
     const isMobile = useIsMobile()
-    const [selectedToken, setSelectedToken] = useState<Token | null>(null);
+    const [selectedToken, setSelectedToken] = useState<UserToken | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
     const { publicKey } = useWallet();
 

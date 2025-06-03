@@ -6,14 +6,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
-import { Token } from "./select-token";
+import { UserToken } from "./select-token";
 import Image from "next/image";
 
 interface TokenSearchModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onTokenSelect?: (token: Token) => void;
-    tokens: Token[];
+    onTokenSelect?: (token: UserToken) => void;
+    tokens: UserToken[];
 }
 
 export default function TokenSearchModal({ open, onOpenChange, onTokenSelect, tokens }: TokenSearchModalProps) {
@@ -26,7 +26,7 @@ export default function TokenSearchModal({ open, onOpenChange, onTokenSelect, to
             token.address.toLowerCase().includes(searchQuery.toLowerCase()),
     );
 
-    const handleTokenSelect = (token: Token) => {
+    const handleTokenSelect = (token: UserToken) => {
         onTokenSelect?.(token);
         onOpenChange(false);
     };
