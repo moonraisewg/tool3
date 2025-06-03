@@ -85,13 +85,13 @@ async function prepareTransaction(
       "confirmed",
       tokenProgram
     );
-  } catch (error) {
+  } catch {
     accountCreationCount++;
   }
 
   try {
     await getAccount(connection, feeTokenAccount, "confirmed", tokenProgram);
-  } catch (error) {
+  } catch {
     accountCreationCount++;
   }
 
@@ -126,7 +126,7 @@ async function prepareTransaction(
         { status: 400 }
       );
     }
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: "Sender token account not found" },
       { status: 400 }
@@ -142,7 +142,7 @@ async function prepareTransaction(
       "confirmed",
       tokenProgram
     );
-  } catch (error) {
+  } catch {
     const createReceiverAccountIx = createAssociatedTokenAccountInstruction(
       adminKeypair.publicKey,
       receiverTokenAccount,
@@ -155,7 +155,7 @@ async function prepareTransaction(
 
   try {
     await getAccount(connection, feeTokenAccount, "confirmed", tokenProgram);
-  } catch (error) {
+  } catch {
     const createFeeAccountIx = createAssociatedTokenAccountInstruction(
       adminKeypair.publicKey,
       feeTokenAccount,
