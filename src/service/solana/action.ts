@@ -158,6 +158,38 @@ export const withdraw = async ({
     .instruction();
 };
 
+export const transfer = async ({
+  tokenAmount,
+  adminTokenAccount,
+  mint,
+  tokenProgram,
+  userATokenAccount,
+  userB,
+  userBTokenAccount,
+  userA,
+}: {
+  tokenAmount: number;
+  adminTokenAccount: PublicKey;
+  mint: PublicKey;
+  tokenProgram: PublicKey;
+  userATokenAccount: PublicKey;
+  userB: PublicKey;
+  userBTokenAccount: PublicKey;
+  userA: PublicKey;
+}): Promise<TransactionInstruction> => {
+  return await program.methods
+    .transferWithFee(new BN(tokenAmount))
+    .accounts({
+      adminTokenAccount,
+      mint,
+      tokenProgram,
+      userATokenAccount,
+      userB,
+      userBTokenAccount,
+      userA,
+    })
+    .instruction();
+};
 
 export interface UserPoolInfo {
   vaultAddress: PublicKey;
@@ -201,29 +233,44 @@ export async function getUserLockedPools(
         const vault = vaultAccount.account;
         const vaultAddress = vaultAccount.publicKey;
 
-        const [expectedUserLockPda] = findUserLockPda(vaultAddress, userPublicKey);
+        const [expectedUserLockPda] = findUserLockPda(
+          vaultAddress,
+          userPublicKey
+        );
         if (expectedUserLockPda.equals(userLockPubkey)) {
-          const poolStateAccount = await program.account.poolState.fetch(vault.poolState);
+          const poolStateAccount = await program.account.poolState.fetch(
+            vault.poolState
+          );
 
-
-          const token0VaultAccount = await getAccount(connection, poolStateAccount.token0Vault);
-          const token1VaultAccount = await getAccount(connection, poolStateAccount.token1Vault);
+          const token0VaultAccount = await getAccount(
+            connection,
+            poolStateAccount.token0Vault
+          );
+          const token1VaultAccount = await getAccount(
+            connection,
+            poolStateAccount.token1Vault
+          );
 
           const vault0Amount = BigInt(token0VaultAccount.amount.toString());
           const vault1Amount = BigInt(token1VaultAccount.amount.toString());
 
-
           const lpSupply = BigInt(poolStateAccount.lpSupply.toString());
-          const lpRatio = lpSupply > 0 ? (Number(userLockData.amount) / Number(lpSupply)) * 100 : 0;
-
+          const lpRatio =
+            lpSupply > 0
+              ? (Number(userLockData.amount) / Number(lpSupply)) * 100
+              : 0;
 
           userPoolInfos.push({
             vaultAddress,
             poolState: vault.poolState,
             lockedAmount: BigInt(userLockData.amount.toString()),
             unlockTimestamp: BigInt(userLockData.unlockTimestamp.toString()),
-            depositTokenPerLp0: BigInt(userLockData.depositTokenPerLp0.toString()),
-            depositTokenPerLp1: BigInt(userLockData.depositTokenPerLp1.toString()),
+            depositTokenPerLp0: BigInt(
+              userLockData.depositTokenPerLp0.toString()
+            ),
+            depositTokenPerLp1: BigInt(
+              userLockData.depositTokenPerLp1.toString()
+            ),
             token0Mint: poolStateAccount.token0Mint,
             token1Mint: poolStateAccount.token1Mint,
             vault0Amount,
@@ -231,7 +278,7 @@ export async function getUserLockedPools(
             lpMintDecimals: poolStateAccount.lpMintDecimals,
             vault0Address: poolStateAccount.token0Vault,
             vault1Address: poolStateAccount.token1Vault,
-            lpRatio
+            lpRatio,
           });
         }
       }

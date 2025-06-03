@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PublicKey } from "@solana/web3.js";
-import { getUserLockInfo } from "@/hooks/fetch-user-lock";
+import { getUserLockInfo } from "@/service/fetch-user-lock";
 import { checkVaultExists } from "@/lib/helper";
 import { getMint } from "@solana/spl-token";
 import { connection } from "@/service/solana/connection";

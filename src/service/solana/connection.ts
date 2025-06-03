@@ -1,6 +1,7 @@
-import { Connection, clusterApiUrl } from "@solana/web3.js";
+import { Connection } from "@solana/web3.js";
 
-const cluster = "devnet";
-// const rpc = "https://api.devnet.solana.com";
+const heliusApiKey = process.env.HELIUS_API_KEY;
+const cluster = process.env.CLUSTER;
+const rpc = `https://${cluster}.helius-rpc.com/?api-key=${heliusApiKey}`;
 
-export const connection = new Connection(clusterApiUrl(cluster), "confirmed");
+export const connection = new Connection(rpc, "confirmed");
