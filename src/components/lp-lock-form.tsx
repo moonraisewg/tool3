@@ -64,7 +64,7 @@ export default function LpLockForm() {
 
     switch (period) {
       case "6months":
-        unlockDate = add(now, { minutes: 15 });
+        unlockDate = add(now, { minutes: 5 });
         break;
       case "1year":
         unlockDate = add(now, { years: 1 });
@@ -203,25 +203,19 @@ export default function LpLockForm() {
             lastValidBlockHeight: data.lastValidBlockHeight,
           });
 
-          toast.success(
-            <div>
-              Lock token successful
-              <div>
-                You have locked {values.amount} LP tokens for {values.lockPeriod}
-              </div>
-              <a
-                href={`https://solscan.io/tx/${txId}?cluster=devnet`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-500 underline"
-              >
-                View on Solscan
-              </a>
-            </div>,
-            {
-              duration: 10000,
-            }
-          );
+          toast.success("Lock LP token successful", {
+            description: `You have locked ${
+              values.amount
+            } LP tokens for ${" "} ${values.lockPeriod}`,
+            action: {
+              label: "View Transaction",
+              onClick: () =>
+                window.open(
+                  `https://solscan.io/tx/${txId}?cluster=devnet`,
+                  "_blank"
+                ),
+            },
+          });
         } catch (error: unknown) {
           console.error("Transaction error:", error);
           throw new Error("Cannot sign or send transaction");
@@ -262,7 +256,11 @@ export default function LpLockForm() {
     }
   }, [searchParams, publicKey, fetchPoolInfo, form]);
   return (
-    <div className={`md:p-3 max-w-[550px] mx-auto my-2 ${!isMobile && "border-gear"}`}>
+    <div
+      className={`md:p-3 max-w-[550px] mx-auto my-2 ${
+        !isMobile && "border-gear"
+      }`}
+    >
       <div className="text-2xl font-bold text-gray-900 mb-6 flex items-center justify-center">
         Lock LP Tokens
       </div>
@@ -388,10 +386,18 @@ export default function LpLockForm() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className="border-gray-300 bg-white text-gray-900">
-                      <SelectItem value="6months" className="cursor-pointer">6 months</SelectItem>
-                      <SelectItem value="1year" className="cursor-pointer">1 years</SelectItem>
-                      <SelectItem value="2years" className="cursor-pointer">2 years</SelectItem>
-                      <SelectItem value="3years" className="cursor-pointer">3 years</SelectItem>
+                      <SelectItem value="6months" className="cursor-pointer">
+                        6 months
+                      </SelectItem>
+                      <SelectItem value="1year" className="cursor-pointer">
+                        1 years
+                      </SelectItem>
+                      <SelectItem value="2years" className="cursor-pointer">
+                        2 years
+                      </SelectItem>
+                      <SelectItem value="3years" className="cursor-pointer">
+                        3 years
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -418,9 +424,9 @@ export default function LpLockForm() {
                 <span className="text-gray-500">Unlock Date</span>
                 {form.watch("lockPeriod")
                   ? format(
-                    fromUnixTime(getLockTimestamp(form.watch("lockPeriod"))),
-                    "dd/MM/yyyy"
-                  )
+                      fromUnixTime(getLockTimestamp(form.watch("lockPeriod"))),
+                      "dd/MM/yyyy"
+                    )
                   : "--"}
               </div>
             </div>

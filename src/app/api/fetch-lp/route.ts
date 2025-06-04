@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchLpMintAndBalance } from "@/hooks/fetch-pool";
+import { fetchLpMintAndBalance } from "@/service/fetch-pool";
 
 export async function POST(request: NextRequest) {
   const { poolId, userPublicKey } = await request.json();

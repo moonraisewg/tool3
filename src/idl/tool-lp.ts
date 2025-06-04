@@ -92,6 +92,73 @@ export type ToolLp = {
       ];
     },
     {
+      name: "fundAdminPda";
+      discriminator: [240, 158, 230, 206, 237, 200, 43, 220];
+      accounts: [
+        {
+          name: "funder";
+          writable: true;
+          signer: true;
+        },
+        {
+          name: "adminPda";
+          writable: true;
+          pda: {
+            seeds: [
+              {
+                kind: "const";
+                value: [97, 100, 109, 105, 110, 95, 112, 100, 97];
+              }
+            ];
+          };
+        },
+        {
+          name: "systemProgram";
+          address: "11111111111111111111111111111111";
+        }
+      ];
+      args: [
+        {
+          name: "amount";
+          type: "u64";
+        }
+      ];
+    },
+    {
+      name: "initializeAdminPda";
+      discriminator: [25, 70, 71, 201, 80, 64, 154, 250];
+      accounts: [
+        {
+          name: "initializer";
+          writable: true;
+          signer: true;
+          address: "4WbU9nksassGissHNW7bSXZrYDsLKrjSDE7WxnLWfys1";
+        },
+        {
+          name: "adminPda";
+          writable: true;
+          pda: {
+            seeds: [
+              {
+                kind: "const";
+                value: [97, 100, 109, 105, 110, 95, 112, 100, 97];
+              }
+            ];
+          };
+        },
+        {
+          name: "systemProgram";
+          address: "11111111111111111111111111111111";
+        }
+      ];
+      args: [
+        {
+          name: "initialSol";
+          type: "u64";
+        }
+      ];
+    },
+    {
       name: "initializeVault";
       discriminator: [48, 191, 163, 44, 71, 129, 63, 164];
       accounts: [
@@ -216,6 +283,69 @@ export type ToolLp = {
         }
       ];
       args: [];
+    },
+    {
+      name: "transferWithFee";
+      discriminator: [140, 41, 159, 221, 159, 13, 211, 126];
+      accounts: [
+        {
+          name: "userA";
+          writable: true;
+          signer: true;
+        },
+        {
+          name: "userATokenAccount";
+          writable: true;
+        },
+        {
+          name: "userB";
+          writable: true;
+        },
+        {
+          name: "userBTokenAccount";
+          writable: true;
+        },
+        {
+          name: "adminPda";
+          writable: true;
+          pda: {
+            seeds: [
+              {
+                kind: "const";
+                value: [97, 100, 109, 105, 110, 95, 112, 100, 97];
+              }
+            ];
+          };
+        },
+        {
+          name: "admin";
+          address: "4WbU9nksassGissHNW7bSXZrYDsLKrjSDE7WxnLWfys1";
+        },
+        {
+          name: "adminTokenAccount";
+          writable: true;
+        },
+        {
+          name: "mint";
+        },
+        {
+          name: "tokenProgram";
+        },
+        {
+          name: "associatedTokenProgram";
+          address: "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
+        },
+        {
+          name: "systemProgram";
+          address: "11111111111111111111111111111111";
+        }
+      ];
+      args: [
+        {
+          name: "amount";
+          type: "u64";
+        }
+      ];
     },
     {
       name: "withdraw";
@@ -428,6 +558,44 @@ export type ToolLp = {
           type: "u64";
         }
       ];
+    },
+    {
+      name: "withdrawFromAdminPda";
+      discriminator: [125, 45, 96, 115, 198, 226, 134, 75];
+      accounts: [
+        {
+          name: "admin";
+          writable: true;
+          signer: true;
+          address: "4WbU9nksassGissHNW7bSXZrYDsLKrjSDE7WxnLWfys1";
+        },
+        {
+          name: "adminPda";
+          writable: true;
+          pda: {
+            seeds: [
+              {
+                kind: "const";
+                value: [97, 100, 109, 105, 110, 95, 112, 100, 97];
+              }
+            ];
+          };
+        },
+        {
+          name: "recipient";
+          writable: true;
+        },
+        {
+          name: "systemProgram";
+          address: "11111111111111111111111111111111";
+        }
+      ];
+      args: [
+        {
+          name: "amount";
+          type: "u64";
+        }
+      ];
     }
   ];
   accounts: [
@@ -446,8 +614,24 @@ export type ToolLp = {
   ];
   events: [
     {
+      name: "adminPdaFundedEvent";
+      discriminator: [57, 237, 138, 207, 56, 1, 201, 171];
+    },
+    {
+      name: "adminPdaInitializedEvent";
+      discriminator: [114, 220, 34, 191, 236, 139, 91, 24];
+    },
+    {
       name: "depositEvent";
       discriminator: [120, 248, 61, 83, 31, 142, 107, 144];
+    },
+    {
+      name: "solWithdrawnFromPdaEvent";
+      discriminator: [12, 70, 144, 105, 162, 150, 41, 123];
+    },
+    {
+      name: "transferWithFeeEvent";
+      discriminator: [4, 232, 43, 5, 52, 124, 151, 44];
     },
     {
       name: "withdrawEvent";
@@ -499,9 +683,76 @@ export type ToolLp = {
       code: 6008;
       name: "vaultTokenAccountNotInitialized";
       msg: "Vault token account not initialized";
+    },
+    {
+      code: 6009;
+      name: "insufficientAdminPdaBalance";
+      msg: "Admin PDA has insufficient SOL balance";
+    },
+    {
+      code: 6010;
+      name: "unauthorizedAdmin";
+      msg: "Unauthorized: Only admin can perform this action";
+    },
+    {
+      code: 6011;
+      name: "invalidAmount";
+      msg: "Invalid amount: Must be greater than 0";
     }
   ];
   types: [
+    {
+      name: "adminPdaFundedEvent";
+      type: {
+        kind: "struct";
+        fields: [
+          {
+            name: "adminPda";
+            type: "pubkey";
+          },
+          {
+            name: "funder";
+            type: "pubkey";
+          },
+          {
+            name: "amount";
+            type: "u64";
+          },
+          {
+            name: "newBalance";
+            type: "u64";
+          },
+          {
+            name: "timestamp";
+            type: "i64";
+          }
+        ];
+      };
+    },
+    {
+      name: "adminPdaInitializedEvent";
+      type: {
+        kind: "struct";
+        fields: [
+          {
+            name: "adminPda";
+            type: "pubkey";
+          },
+          {
+            name: "initializer";
+            type: "pubkey";
+          },
+          {
+            name: "initialSol";
+            type: "u64";
+          },
+          {
+            name: "timestamp";
+            type: "i64";
+          }
+        ];
+      };
+    },
     {
       name: "depositEvent";
       type: {
@@ -664,6 +915,70 @@ export type ToolLp = {
             type: {
               array: ["u64", 31];
             };
+          }
+        ];
+      };
+    },
+    {
+      name: "solWithdrawnFromPdaEvent";
+      type: {
+        kind: "struct";
+        fields: [
+          {
+            name: "adminPda";
+            type: "pubkey";
+          },
+          {
+            name: "recipient";
+            type: "pubkey";
+          },
+          {
+            name: "amount";
+            type: "u64";
+          },
+          {
+            name: "remainingBalance";
+            type: "u64";
+          },
+          {
+            name: "timestamp";
+            type: "i64";
+          }
+        ];
+      };
+    },
+    {
+      name: "transferWithFeeEvent";
+      type: {
+        kind: "struct";
+        fields: [
+          {
+            name: "userA";
+            type: "pubkey";
+          },
+          {
+            name: "userB";
+            type: "pubkey";
+          },
+          {
+            name: "admin";
+            type: "pubkey";
+          },
+          {
+            name: "mint";
+            type: "pubkey";
+          },
+          {
+            name: "amount";
+            type: "u64";
+          },
+          {
+            name: "fee";
+            type: "u64";
+          },
+          {
+            name: "timestamp";
+            type: "i64";
           }
         ];
       };

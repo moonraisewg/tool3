@@ -73,6 +73,7 @@ export default function Withdraw() {
     remainingTime: number;
   } | null>(null);
   const searchParams = useSearchParams();
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -127,15 +128,11 @@ export default function Withdraw() {
     [publicKey, setUserLpBalance, setUnlockInfo, setLoading]
   );
 
-
-
   const debouncedFetchPoolInfo = useMemo(() => {
     return debounce((poolId: string) => {
       fetchPoolInfo(poolId);
     }, 1000);
   }, [fetchPoolInfo]);
-
-
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
@@ -188,26 +185,17 @@ export default function Withdraw() {
             lastValidBlockHeight: data.lastValidBlockHeight,
           });
 
-          toast.success(
-            <div>
-              Withdraw token successful
-              <div>
-                You have withdrawn {values.amount} LP tokens
-              </div>
-              <a
-                href={`https://solscan.io/tx/${txId}?cluster=devnet`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-500 underline"
-              >
-                View on Solscan
-              </a>
-            </div>,
-            {
-              duration: 10000,
-            }
-          );
-
+          toast.success("Withdraw token successful", {
+            description: `You have withdrawn ${values.amount} LP tokens`,
+            action: {
+              label: "View Transaction",
+              onClick: () =>
+                window.open(
+                  `https://solscan.io/tx/${txId}?cluster=devnet`,
+                  "_blank"
+                ),
+            },
+          });
         } catch (error: unknown) {
           console.error("Transaction error:", error);
           throw new Error("Cannot sign or send transaction");
@@ -240,7 +228,6 @@ export default function Withdraw() {
     debouncedFetchPoolInfo(value);
   };
 
-
   useEffect(() => {
     const poolId = searchParams.get("poolId")?.trim();
     if (poolId && publicKey) {
@@ -250,7 +237,10 @@ export default function Withdraw() {
   }, [searchParams, publicKey, fetchPoolInfo, form]);
 
   return (
-    <div className={`md:p-3 max-w-[550px] mx-auto my-2 ${!isMobile && "border-gear"}`}>
+    <div
+      className={`md:p-3 max-w-[550px] mx-auto my-2 ${!isMobile && "border-gear"
+        }`}
+    >
       <div className="text-2xl font-bold text-gray-900 mb-6 flex items-center justify-center ">
         Withdraw LP Tokens
       </div>
@@ -364,8 +354,8 @@ export default function Withdraw() {
             type="submit"
             disabled={loading || (!!unlockInfo && !unlockInfo.isUnlocked)}
             className={`w-full text-white cursor-pointer mt-3 ${!!unlockInfo && !unlockInfo.isUnlocked
-              ? "disabled:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
-              : " disabled:opacity-50 disabled:cursor-not-allowed"
+                ? "disabled:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                : " disabled:opacity-50 disabled:cursor-not-allowed"
               }`}
             variant="default"
           >
