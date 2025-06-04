@@ -62,10 +62,10 @@ const SelectToken: React.FC<SelectTokenProps> = ({
   const { publicKey } = useWallet();
 
   useEffect(() => {
-    if (disabled && externalAmount !== undefined) {
+    if (externalAmount !== undefined) {
       setAmount(externalAmount);
     }
-  }, [disabled, externalAmount]);
+  }, [externalAmount]);
 
   const handleTokenSelect = (token: UserToken) => {
     setSelectedToken(token);
@@ -206,7 +206,7 @@ const SelectToken: React.FC<SelectTokenProps> = ({
               size="sm"
               className="border-gear-gray h-[26px] bg-white text-gray-700 hover:bg-white hover:text-purple-900 cursor-pointer"
               onClick={setHalf}
-              disabled={!selectedToken || loading || disabled}
+              disabled={!selectedToken || disabled}
             >
               HALF
             </Button>
@@ -216,7 +216,7 @@ const SelectToken: React.FC<SelectTokenProps> = ({
               size="sm"
               className="border-gear-gray h-[26px] bg-white text-gray-700 hover:bg-white hover:text-purple-900 cursor-pointer"
               onClick={setMax}
-              disabled={!selectedToken || loading || disabled}
+              disabled={!selectedToken || disabled}
             >
               MAX
             </Button>
@@ -241,7 +241,7 @@ const SelectToken: React.FC<SelectTokenProps> = ({
                 className="rounded-full object-cover"
               />
               <div className="mt-[2px]">
-                {title === "You Pay" ? `${selectedToken.symbol} Devnet` : selectedToken.symbol}
+                {title === "You Pay" ? `${selectedToken.symbol} Mainnet` : selectedToken.symbol}
               </div>
             </div>
           ) : (
@@ -262,7 +262,7 @@ const SelectToken: React.FC<SelectTokenProps> = ({
               onChange={(e) => handleAmountChange(e.target.value)}
               className="focus-visible:ring-0 focus-visible:border-none focus-visible:outline-none outline-none ring-0 border-none shadow-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-right md:!text-[32px] !text-[24px] pr-0"
               placeholder="0.00"
-              disabled={disabled || loading}
+              disabled={disabled}
             />
           )}
         </div>

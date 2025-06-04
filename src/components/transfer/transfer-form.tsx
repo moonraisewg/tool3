@@ -112,12 +112,27 @@ export default function TransferForm() {
         throw new Error(executeResult.error || "Failed to execute transaction");
       }
 
-      toast.success("Transfer successful", {
-        description: `You have transferred ${values.amount} ${selectedToken.symbol || selectedToken.name} to ${values.recipient}`,
+      toast.success("🎉 Gasless Transfer Successful!", {
+        description: `Transferred ${values.amount} ${selectedToken.symbol || selectedToken.name
+          } to ${values.recipient.slice(0, 8)}...${values.recipient.slice(-8)}`,
+        action: {
+          label: "View Transaction",
+          onClick: () =>
+            window.open(
+              `https://solscan.io/tx/${executeResult.signature}?cluster=devnet`,
+              "_blank"
+            ),
+        },
       });
+
       form.reset();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "An unexpected error occurred";
+      setSelectedToken(null);
+    } catch (error: unknown) {
+      console.error("Transfer error:", error);
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Transfer failed. Please try again.";
       toast.error(message);
     } finally {
       setLoading(false);
@@ -169,6 +184,7 @@ export default function TransferForm() {
               onAmountChange={(value) => {
                 form.setValue("amount", value);
               }}
+              externalAmount={form.watch("amount")}
             />
           </div>
 
