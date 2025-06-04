@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Info, Loader2, Wallet } from "lucide-react";
+import { Info, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -29,6 +29,7 @@ import { connection } from "../service/solana/connection";
 import { Transaction } from "@solana/web3.js";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { debounce } from "lodash";
+import { Loader } from "@nsmr/pixelart-react";
 
 const formatRemainingTime = (seconds: number): string => {
   if (seconds <= 0) return "Locked";
@@ -237,9 +238,8 @@ export default function Withdraw() {
 
   return (
     <div
-      className={`md:p-3 max-w-[550px] mx-auto my-2 ${
-        !isMobile && "border-gear"
-      }`}
+      className={`md:p-3 max-w-[550px] mx-auto my-2 ${!isMobile && "border-gear"
+        }`}
     >
       <div className="text-2xl font-bold text-gray-900 mb-6 flex items-center justify-center ">
         Withdraw LP Tokens
@@ -353,16 +353,15 @@ export default function Withdraw() {
           <Button
             type="submit"
             disabled={loading || (!!unlockInfo && !unlockInfo.isUnlocked)}
-            className={`w-full text-white cursor-pointer mt-3 ${
-              !!unlockInfo && !unlockInfo.isUnlocked
+            className={`w-full text-white cursor-pointer mt-3 ${!!unlockInfo && !unlockInfo.isUnlocked
                 ? "disabled:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 : " disabled:opacity-50 disabled:cursor-not-allowed"
-            }`}
+              }`}
             variant="default"
           >
             {loading ? (
               <span className="flex items-center justify-center">
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader className="mr-2 h-4 w-4 animate-spin" />
                 Processing...
               </span>
             ) : !!unlockInfo && !unlockInfo.isUnlocked ? (

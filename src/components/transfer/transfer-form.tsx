@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { Transaction } from "@solana/web3.js";
-import SelectToken, { Token } from "./select-token";
+import SelectToken, { UserToken } from "./select-token";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const formSchema = z.object({
@@ -29,8 +29,8 @@ const formSchema = z.object({
 });
 
 export default function TransferForm() {
-  const isMobile = useIsMobile();
-  const [selectedToken, setSelectedToken] = useState<Token | null>(null);
+  const isMobile = useIsMobile()
+  const [selectedToken, setSelectedToken] = useState<UserToken | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const { publicKey, signTransaction } = useWallet();
 
@@ -112,28 +112,12 @@ export default function TransferForm() {
         throw new Error(executeResult.error || "Failed to execute transaction");
       }
 
-      toast.success("🎉 Gasless Transfer Successful!", {
-        description: `Transferred ${values.amount} ${
-          selectedToken.symbol || selectedToken.name
-        } to ${values.recipient.slice(0, 8)}...${values.recipient.slice(-8)}`,
-        action: {
-          label: "View Transaction",
-          onClick: () =>
-            window.open(
-              `https://solscan.io/tx/${executeResult.signature}?cluster=devnet`,
-              "_blank"
-            ),
-        },
+      toast.success("Transfer successful", {
+        description: `You have transferred ${values.amount} ${selectedToken.symbol || selectedToken.name} to ${values.recipient}`,
       });
-
       form.reset();
-      setSelectedToken(null);
-    } catch (error: unknown) {
-      console.error("Transfer error:", error);
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Transfer failed. Please try again.";
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "An unexpected error occurred";
       toast.error(message);
     } finally {
       setLoading(false);
@@ -142,9 +126,8 @@ export default function TransferForm() {
 
   return (
     <div
-      className={`md:p-2 max-w-[550px] mx-auto my-2 ${
-        !isMobile && "border-gear"
-      }`}
+      className={`md:p-2 max-w-[550px] mx-auto my-2 ${!isMobile && "border-gear"
+        }`}
     >
       <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">
         Gasless Token Transfer
@@ -158,31 +141,36 @@ export default function TransferForm() {
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <FormField
-            control={form.control}
-            name="recipient"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-gray-900">
-                  Recipient Address
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    className="border-gray-300 bg-white text-gray-900 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 rounded-lg"
-                    placeholder="Enter recipient Solana address"
-                    {...field}
-                    disabled={loading}
-                  />
-                </FormControl>
-                <FormMessage className="text-red-500 text-sm mt-1" />
-              </FormItem>
-            )}
-          />
+          <div className="px-[5px] space-y-6">
+            <FormField
+              control={form.control}
+              name="recipient"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-gray-900">
+                    Recipient Address
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      className="border-gray-300 bg-white text-gray-900 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 rounded-lg"
+                      placeholder="Enter recipient Solana address"
+                      {...field}
+                      disabled={loading}
+                    />
+                  </FormControl>
+                  <FormMessage className="text-red-500 text-sm mt-1" />
+                </FormItem>
+              )}
+            />
 
-          <SelectToken
-            onTokenSelect={setSelectedToken}
-            onAmountChange={(value) => form.setValue("amount", value)}
-          />
+            <SelectToken
+              selectedToken={selectedToken}
+              setSelectedToken={setSelectedToken}
+              onAmountChange={(value) => {
+                form.setValue("amount", value);
+              }}
+            />
+          </div>
 
           <Button
             type="submit"
@@ -194,6 +182,6 @@ export default function TransferForm() {
           </Button>
         </form>
       </Form>
-    </div>
+    </div >
   );
 }

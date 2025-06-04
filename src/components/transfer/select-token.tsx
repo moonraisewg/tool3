@@ -1,15 +1,15 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Button } from "../ui/button";
-import { Input } from "../ui/input";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import TokenSearchModal from "./select-token-modal";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { toast } from "sonner";
 import Image from "next/image";
-import { ChevronDown, Wallet } from "@nsmr/pixelart-react";
+import { ChevronDown, Loader, Wallet } from "@nsmr/pixelart-react";
 
-export interface Token {
+export interface UserToken {
   address: string;
   name: string;
   balance: string;
@@ -29,11 +29,6 @@ interface Content {
   links?: { image?: string };
 }
 
-interface SelectTokenProps {
-  onTokenSelect: (token: Token | null) => void;
-  onAmountChange: (amount: string) => void;
-}
-
 interface Asset {
   interface: "FungibleToken" | "FungibleAsset";
   id: string;
@@ -41,21 +36,39 @@ interface Asset {
   token_info: TokenInfo;
 }
 
+interface SelectTokenProps {
+  selectedToken: UserToken | null;
+  setSelectedToken: (token: UserToken | null) => void;
+  onAmountChange: (amount: string) => void;
+  title?: string;
+  disabled?: boolean;
+  externalAmount?: string;
+  amountLoading?: boolean;
+}
+
 const SelectToken: React.FC<SelectTokenProps> = ({
-  onTokenSelect,
+  selectedToken,
+  setSelectedToken,
   onAmountChange,
+  title,
+  disabled,
+  externalAmount,
+  amountLoading = false,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [tokens, setTokens] = useState<Token[]>([]);
-  const [selectedToken, setSelectedToken] = useState<Token | null>(null);
+  const [tokens, setTokens] = useState<UserToken[]>([]);
   const [amount, setAmount] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const { publicKey } = useWallet();
 
-  const handleTokenSelect = (token: Token) => {
+  useEffect(() => {
+    if (disabled && externalAmount !== undefined) {
+      setAmount(externalAmount);
+    }
+  }, [disabled, externalAmount]);
+
+  const handleTokenSelect = (token: UserToken) => {
     setSelectedToken(token);
-    setAmount("");
-    onTokenSelect(token);
     setIsModalOpen(false);
   };
 
@@ -64,7 +77,6 @@ const SelectToken: React.FC<SelectTokenProps> = ({
       setTokens([]);
       setSelectedToken(null);
       setAmount("");
-      onTokenSelect(null);
       return;
     }
 
@@ -86,17 +98,11 @@ const SelectToken: React.FC<SelectTokenProps> = ({
       const assets = data.result?.items || [];
       const nativeBalance = data.result?.nativeBalance?.lamports || 0;
 
-      const formattedTokens: Token[] = assets
-        .filter(
-          (asset: Asset) =>
-            asset.interface === "FungibleToken" ||
-            asset.interface === "FungibleAsset"
-        )
+      const formattedTokens: UserToken[] = assets
+        .filter((asset: Asset) => asset.interface === "FungibleToken" || asset.interface === "FungibleAsset")
         .map((asset: Asset) => {
           const mint = asset.id;
-          const balance =
-            (asset.token_info?.balance || 0) /
-            Math.pow(10, asset.token_info?.decimals || 0);
+          const balance = (asset.token_info?.balance || 0) / Math.pow(10, asset.token_info?.decimals || 0);
           return {
             address: mint,
             name: asset.content?.metadata?.name || "Unknown Token",
@@ -107,7 +113,7 @@ const SelectToken: React.FC<SelectTokenProps> = ({
           };
         });
 
-      const solToken: Token = {
+      const solToken: UserToken = {
         address: "NativeSOL",
         name: "Solana",
         symbol: "SOL",
@@ -122,7 +128,6 @@ const SelectToken: React.FC<SelectTokenProps> = ({
 
       if (allTokens.length > 0 && !selectedToken) {
         setSelectedToken(allTokens[0]);
-        onTokenSelect(allTokens[0]);
       }
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -135,12 +140,13 @@ const SelectToken: React.FC<SelectTokenProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [publicKey, selectedToken, onTokenSelect]);
+  }, [publicKey, setSelectedToken, selectedToken]);
+
   const setHalf = () => {
     if (selectedToken) {
-      const halfBalance = (parseFloat(selectedToken.balance) / 2).toFixed(
-        selectedToken.decimals || 2
-      );
+      const halfBalance = (
+        parseFloat(selectedToken.balance) / 2
+      ).toFixed(selectedToken.decimals || 2);
       setAmount(halfBalance);
       onAmountChange(halfBalance);
     }
@@ -153,8 +159,9 @@ const SelectToken: React.FC<SelectTokenProps> = ({
     }
   };
 
-  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
+  const handleAmountChange = (value: string) => {
+    if (disabled) return;
+
     if (value === "") {
       setAmount("");
       onAmountChange("");
@@ -180,10 +187,10 @@ const SelectToken: React.FC<SelectTokenProps> = ({
   }, [publicKey, fetchAllTokens]);
 
   return (
-    <div className="bg-white border-gear-gray p-3 flex flex-col min-h-[120px] shadow-lg justify-between">
+    <div className="bg-white border-gear-gray p-3 flex flex-col min-h-[120px] justify-between pt-[18px]">
       <div className="flex items-center justify-between mb-2">
-        <div>Select token</div>
-        <div className="flex items-center sm:gap-4 gap-1">
+        <div className="ml-[4px]">{title || "Select Token"}</div>
+        <div className="flex items-center sm:gap-4 gap-2 mr-1">
           <div className="flex items-center gap-1">
             <Wallet className="h-4 w-4 text-purple-400" />
             <div className="mt-[2px]">
@@ -192,14 +199,14 @@ const SelectToken: React.FC<SelectTokenProps> = ({
                 : "0.00"}
             </div>
           </div>
-          <div className="flex sm:gap-4 gap-2">
+          <div className="flex items-center gap-4">
             <Button
               type="button"
               variant="outline"
               size="sm"
-              className="border-gear-gray h-[28px] bg-white text-gray-700 hover:bg-white hover:text-purple-900 cursor-pointer"
+              className="border-gear-gray h-[26px] bg-white text-gray-700 hover:bg-white hover:text-purple-900 cursor-pointer"
               onClick={setHalf}
-              disabled={!selectedToken || loading}
+              disabled={!selectedToken || loading || disabled}
             >
               HALF
             </Button>
@@ -207,43 +214,35 @@ const SelectToken: React.FC<SelectTokenProps> = ({
               type="button"
               variant="outline"
               size="sm"
-              className="border-gear-gray h-[28px] bg-white text-gray-700 hover:bg-white hover:text-purple-900 cursor-pointer"
+              className="border-gear-gray h-[26px] bg-white text-gray-700 hover:bg-white hover:text-purple-900 cursor-pointer"
               onClick={setMax}
-              disabled={!selectedToken || loading}
+              disabled={!selectedToken || loading || disabled}
             >
               MAX
             </Button>
           </div>
         </div>
       </div>
-
-      <div className="flex justify-between items-center mb-2 mt-4">
+      <div className="flex justify-between items-center mb-2 mt-4 h-[40px]">
         <button
           type="button"
           onClick={() => setIsModalOpen(true)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              e.stopPropagation();
-            }
-          }}
-          className={`flex items-center gap-2 text-gray-700 hover:text-purple-900 border-gear-gray px-2 py-1 $ ${
-            !selectedToken || loading
-              ? "cursor-not-allowed opacity-50"
-              : "cursor-pointer "
-          }`}
+          className={`flex items-center gap-2 text-gray-700 hover:text-purple-900 border-gear-gray px-2 py-1 ml-2 ${!selectedToken || loading ? "cursor-not-allowed" : "cursor-pointer"
+            }`}
           disabled={!selectedToken || loading}
         >
           {selectedToken ? (
             <div className="flex items-center gap-2">
               <Image
-                src={selectedToken.logoURI || "/image/none-icon.webp"}
-                alt={selectedToken.name}
+                src={selectedToken?.logoURI || "/image/none-icon.webp"}
+                alt={selectedToken?.name || "Token"}
                 width={24}
                 height={24}
                 className="rounded-full object-cover"
               />
-              <div className="mt-[2px]">{selectedToken.symbol}</div>
+              <div className="mt-[2px]">
+                {title === "You Pay" ? `${selectedToken.symbol} Devnet` : selectedToken.symbol}
+              </div>
             </div>
           ) : (
             <div className="flex items-center gap-2">
@@ -253,21 +252,21 @@ const SelectToken: React.FC<SelectTokenProps> = ({
           )}
           <ChevronDown size={24} />
         </button>
-        <Input
-          type="number"
-          value={amount}
-          onChange={handleAmountChange}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.stopPropagation();
-            }
-          }}
-          className="focus-visible:ring-0 focus-visible:border-none focus-visible:outline-none outline-none ring-0 border-none shadow-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-right max-w-[300px] md:!text-[32px] !text-[24px]"
-          placeholder="0.00"
-          disabled={!selectedToken || loading}
-        />
+        <div className="sm:w-[270px] w-[190px] h-[40px] flex items-center justify-end">
+          {amountLoading ? (
+            <Loader className="h-6 w-6 animate-spin text-gray-500 mb-1" />
+          ) : (
+            <Input
+              type="number"
+              value={amount}
+              onChange={(e) => handleAmountChange(e.target.value)}
+              className="focus-visible:ring-0 focus-visible:border-none focus-visible:outline-none outline-none ring-0 border-none shadow-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-right md:!text-[32px] !text-[24px] pr-0"
+              placeholder="0.00"
+              disabled={disabled || loading}
+            />
+          )}
+        </div>
       </div>
-
       <TokenSearchModal
         open={isModalOpen}
         onOpenChange={setIsModalOpen}
