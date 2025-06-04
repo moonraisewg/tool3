@@ -23,7 +23,7 @@ const ReceiveSolDevnet: React.FC<ReceiveSolDevnetProps> = ({
 }) => {
     return (
         <div className="bg-white border-gear-gray p-3 flex flex-col min-h-[120px] justify-between pt-[18px]">
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-2 h-[26px]">
                 <div className="ml-[4px]">You Receive</div>
                 <div className="flex items-center sm:gap-4 gap-1 mr-1">
                     ${USDPERSOL} per SOL Devnet
