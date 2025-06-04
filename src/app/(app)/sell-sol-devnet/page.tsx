@@ -1,4 +1,4 @@
-import SellSolDevnet from "@/components/sell-sol-devnet";
+import SellSolDevnet from "@/components/sell-sol-devnet/sell-sol-devnet";
 
 export default function WithdrawLP() {
     return (

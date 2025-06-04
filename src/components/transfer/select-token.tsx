@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Button } from "../ui/button";
-import { Input } from "../ui/input";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import TokenSearchModal from "./select-token-modal";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { toast } from "sonner";
 import Image from "next/image";
-import { ChevronDown, Wallet } from "@nsmr/pixelart-react";
+import { ChevronDown, Loader, Wallet } from "@nsmr/pixelart-react";
 
 export interface UserToken {
     address: string;
@@ -39,17 +39,32 @@ interface Asset {
 interface SelectTokenProps {
     onTokenSelect: (token: UserToken | null) => void;
     onAmountChange: (amount: string) => void;
-    title?: string
+    title?: string;
+    disabled?: boolean;
+    externalAmount?: string;
+    amountLoading?: boolean
 }
 
-
-const SelectToken: React.FC<SelectTokenProps> = ({ onTokenSelect, onAmountChange, title }) => {
+const SelectToken: React.FC<SelectTokenProps> = ({
+    onTokenSelect,
+    onAmountChange,
+    title,
+    disabled,
+    externalAmount,
+    amountLoading = false,
+}) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [tokens, setTokens] = useState<UserToken[]>([]);
     const [selectedToken, setSelectedToken] = useState<UserToken | null>(null);
     const [amount, setAmount] = useState<string>("");
     const [loading, setLoading] = useState<boolean>(false);
     const { publicKey } = useWallet();
+
+    useEffect(() => {
+        if (disabled && externalAmount !== undefined) {
+            setAmount(externalAmount);
+        }
+    }, [disabled, externalAmount]);
 
     const handleTokenSelect = (token: UserToken) => {
         setSelectedToken(token);
@@ -142,8 +157,9 @@ const SelectToken: React.FC<SelectTokenProps> = ({ onTokenSelect, onAmountChange
         }
     };
 
-    const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value;
+    const handleAmountChange = (value: string) => {
+        if (disabled) return;
+
         if (value === "") {
             setAmount("");
             onAmountChange("");
@@ -167,24 +183,24 @@ const SelectToken: React.FC<SelectTokenProps> = ({ onTokenSelect, onAmountChange
     }, [publicKey, fetchAllTokens]);
 
     return (
-        <div className="bg-white border-gear-gray p-3 flex flex-col min-h-[120px] justify-between pt-5">
-            <div className="flex items-center justify-between mb-2 ml-1">
-                <div>{title || "Select token"}</div>
-                <div className="flex items-center sm:gap-4 gap-1">
+        <div className="bg-white border-gear-gray p-3 flex flex-col min-h-[120px] justify-between pt-[18px]">
+            <div className="flex items-center justify-between mb-2">
+                <div className="ml-[4px]">{title || "Select Token"}</div>
+                <div className="flex items-center sm:gap-4 gap-2 mr-1">
                     <div className="flex items-center gap-1">
                         <Wallet className="h-4 w-4 text-purple-400" />
                         <div className="mt-[2px]">
                             {selectedToken ? `${selectedToken.balance} ${selectedToken.symbol}` : "0.00"}
                         </div>
                     </div>
-                    <div className="flex sm:gap-4 gap-2 mr-[6px]">
+                    <div className="flex items-center gap-4">
                         <Button
                             type="button"
                             variant="outline"
                             size="sm"
                             className="border-gear-gray h-[26px] bg-white text-gray-700 hover:bg-white hover:text-purple-900 cursor-pointer"
                             onClick={setHalf}
-                            disabled={!selectedToken || loading}
+                            disabled={!selectedToken || loading || disabled}
                         >
                             HALF
                         </Button>
@@ -194,32 +210,25 @@ const SelectToken: React.FC<SelectTokenProps> = ({ onTokenSelect, onAmountChange
                             size="sm"
                             className="border-gear-gray h-[26px] bg-white text-gray-700 hover:bg-white hover:text-purple-900 cursor-pointer"
                             onClick={setMax}
-                            disabled={!selectedToken || loading}
+                            disabled={!selectedToken || loading || disabled}
                         >
                             MAX
                         </Button>
                     </div>
                 </div>
             </div>
-
-            <div className="flex justify-between items-center mb-2 mt-4 ml-2">
+            <div className="flex justify-between items-center mb-2 mt-4 h-[40px]">
                 <button
                     type="button"
                     onClick={() => setIsModalOpen(true)}
-                    onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                            e.preventDefault();
-                            e.stopPropagation();
-                        }
-                    }}
-                    className={`flex items-center gap-2 text-gray-700 hover:text-purple-900 border-gear-gray px-2 py-1 $ ${!selectedToken || loading ? "cursor-not-allowed opacity-50" : "cursor-pointer "}`}
+                    className={`flex items-center gap-2 text-gray-700 hover:text-purple-900 border-gear-gray px-2 py-1 ml-2 ${!selectedToken || loading ? "cursor-not-allowed" : "cursor-pointer"}`}
                     disabled={!selectedToken || loading}
                 >
                     {selectedToken ? (
                         <div className="flex items-center gap-2">
                             <Image
-                                src={selectedToken.logoURI || "/image/none-icon.webp"}
-                                alt={selectedToken.name}
+                                src={selectedToken?.logoURI || "/image/none-icon.webp"}
+                                alt={selectedToken?.name || "Token"}
                                 width={24}
                                 height={24}
                                 className="rounded-full object-cover"
@@ -234,21 +243,22 @@ const SelectToken: React.FC<SelectTokenProps> = ({ onTokenSelect, onAmountChange
                     )}
                     <ChevronDown size={24} />
                 </button>
-                <Input
-                    type="number"
-                    value={amount}
-                    onChange={handleAmountChange}
-                    onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                            e.stopPropagation();
-                        }
-                    }}
-                    className="focus-visible:ring-0 focus-visible:border-none focus-visible:outline-none outline-none ring-0 border-none shadow-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-right max-w-[300px] md:!text-[32px] !text-[24px] pr-0"
-                    placeholder="0.00"
-                    disabled={!selectedToken || loading}
-                />
-            </div>
+                <div className="sm:w-[270px] w-[190px] h-[40px] flex items-center justify-end">
+                    {amountLoading ? (
+                        <Loader className="h-6 w-6 animate-spin text-gray-500 mb-1" />
+                    ) :
+                        < Input
+                            type="number"
+                            value={amount}
+                            onChange={(e) => handleAmountChange(e.target.value)}
+                            className="focus-visible:ring-0 focus-visible:border-none focus-visible:outline-none outline-none ring-0 border-none shadow-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-right md:!text-[32px] !text-[24px] pr-0"
+                            placeholder="0.00"
+                            disabled={disabled || loading}
 
+                        />
+                    }
+                </div>
+            </div>
             <TokenSearchModal
                 open={isModalOpen}
                 onOpenChange={setIsModalOpen}
