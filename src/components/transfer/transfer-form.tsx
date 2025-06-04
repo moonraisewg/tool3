@@ -24,12 +24,11 @@ const formSchema = z.object({
         .string()
         .min(1, { message: "Recipient address is required" })
         .regex(/^[\w]{32,44}$/, { message: "Invalid Solana address" }),
-    amount: z
-        .string()
+    amount: z.string(),
 });
 
 export default function TransferForm() {
-    const isMobile = useIsMobile()
+    const isMobile = useIsMobile();
     const [selectedToken, setSelectedToken] = useState<UserToken | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
     const { publicKey } = useWallet();
@@ -91,6 +90,7 @@ export default function TransferForm() {
                 description: `You have transferred ${values.amount} ${selectedToken.symbol || selectedToken.name} to ${values.recipient}`,
             });
             form.reset();
+            setSelectedToken(null);
         } catch (error) {
             const message = error instanceof Error ? error.message : "An unexpected error occurred";
             toast.error(message);
@@ -127,7 +127,8 @@ export default function TransferForm() {
                         />
 
                         <SelectToken
-                            onTokenSelect={setSelectedToken}
+                            selectedToken={selectedToken}
+                            setSelectedToken={setSelectedToken}
                             onAmountChange={(value) => {
                                 form.setValue("amount", value);
                             }}

@@ -37,16 +37,18 @@ interface Asset {
 }
 
 interface SelectTokenProps {
-    onTokenSelect: (token: UserToken | null) => void;
+    selectedToken: UserToken | null;
+    setSelectedToken: (token: UserToken | null) => void;
     onAmountChange: (amount: string) => void;
     title?: string;
     disabled?: boolean;
     externalAmount?: string;
-    amountLoading?: boolean
+    amountLoading?: boolean;
 }
 
 const SelectToken: React.FC<SelectTokenProps> = ({
-    onTokenSelect,
+    selectedToken,
+    setSelectedToken,
     onAmountChange,
     title,
     disabled,
@@ -55,7 +57,6 @@ const SelectToken: React.FC<SelectTokenProps> = ({
 }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [tokens, setTokens] = useState<UserToken[]>([]);
-    const [selectedToken, setSelectedToken] = useState<UserToken | null>(null);
     const [amount, setAmount] = useState<string>("");
     const [loading, setLoading] = useState<boolean>(false);
     const { publicKey } = useWallet();
@@ -68,7 +69,6 @@ const SelectToken: React.FC<SelectTokenProps> = ({
 
     const handleTokenSelect = (token: UserToken) => {
         setSelectedToken(token);
-        onTokenSelect(token);
         setIsModalOpen(false);
     };
 
@@ -77,7 +77,6 @@ const SelectToken: React.FC<SelectTokenProps> = ({
             setTokens([]);
             setSelectedToken(null);
             setAmount("");
-            onTokenSelect(null);
             return;
         }
 
@@ -119,7 +118,8 @@ const SelectToken: React.FC<SelectTokenProps> = ({
                 name: "Solana",
                 symbol: "SOL",
                 balance: (nativeBalance / 1_000_000_000).toString(),
-                logoURI: "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png",
+                logoURI:
+                    "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png",
                 decimals: 9,
             };
 
@@ -128,7 +128,6 @@ const SelectToken: React.FC<SelectTokenProps> = ({
 
             if (allTokens.length > 0 && !selectedToken) {
                 setSelectedToken(allTokens[0]);
-                onTokenSelect(allTokens[0]);
             }
         } catch (error: unknown) {
             if (error instanceof Error) {
@@ -141,10 +140,13 @@ const SelectToken: React.FC<SelectTokenProps> = ({
         } finally {
             setLoading(false);
         }
-    }, [publicKey, selectedToken, onTokenSelect]);
+    }, [publicKey, setSelectedToken, selectedToken]);
+
     const setHalf = () => {
         if (selectedToken) {
-            const halfBalance = (parseFloat(selectedToken.balance) / 2).toFixed(selectedToken.decimals || 2);
+            const halfBalance = (
+                parseFloat(selectedToken.balance) / 2
+            ).toFixed(selectedToken.decimals || 2);
             setAmount(halfBalance);
             onAmountChange(halfBalance);
         }
@@ -171,7 +173,9 @@ const SelectToken: React.FC<SelectTokenProps> = ({
             return;
         }
         if (selectedToken && numValue > parseFloat(selectedToken.balance)) {
-            toast.error(`Amount exceeds available balance of ${selectedToken.balance} ${selectedToken.symbol}`);
+            toast.error(
+                `Amount exceeds available balance of ${selectedToken.balance} ${selectedToken.symbol}`
+            );
             return;
         }
         setAmount(value);
@@ -190,7 +194,9 @@ const SelectToken: React.FC<SelectTokenProps> = ({
                     <div className="flex items-center gap-1">
                         <Wallet className="h-4 w-4 text-purple-400" />
                         <div className="mt-[2px]">
-                            {selectedToken ? `${selectedToken.balance} ${selectedToken.symbol}` : "0.00"}
+                            {selectedToken
+                                ? `${selectedToken.balance} ${selectedToken.symbol}`
+                                : "0.00"}
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
@@ -221,7 +227,8 @@ const SelectToken: React.FC<SelectTokenProps> = ({
                 <button
                     type="button"
                     onClick={() => setIsModalOpen(true)}
-                    className={`flex items-center gap-2 text-gray-700 hover:text-purple-900 border-gear-gray px-2 py-1 ml-2 ${!selectedToken || loading ? "cursor-not-allowed" : "cursor-pointer"}`}
+                    className={`flex items-center gap-2 text-gray-700 hover:text-purple-900 border-gear-gray px-2 py-1 ml-2 ${!selectedToken || loading ? "cursor-not-allowed" : "cursor-pointer"
+                        }`}
                     disabled={!selectedToken || loading}
                 >
                     {selectedToken ? (
@@ -233,7 +240,9 @@ const SelectToken: React.FC<SelectTokenProps> = ({
                                 height={24}
                                 className="rounded-full object-cover"
                             />
-                            <div className="mt-[2px]">{title === "You Pay" ? `${selectedToken.symbol} Mainnet` : selectedToken.symbol}</div>
+                            <div className="mt-[2px]">
+                                {title === "You Pay" ? `${selectedToken.symbol} Devnet` : selectedToken.symbol}
+                            </div>
                         </div>
                     ) : (
                         <div className="flex items-center gap-2">
@@ -246,17 +255,16 @@ const SelectToken: React.FC<SelectTokenProps> = ({
                 <div className="sm:w-[270px] w-[190px] h-[40px] flex items-center justify-end">
                     {amountLoading ? (
                         <Loader className="h-6 w-6 animate-spin text-gray-500 mb-1" />
-                    ) :
-                        < Input
+                    ) : (
+                        <Input
                             type="number"
                             value={amount}
                             onChange={(e) => handleAmountChange(e.target.value)}
                             className="focus-visible:ring-0 focus-visible:border-none focus-visible:outline-none outline-none ring-0 border-none shadow-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-right md:!text-[32px] !text-[24px] pr-0"
                             placeholder="0.00"
                             disabled={disabled || loading}
-
                         />
-                    }
+                    )}
                 </div>
             </div>
             <TokenSearchModal

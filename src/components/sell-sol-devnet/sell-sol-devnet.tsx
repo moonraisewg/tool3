@@ -9,7 +9,7 @@ import { Form } from "@/components/ui/form";
 import { toast } from "sonner";
 import { useWallet } from "@solana/wallet-adapter-react";
 import SelectToken, { UserToken } from "../transfer/select-token";
-import ReceiveSolDevnet from "./receive-sol-devnet"
+import ReceiveSolDevnet from "./receive-sol-devnet";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { debounce } from "lodash";
 import { ArrowsVertical } from "@nsmr/pixelart-react";
@@ -32,7 +32,7 @@ export default function SellSolDevnet() {
 
     const USDPERSOL = 0.049;
 
-    const form = useForm<z.infer<typeof formSchema>>({
+    const form = useForm<FormSellSol>({
         resolver: zodResolver(formSchema),
         defaultValues: {
             amount: "",
@@ -49,7 +49,7 @@ export default function SellSolDevnet() {
                     return;
                 }
 
-                let tokenMint = selectedToken?.address ?? "";
+                let tokenMint = selectedToken?.address || "";
                 if (selectedToken?.address === "NativeSOL") {
                     tokenMint = "So11111111111111111111111111111111111111112";
                 }
@@ -101,7 +101,7 @@ export default function SellSolDevnet() {
         form.setValue("solAmount", "");
     };
 
-    const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    const onSubmit = async (values: FormSellSol) => {
         try {
             setLoading(true);
             if (!publicKey) {
@@ -151,6 +151,7 @@ export default function SellSolDevnet() {
                 description: `You have bought ${values.solAmount} SOL Devnet with ${values.amount} ${selectedToken.symbol}`,
             });
             form.reset();
+            setSelectedToken(null);
         } catch (error) {
             const message =
                 error instanceof Error ? error.message : "An unexpected error occurred";
@@ -191,7 +192,8 @@ export default function SellSolDevnet() {
                         ) : (
                             <SelectToken
                                 title="You Pay"
-                                onTokenSelect={setSelectedToken}
+                                selectedToken={selectedToken}
+                                setSelectedToken={setSelectedToken}
                                 onAmountChange={(value) => {
                                     form.setValue("amount", value);
                                     debouncedFetchPrice(value);
@@ -214,7 +216,8 @@ export default function SellSolDevnet() {
                         {isSwapped ? (
                             <SelectToken
                                 title="You Pay"
-                                onTokenSelect={setSelectedToken}
+                                selectedToken={selectedToken}
+                                setSelectedToken={setSelectedToken}
                                 onAmountChange={(value) => {
                                     form.setValue("amount", value);
                                 }}
