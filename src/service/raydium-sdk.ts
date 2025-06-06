@@ -2,11 +2,14 @@ import {
   Raydium,
   CpmmKeys,
   ApiV3PoolInfoStandardItemCpmm,
+  TxVersion
 } from "@raydium-io/raydium-sdk-v2";
 import bs58 from "bs58";
 import { Keypair, PublicKey } from "@solana/web3.js";
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { connection } from "@/service/solana/connection";
+
+export const txVersion = TxVersion.V0
 
 const ADMIN_PRIVATE_KEY = process.env.ADMIN_PRIVATE_KEY;
 const cluster = "devnet";

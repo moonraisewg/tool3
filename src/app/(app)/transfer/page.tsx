@@ -1,4 +1,10 @@
 import TransferForm from "@/components/transfer/transfer-form";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+    title: "Transfer",
+    description: "Transfer token",
+}
 
 export default function WithdrawLP() {
     return (
