@@ -2,10 +2,6 @@ import { TokenBuilder, TransferFeeToken } from "solana-token-extension-boost";
 import { Connection, PublicKey, Commitment, ConnectionConfig, Transaction } from "@solana/web3.js";
 import { pinJSONToIPFS, pinFileToIPFS, ipfsToHTTP, pinImageFromBase64 } from "@/utils/pinata";
 import { WalletContextState } from "@solana/wallet-adapter-react";
-
-
-
-// Interface cho token data
 export interface TokenData {
   name: string;
   symbol: string;
@@ -20,28 +16,16 @@ export interface TokenData {
   telegramUrl?: string;
   discordUrl?: string;
 }
-
-// Interface cho extension config
 export interface ExtensionConfig {
   id: string;
   options?: Record<string, string | number>;
 }
-
-// Interface cho kết quả tạo token
 export interface TokenCreationResult {
   mint: string;
   signature: string;
   metadataUri: string;
 }
 
-/**
- * Tạo token với metadata và các extensions
- * @param connection Solana connection
- * @param wallet Wallet context
- * @param tokenData Token data
- * @param selectedExtensions Selected extensions
- * @returns Token creation result
- */
 export async function createToken(
   connection: Connection,
   wallet: WalletContextState,
@@ -51,71 +35,49 @@ export async function createToken(
   if (!wallet.publicKey) {
     throw new Error("Wallet not connected");
   }
-  
-  // BƯỚC 1: Xử lý thông tin ảnh (đã có URL hoặc base64)
   let imageUri = "";
   let imageHttpUrl = "";
 
-  // Ưu tiên sử dụng URL ảnh đã có sẵn
   if (tokenData.imageUrl) {
     imageHttpUrl = tokenData.imageUrl;
-    
-    // Kiểm tra xem URL đã có http(s):// chưa
     if (!imageHttpUrl.startsWith('http')) {
-      // Nếu là ipfs:// URI, chuyển đổi thành HTTP URL
       if (imageHttpUrl.startsWith('ipfs://')) {
         imageHttpUrl = ipfsToHTTP(imageHttpUrl);
       } else {
-        // Nếu chỉ là IPFS hash, thêm gateway prefix
         imageHttpUrl = `https://gateway.pinata.cloud/ipfs/${imageHttpUrl}`;
       }
     }
   } 
-  // Xử lý tải lên ảnh base64 (hỗ trợ ngược)
   else if (tokenData.imageBase64) {
     try {
-      // Kiểm tra và xử lý base64 image
       let base64Data = tokenData.imageBase64;
-      
-      // Đảm bảo dữ liệu base64 hợp lệ
       if (!base64Data.startsWith('data:image')) {
         base64Data = `data:image/png;base64,${base64Data}`;
       }
       
       try {
         imageUri = await pinImageFromBase64(base64Data);
-        
-        // Chuyển IPFS URI sang HTTP URL
         imageHttpUrl = ipfsToHTTP(imageUri);
-        
-        // Xác minh URL hợp lệ
         if (!imageUri || !imageHttpUrl || imageHttpUrl.trim() === '') {
           throw new Error("Failed to get valid image URI after upload");
         }
       } catch {
-        // Thử tải lại với cách khác nếu thất bại
-        // Xử lý dữ liệu base64 trực tiếp
         if (base64Data.includes(',')) {
           base64Data = base64Data.split(',')[1];
         }
         
         imageUri = await pinFileToIPFS(base64Data, `${tokenData.name.toLowerCase()}-image`);
-        
-        // Chuyển từ IPFS URI sang HTTP URL
         imageHttpUrl = ipfsToHTTP(imageUri);
       }
     } catch {
       imageHttpUrl = "";
     }
   }
-  
-  // BƯỚC 2: Tạo metadata đầy đủ (offchain) cho IPFS theo chuẩn Metaplex
-  // Tạo metadata theo đúng chuẩn Metaplex Fungible Asset Standard
+
   const metadataBase: Record<string, unknown> = {
     name: tokenData.name,
     symbol: tokenData.symbol,
     description: tokenData.description || "",
-    // Các trường bắt buộc theo chuẩn Metaplex
     seller_fee_basis_points: 0,
     attributes: [
       { trait_type: "Decimals", value: String(tokenData.decimals) },
@@ -123,12 +85,8 @@ export async function createToken(
     ]
   };
 
-  // Chỉ thêm các trường hình ảnh nếu có URL hợp lệ
   if (imageHttpUrl && imageHttpUrl.trim() !== '') {
-    // Trường image chính là URL HTTP đầy đủ
     metadataBase.image = imageHttpUrl;
-    
-    // Thêm files trong properties theo chuẩn Metaplex
     metadataBase.properties = {
       files: [
         {
@@ -145,7 +103,6 @@ export async function createToken(
       ]
     };
   } else {
-    // Vẫn thêm properties với creators ngay cả khi không có ảnh
     metadataBase.properties = {
       category: "image",
       creators: [
@@ -157,34 +114,26 @@ export async function createToken(
     };
   }
 
-  // Thêm collection nếu token là một phần của collection
   metadataBase.collection = {
     name: tokenData.name,
     family: "Token-2022"
   };
 
-  // Chỉ thêm external_url nếu có
   if (tokenData.websiteUrl && tokenData.websiteUrl.trim() !== '') {
     metadataBase.external_url = tokenData.websiteUrl;
   }
 
-  // Sử dụng metadataBase trực tiếp
   const offchainMetadata = metadataBase;
   
-  // BƯỚC 3: Tải metadata lên IPFS (tái sử dụng pinata.ts)
   let metadataUri: string;
   try {
-    // Tải lên IPFS và nhận URI (thường là ipfs://)
     const ipfsUri = await pinJSONToIPFS(offchainMetadata);
     
-    // Chuyển đổi từ ipfs:// sang URL HTTP đầy đủ
     metadataUri = ipfsToHTTP(ipfsUri);
   } catch {
-    // Đảm bảo sử dụng URL HTTP ngay cả với fallback
     metadataUri = `https://arweave.net/${tokenData.name.toLowerCase()}-${tokenData.symbol.toLowerCase()}`;
   }
 
-  // BƯỚC 4: Tạo kết nối đã cấu hình
   const connectionConfig: ConnectionConfig = {
     commitment: 'confirmed' as Commitment,
     confirmTransactionInitialTimeout: 60000
@@ -195,8 +144,6 @@ export async function createToken(
     connectionConfig
   );
   
-  // BƯỚC 5: Tạo metadata đơn giản (onchain) cho SDK
-  // Tạo cấu trúc additionalMetadata đúng chuẩn (record key-value)
   const additionalMetadata: Record<string, string> = {};
   
   if (tokenData.description) additionalMetadata["description"] = String(tokenData.description);
@@ -205,22 +152,14 @@ export async function createToken(
   if (tokenData.telegramUrl) additionalMetadata["telegram"] = String(tokenData.telegramUrl);
   if (tokenData.discordUrl) additionalMetadata["discord"] = String(tokenData.discordUrl);
   
-  // BƯỚC 6: Tính toán số lượng token để mint (chuẩn bị sẵn)
   const decimals = typeof tokenData.decimals === 'string' ? 
     parseInt(tokenData.decimals) : tokenData.decimals;
   
-  // Không sử dụng biến này ở đây nên comment lại
-  // const supplyAmount = typeof tokenData.supply === 'string' ? 
-  //   parseFloat(tokenData.supply) : tokenData.supply;
-    
-  // Không sử dụng biến này ở đây nên comment lại
-  // const mintAmount = BigInt(Math.floor(supplyAmount * Math.pow(10, decimals)));
-  
-  // BƯỚC 7: Sử dụng TokenBuilder với metadata đúng chuẩn
+
   const tokenBuilder = new TokenBuilder(enhancedConnection)
     .setTokenInfo(
       decimals,
-      wallet.publicKey  // Mint authority
+      wallet.publicKey
     )
     .addTokenMetadata(
       tokenData.name,
@@ -229,29 +168,22 @@ export async function createToken(
       additionalMetadata
     );
   
-  // BƯỚC 8: Thêm các extensions theo cấu hình
   for (const extensionId of selectedExtensions) {
-    // Bỏ qua metadata vì đã được thêm
     if (extensionId === "metadata" || extensionId === "metadata-pointer") continue;
     
     if (extensionId === "transfer-fees" && tokenData.extensionOptions?.["transfer-fees"]) {
       const feePercentage = parseFloat(String(tokenData.extensionOptions["transfer-fees"]["fee-percentage"] || "1"));
-      const feeBasisPoints = feePercentage * 100; // Chuyển đổi % thành basis points
+      const feeBasisPoints = feePercentage * 100;
       
-      // Lấy maxFee từ input người dùng hoặc sử dụng giá trị mặc định
       let maxFeeValue: bigint;
       
       if (tokenData.extensionOptions["transfer-fees"]["max-fee"]) {
-        // Lấy giá trị từ input
         const maxFeeInput = tokenData.extensionOptions["transfer-fees"]["max-fee"];
         
-        // Chuyển đổi thành số thực
         const maxFeeAmount = parseFloat(String(maxFeeInput));
         
-        // Chuyển đổi thành lamports dựa trên decimals
         maxFeeValue = BigInt(Math.floor(maxFeeAmount * Math.pow(10, decimals)));
       } else {
-        // Giá trị mặc định: 1 token
         maxFeeValue = BigInt(Math.pow(10, decimals));
       }
       
@@ -278,80 +210,54 @@ export async function createToken(
       tokenBuilder.addMintCloseAuthority(closeAuthorityAddress);
     }
     else if (extensionId === "default-account-state") {
-      // Thêm xử lý cho DefaultAccountState extension
-      // Luôn sử dụng trạng thái frozen (1)
-      const defaultState = 1; // Mặc định luôn là frozen
+      const defaultState = 1;
       
-      // Lấy freeze authority nếu có, mặc định là ví người dùng
       const freezeAuthority = tokenData.extensionOptions?.["default-account-state"]?.["freeze-authority"] 
         ? new PublicKey(tokenData.extensionOptions["default-account-state"]["freeze-authority"])
         : wallet.publicKey;
       
-      // Truyền cả state và freezeAuthority vào addDefaultAccountState
       tokenBuilder.addDefaultAccountState(defaultState, freezeAuthority);
     }
     else if (extensionId === "transfer-hook" && tokenData.extensionOptions?.["transfer-hook"]) {
-      // Lấy địa chỉ chương trình transfer hook từ input hoặc sử dụng địa chỉ mặc định
       const hookProgramId = tokenData.extensionOptions["transfer-hook"]["program-id"]
         ? new PublicKey(tokenData.extensionOptions["transfer-hook"]["program-id"])
         : wallet.publicKey;
       
-      // Thêm extension TransferHook
       tokenBuilder.addTransferHook(hookProgramId);
     }
-    // Có thể thêm các extension khác ở đây
   }
   
-  // BƯỚC 8.1: Lấy token creation instructions
   const { instructions: createInstructions, signers, mint } = 
     await tokenBuilder.createTokenInstructions(wallet.publicKey);
   
-  // BƯỚC 8.2: Xác định token program dựa trên extensions
-  // const realExtensions = selectedExtensions.filter(ext => 
-  //  ext !== "metadata" && ext !== "metadata-pointer"
-  // );
-  
-  // Không sử dụng biến này ở đây nên comment lại
-  // const useToken2022 = realExtensions.length > 0;
-  // Không sử dụng biến này ở đây nên comment lại
-  // const tokenProgramId = useToken2022 ? TOKEN_2022_PROGRAM_ID : TOKEN_PROGRAM_ID;
-  
-  // BƯỚC 8.3: Tính toán feeBasisPoints và maxFeeValue cho token mint 
   let feeBasisPoints = 0;
   let maxFeeValue = BigInt(0);
   
   if (selectedExtensions.includes("transfer-fees") && tokenData.extensionOptions?.["transfer-fees"]) {
-    // Lấy feeBasisPoints
     const feePercentage = parseFloat(String(tokenData.extensionOptions["transfer-fees"]["fee-percentage"] || "1"));
     feeBasisPoints = feePercentage * 100;
-    
-    // Lấy maxFee
+
     if (tokenData.extensionOptions["transfer-fees"]["max-fee"]) {
       const maxFeeInput = tokenData.extensionOptions["transfer-fees"]["max-fee"];
       const maxFeeAmount = parseFloat(String(maxFeeInput));
       maxFeeValue = BigInt(Math.floor(maxFeeAmount * Math.pow(10, decimals)));
     } else {
-      maxFeeValue = BigInt(Math.pow(10, decimals)); // Mặc định: 1 token
+      maxFeeValue = BigInt(Math.pow(10, decimals));
     }
   }
   
-  // BƯỚC 9: Tạo và gửi transaction tạo token
   const createTransaction = new Transaction();
   
-  // Lấy blockhash mới
   const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
   createTransaction.recentBlockhash = blockhash;
   createTransaction.feePayer = wallet.publicKey;
   
-  // Thêm các instructions để tạo token
   createInstructions.forEach(ix => createTransaction.add(ix));
   
-  // Thêm các signers (nếu có)
   if (signers.length > 0) {
     createTransaction.partialSign(...signers);
   }
   
-  // Gửi giao dịch tạo token và chờ xác nhận
   try {
     const createSignature = await wallet.sendTransaction(
       createTransaction,
@@ -359,7 +265,6 @@ export async function createToken(
       { skipPreflight: false, preflightCommitment: 'confirmed' }
     );
     
-    // Chờ xác nhận giao dịch
     await connection.confirmTransaction({
       blockhash,
       lastValidBlockHeight,
@@ -368,10 +273,8 @@ export async function createToken(
     
     console.log("Token creation successful with signature:", createSignature);
     
-    // BƯỚC 10: Đợi một chút để đảm bảo blockchain đã cập nhật
     await new Promise(resolve => setTimeout(resolve, 2000));
     
-    // BƯỚC 11: Tạo và khởi tạo token để mint
     const token = new TransferFeeToken(
       connection, 
       mint,
@@ -383,45 +286,31 @@ export async function createToken(
       }
     );
     
-    // Tính toán số lượng token để mint
     const tokenDecimals = typeof tokenData.decimals === 'string' ? 
-      parseInt(tokenData.decimals) : tokenData.decimals;
-    
-    // Tính toán số lượng token
+      parseInt(tokenData.decimals) : tokenData.decimals; 
     const tokenSupplyAmount = typeof tokenData.supply === 'string' ? 
-      parseFloat(tokenData.supply) : tokenData.supply;
-      
-    // Tính toán số lượng token với decimals
+      parseFloat(tokenData.supply) : tokenData.supply;  
     const tokenAmount = BigInt(Math.floor(tokenSupplyAmount * Math.pow(10, tokenDecimals)));
-    
-    // Lấy instructions để tạo account và mint
     const { instructions: mintInstructions } = 
       await token.createAccountAndMintToInstructions(
-        wallet.publicKey, // owner
-        wallet.publicKey, // payer
-        tokenAmount,      // amount
-        wallet.publicKey  // mintAuthority
+        wallet.publicKey, 
+        wallet.publicKey, 
+        tokenAmount,     
+        wallet.publicKey  
       );
     
-    // Lấy blockhash mới cho giao dịch thứ hai
+  
     const mintBlockhashInfo = await connection.getLatestBlockhash('confirmed');
-    
-    // Tạo giao dịch mint token riêng biệt
     const mintTransaction = new Transaction();
     mintTransaction.recentBlockhash = mintBlockhashInfo.blockhash;
     mintTransaction.feePayer = wallet.publicKey;
-    
-    // Thêm các instructions để mint token
     mintInstructions.forEach(ix => mintTransaction.add(ix));
-    
-    // Gửi giao dịch mint token và chờ xác nhận
     const mintSignature = await wallet.sendTransaction(
       mintTransaction,
       connection,
       { skipPreflight: false, preflightCommitment: 'confirmed' }
     );
     
-    // Chờ xác nhận giao dịch
     await connection.confirmTransaction({
       blockhash: mintBlockhashInfo.blockhash,
       lastValidBlockHeight: mintBlockhashInfo.lastValidBlockHeight,
@@ -429,8 +318,7 @@ export async function createToken(
     }, 'confirmed');
     
     console.log("Token minting successful with signature:", mintSignature);
-    
-    // Trả về kết quả thành công
+
     return {
       mint: mint.toString(),
       signature: createSignature,
@@ -445,15 +333,7 @@ export async function createToken(
     throw error;
   }
 }
-/**
- * Mint thêm token vào lượng cung lưu hành
- * @param connection Solana connection
- * @param wallet Wallet context
- * @param mintAddress Địa chỉ mint của token
- * @param amount Số lượng token muốn mint (số thực)
- * @param decimals Số chữ số thập phân của token
- * @returns Chữ ký giao dịch
- */
+
 export async function mintToken(
   connection: Connection,
   wallet: WalletContextState,
@@ -466,33 +346,20 @@ export async function mintToken(
     throw new Error("Wallet not connected");
   }
   
-  // Chuyển đổi địa chỉ mint thành PublicKey
   const mintPublicKey = new PublicKey(mintAddress);
-  
-  // Tính toán số lượng token để mint với decimals
   const amountValue = typeof amount === 'string' ? parseFloat(amount) : amount;
   const mintAmount = BigInt(Math.floor(amountValue * Math.pow(10, decimals)));
-  
-  // Kiểm tra xem token có phải là token-2022 không
   const mintInfo = await connection.getAccountInfo(mintPublicKey);
   if (!mintInfo) {
     throw new Error("Token mint not found");
   }
-  
-  // Không sử dụng biến này ở đây nên comment lại
-  // const isToken2022 = mintInfo.owner.equals(TOKEN_2022_PROGRAM_ID);
-  
-  // Xác định địa chỉ người nhận
   const recipient = recipientAddress 
     ? new PublicKey(recipientAddress)
     : wallet.publicKey;
   
-  // Kiểm tra các extension của token và khởi tạo đúng loại token
   try {
-    // Nếu là token-2022 với TransferFee
-    // Sử dụng TransferFeeToken để tạo instructions
     const transferFeeConfig = {
-      feeBasisPoints: 0, // Giá trị mặc định, sẽ không ảnh hưởng nếu token không có transfer fee
+      feeBasisPoints: 0,
       maxFee: BigInt(0),
       transferFeeConfigAuthority: wallet.publicKey,
       withdrawWithheldAuthority: wallet.publicKey
@@ -503,34 +370,22 @@ export async function mintToken(
       mintPublicKey,
       transferFeeConfig
     );
-    
-    // Tạo instructions để mint token
     const { instructions } = await token.createAccountAndMintToInstructions(
-      recipient,            // owner của token account (người nhận)
-      wallet.publicKey,     // payer (người trả phí)
-      mintAmount,           // số lượng token
-      wallet.publicKey      // mint authority
+      recipient,          
+      wallet.publicKey,   
+      mintAmount,           
+      wallet.publicKey     
     );
-    
-    // Tạo và gửi transaction
     const transaction = new Transaction();
-    
-    // Lấy blockhash mới
     const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = wallet.publicKey;
-    
-    // Thêm các instructions
     instructions.forEach(ix => transaction.add(ix));
-    
-    // Gửi transaction
     const signature = await wallet.sendTransaction(
       transaction,
       connection,
       { skipPreflight: false, preflightCommitment: 'confirmed' }
     );
-    
-    // Chờ transaction hoàn thành
     await connection.confirmTransaction({
       blockhash,
       lastValidBlockHeight,

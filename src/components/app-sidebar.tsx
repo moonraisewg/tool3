@@ -30,6 +30,17 @@ export const route = {
       icon: Coin,
       url: "/sell-sol-devnet",
     },
+    {
+      title: "Create Token",
+      icon: Coin,
+      url: "/create",
+    },
+    {
+      title: "Review Token",
+      icon: Coin,
+      url: "/create/review",
+      hidden: true,
+    },
   ],
   devnet: [
     {
@@ -46,6 +57,17 @@ export const route = {
       title: "Withdraw LP",
       icon: ArrowUp,
       url: "/withdraw-lp?cluster=devnet",
+    },
+    {
+      title: "Create Token",
+      icon: Coin,
+      url: "/create?cluster=devnet",
+    },
+    {
+      title: "Review Token",
+      icon: Coin,
+      url: "/create/review?cluster=devnet",
+      hidden: true,
     },
   ],
 };
@@ -69,7 +91,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Main</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navMain.map((item) => (
+              {navMain.filter(item => !item.hidden).map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={pathname.split('?')[0] === item.url.split('?')[0]}>
                     <Link href={item.url} className="flex items-center">
