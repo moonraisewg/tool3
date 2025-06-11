@@ -5,8 +5,8 @@ import {
   TxVersion
 } from "@raydium-io/raydium-sdk-v2";
 import bs58 from "bs58";
-import { Keypair, PublicKey } from "@solana/web3.js";
-import { getAssociatedTokenAddressSync } from "@solana/spl-token";
+import { Connection, Keypair, PublicKey, TransactionInstruction } from "@solana/web3.js";
+import { createAssociatedTokenAccountInstruction, getAssociatedTokenAddress, getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { connection } from "@/service/solana/connection";
 
 export const txVersion = TxVersion.V0
@@ -40,6 +40,27 @@ export const initSdk = async (): Promise<Raydium> => {
     throw error;
   }
 };
+
+export const createAtaIfMissing = async (
+  connection: Connection,
+  payer: PublicKey,
+  owner: PublicKey,
+  mint: PublicKey
+): Promise<{ ata: PublicKey; instructions: TransactionInstruction[] }> => {
+  const ata = await getAssociatedTokenAddress(mint, owner)
+  const accountInfo = await connection.getAccountInfo(ata)
+  if (accountInfo === null) {
+    const instruction = createAssociatedTokenAccountInstruction(
+      payer, // funding payer
+      ata,   // ATA address
+      owner, // token account owner
+      mint   // token mint
+    )
+    return { ata, instructions: [instruction] }
+  }
+
+  return { ata, instructions: [] }
+}
 
 const getPoolInfoById = async (
   poolId: string

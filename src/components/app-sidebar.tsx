@@ -30,6 +30,11 @@ export const route = {
       icon: Coin,
       url: "/sell-sol-devnet",
     },
+    {
+      title: "Create liquidity pool",
+      icon: AddBox,
+      url: "/create-pool",
+    },
   ],
   devnet: [
     {
@@ -46,11 +51,6 @@ export const route = {
       title: "Withdraw LP",
       icon: ArrowUp,
       url: "/withdraw-lp?cluster=devnet",
-    },
-    {
-      title: "Create liquidity pool",
-      icon: AddBox,
-      url: "/create-pool?cluster=devnet",
     },
   ],
 };

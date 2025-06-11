@@ -1,6 +1,5 @@
 import { Token } from "@/types/types";
-import { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 interface SolanaTokenList {
   tokens: Token[];
@@ -63,10 +62,11 @@ let fallbackTokenList: {
   timestamp: number;
 } | null = null;
 
-const CACHE_TTL = 24 * 60 * 60 * 1000;
+const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 giờ
 
-async function loadFallbackTokenList(): Promise<Record<string, Token>> {
+async function loadFallbackTokenList(forceRefresh = false): Promise<Record<string, Token>> {
   if (
+    !forceRefresh &&
     fallbackTokenList &&
     Date.now() - fallbackTokenList.timestamp < CACHE_TTL
   ) {
@@ -79,7 +79,7 @@ async function loadFallbackTokenList(): Promise<Record<string, Token>> {
     );
     if (!res.ok) {
       throw new Error(
-        `Failed to fetch Solana Labs token list: ${res.statusText} `
+        `Failed to fetch Solana Labs token list: ${res.statusText}`
       );
     }
     const tokenList: SolanaTokenList = await res.json();
@@ -101,19 +101,16 @@ async function loadFallbackTokenList(): Promise<Record<string, Token>> {
 
 export async function POST(req: NextRequest) {
   try {
-    const { publicKey } = await req.json();
+    const { publicKey, forceRefresh = false } = await req.json();
 
     if (!publicKey || !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(publicKey)) {
-      return NextResponse.json(
-        { error: "Invalid public key" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid public key" }, { status: 400 });
     }
 
     const heliusApiKey = process.env.HELIUS_API_KEY;
     const cluster = process.env.CLUSTER;
-    if (!heliusApiKey) {
-      throw new Error("Helius API key is not configured");
+    if (!heliusApiKey || !cluster) {
+      throw new Error("Helius API key or cluster is not configured");
     }
 
     const response = await fetch(
@@ -153,15 +150,13 @@ export async function POST(req: NextRequest) {
     const data: HeliusResponse = await response.json();
     const assets: Asset[] = data.result.items || [];
 
-    const fallbackMap = await loadFallbackTokenList();
+    const fallbackMap = await loadFallbackTokenList(forceRefresh);
 
     const enrichedAssets: Asset[] = assets.map((asset: Asset) => {
       const metadata = asset.content?.metadata;
       const hasMetadata = metadata && Object.keys(metadata).length > 0;
 
-      if (hasMetadata) {
-        return asset;
-      }
+      if (hasMetadata) return asset;
 
       const fallback = fallbackMap[asset.id];
       if (fallback) {
