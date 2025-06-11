@@ -10,13 +10,7 @@ import { toast } from "sonner";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Loader2, Info } from "lucide-react";
-import {
-    Connection,
-    PublicKey,
-    SystemProgram,
-    Transaction,
-    LAMPORTS_PER_SOL,
-} from "@solana/web3.js";
+import { Transaction } from "@solana/web3.js";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 import SelectToken, { UserToken } from "../transfer/select-token";
 
@@ -29,33 +23,25 @@ const formSchema = z.object({
     }),
 });
 
-const PAYMENT_WALLET = new PublicKey("FbirCYiRfy64Bfp8WuMfyx57ifevXWWjWgohnzgCv8gK");
-const PAYMENT_AMOUNT = 0.00001 * LAMPORTS_PER_SOL;
 
 export default function CreatePoolRaydium() {
     const isMobile = useIsMobile();
     const [selectedToken1, setSelectedToken1] = useState<UserToken | null>(null);
-    const [selectedToken2, setSelectedToken2] = useState<UserToken | null>(null);
+    const [selectedToken2, setSelectedToken2] = useState<UserToken | null>(null)
     const [loading, setLoading] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState("");
     const { publicKey, signTransaction } = useWallet();
-    const mainnetConnection = new Connection("https://mainnet.helius-rpc.com/?api-key=4c0b7347-3a35-4a3c-a9ed-cd3e1763e54c", "confirmed");
-    const devnetConnection = new Connection(
-        "https://devnet.helius-rpc.com/?api-key=4c0b7347-3a35-4a3c-a9ed-cd3e1763e54c",
-        "confirmed"
-    );
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: { amountToken1: "", amountToken2: "" },
     });
 
-    const toLamports = useCallback((amountStr: string, decimals: number): bigint => {
+    const toLamports = useCallback((amountStr: string, decimals: number): string => {
         const amount = parseFloat(amountStr);
         if (isNaN(amount) || amount <= 0) throw new Error("Invalid amount");
-        return BigInt(Math.floor(amount * 10 ** decimals));
+        return (amount * 10 ** decimals).toString();
     }, []);
-
 
     const checkPoolExists = async (mintA: string, mintB: string) => {
         const res = await fetch("/api/create-pool-raydium/check-pool", {
@@ -75,39 +61,43 @@ export default function CreatePoolRaydium() {
             throw new Error("Wallet not connected or does not support transaction signing");
         }
 
-        setLoadingMessage("Preparing payment transaction...");
+        setLoadingMessage("Requesting payment transaction...");
+        const res = await fetch("/api/create-pool-raydium", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                userPublicKey: publicKey.toString(),
+            }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success || !data.paymentTx) {
+            throw new Error(data.error || "Unable to create payment transaction");
+        }
 
-        const tx = new Transaction().add(
-            SystemProgram.transfer({
-                fromPubkey: publicKey,
-                toPubkey: PAYMENT_WALLET,
-                lamports: PAYMENT_AMOUNT,
-            })
-        );
-
-        tx.recentBlockhash = (await mainnetConnection.getLatestBlockhash()).blockhash;
-        tx.feePayer = publicKey;
-
-        setLoadingMessage("Awaiting transaction signature...");
+        setLoadingMessage("Awaiting payment transaction signature...");
+        const tx = Transaction.from(Buffer.from(data.paymentTx, "base64"));
         const signedTx = await signTransaction(tx);
 
         setLoadingMessage("Sending payment transaction...");
-        const txId = await mainnetConnection.sendRawTransaction(signedTx.serialize(), {
-            skipPreflight: false,
-            preflightCommitment: "confirmed",
+        const sendTxResponse = await fetch("/api/send-transaction", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                transaction: Buffer.from(signedTx.serialize()).toString("base64"),
+                blockhash: data.blockhash,
+                lastValidBlockHeight: data.lastValidBlockHeight,
+            }),
         });
 
-        setLoadingMessage("Waiting for payment confirmation...");
-        const confirmation = await mainnetConnection.confirmTransaction(txId, "confirmed");
-
-        if (confirmation.value.err) {
-            throw new Error("Payment transaction failed: " + confirmation.value.err.toString());
+        const sendTxData = await sendTxResponse.json();
+        if (!sendTxResponse.ok) {
+            throw new Error(sendTxData.error || "Failed to send payment transaction");
         }
 
-        return txId;
+        return sendTxData.txId;
     }, [publicKey, signTransaction]);
 
-    const sendTokenTransfer = async (tokenTransferTxBase64: string) => {
+    const sendTokenTransfer = async (tokenTransferTxBase64: string, blockhash: string, lastValidBlockHeight: number) => {
         if (!publicKey || !signTransaction) {
             throw new Error("Wallet not connected or does not support transaction signing");
         }
@@ -118,19 +108,24 @@ export default function CreatePoolRaydium() {
 
         setLoadingMessage("Awaiting token transfer signature...");
         const signedTx = await signTransaction(tx);
+
         setLoadingMessage("Sending token transfer transaction...");
-        const txId = await devnetConnection.sendRawTransaction(signedTx.serialize(), {
-            skipPreflight: false,
-            preflightCommitment: "confirmed",
+        const sendTxResponse = await fetch("/api/send-transaction", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                transaction: Buffer.from(signedTx.serialize()).toString("base64"),
+                blockhash,
+                lastValidBlockHeight,
+            }),
         });
 
-        setLoadingMessage("Waiting for token transfer confirmation...");
-        const confirmation = await devnetConnection.confirmTransaction(txId, "confirmed");
-        if (confirmation.value.err) {
-            throw new Error("Token transfer transaction failed: " + confirmation.value.err.toString());
+        const sendTxData = await sendTxResponse.json();
+        if (!sendTxResponse.ok) {
+            throw new Error(sendTxData.error || "Failed to send token transfer transaction");
         }
 
-        return txId;
+        return sendTxData.txId;
     };
 
     const onSubmit = async (values: z.infer<typeof formSchema>) => {
@@ -151,8 +146,8 @@ export default function CreatePoolRaydium() {
                 selectedToken2.address === "NativeSOL"
                     ? "So11111111111111111111111111111111111111112"
                     : selectedToken2.address;
-            const lamportsA = toLamports(values.amountToken1, selectedToken1.decimals);
-            const lamportsB = toLamports(values.amountToken2, selectedToken2.decimals);
+            const amountA = toLamports(values.amountToken1, selectedToken1.decimals);
+            const amountB = toLamports(values.amountToken2, selectedToken2.decimals);
 
             setLoadingMessage("Checking if pool already exists...");
             const poolExists = await checkPoolExists(mintAAddress, mintBAddress);
@@ -174,9 +169,9 @@ export default function CreatePoolRaydium() {
                 body: JSON.stringify({
                     mintAAddress,
                     mintBAddress,
-                    amountA: lamportsA.toString(),
-                    amountB: lamportsB.toString(),
-                    userPublicKey: publicKey.toBase58(),
+                    amountA,
+                    amountB,
+                    userPublicKey: publicKey.toString(),
                     paymentTxId,
                 }),
             });
@@ -188,7 +183,7 @@ export default function CreatePoolRaydium() {
 
             if (data?.tokenTransferTx) {
                 setLoadingMessage("Preparing token transfer...");
-                const tokenTransferTxId = await sendTokenTransfer(data?.tokenTransferTx);
+                const tokenTransferTxId = await sendTokenTransfer(data.tokenTransferTx, data.blockhash, data.lastValidBlockHeight);
 
                 setLoadingMessage("Creating pool on server...");
                 res = await fetch("/api/create-pool-raydium", {
@@ -197,9 +192,9 @@ export default function CreatePoolRaydium() {
                     body: JSON.stringify({
                         mintAAddress,
                         mintBAddress,
-                        amountA: lamportsA.toString(),
-                        amountB: lamportsB.toString(),
-                        userPublicKey: publicKey.toBase58(),
+                        amountA,
+                        amountB,
+                        userPublicKey: publicKey.toString(),
                         paymentTxId,
                         tokenTransferTxId,
                     }),
@@ -242,9 +237,9 @@ export default function CreatePoolRaydium() {
             form.reset();
             setSelectedToken1(null);
             setSelectedToken2(null);
-        } catch (err: unknown) {
-            const message = err instanceof Error ? err.message : "Unknown error";
-            return new Response(JSON.stringify({ success: false, error: message }), { status: 500 });
+        } catch (error: unknown) {
+            const msg = error instanceof Error ? error.message : "Failed to create pool";
+            toast.error(msg);
         } finally {
             setLoading(false);
             setLoadingMessage("");
@@ -291,7 +286,7 @@ export default function CreatePoolRaydium() {
                             <p>{`${selectedToken1?.symbol || "?"}/${selectedToken2?.symbol || "?"}`}</p>
                         </div>
                         <div className="text-sm text-gray-500">
-                            <p>Pool creation fee: 0.01 SOL (paid on Mainnet)</p>
+                            <p>Pool creation fee: 0.001 SOL (paid on Mainnet)</p>
                             <p>Transaction fee: 0.0025%</p>
                         </div>
                     </div>
