@@ -3,9 +3,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PublicKey } from "@solana/web3.js";
-import { getUserLockedPools, type UserPoolInfo } from "@/service/solana/action";
 import { useWallet } from "@solana/wallet-adapter-react";
-
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
@@ -16,6 +14,23 @@ import { ExternalLink, Clock, Lock, Coin, Percent, Plus, ArrowUp } from "@nsmr/p
 interface EnhancedPoolInfo extends UserPoolInfo {
     token0Metadata?: Token | null;
     token1Metadata?: Token | null;
+}
+
+interface UserPoolInfo {
+    vaultAddress: string;
+    poolState: string;
+    lockedAmount: string;
+    unlockTimestamp: string;
+    depositTokenPerLp0: string;
+    depositTokenPerLp1: string;
+    token0Mint: string;
+    token1Mint: string;
+    vault0Amount: string;
+    vault1Amount: string;
+    lpMintDecimals: number;
+    lpRatio?: number;
+    vault0Address?: string;
+    vault1Address?: string;
 }
 
 const ListPools = () => {
@@ -39,7 +54,7 @@ const ListPools = () => {
             }
             return null;
         } catch (error) {
-            console.error(`Error fetching metadata for mint ${mintAddress}:`, error);
+            console.error(`Lỗi lấy metadata cho mint ${mintAddress}:`, error);
             return null;
         }
     };
@@ -48,24 +63,35 @@ const ListPools = () => {
         return `${address.slice(0, 5)}...${address.slice(-5)}`;
     };
 
-    const formatAmount = (amount: bigint, decimals: number) => {
+    const formatAmount = (amount: string, decimals: number) => {
         return (Number(amount) / Math.pow(10, decimals)).toFixed(4);
     };
 
     useEffect(() => {
-
         const fetchPools = async () => {
-
             if (!publicKey) return;
             setLoading(true);
             try {
-                const result = await getUserLockedPools(publicKey);
+                const response = await fetch("/api/get-user-locked-pools", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        userPublicKey: publicKey.toString(),
+                    }),
+                });
+
+                const result = await response.json();
+                if (!response.ok) {
+                    throw new Error(result.error || "Không thể lấy danh sách pool");
+                }
 
                 const enhancedPools = await Promise.all(
-                    result.map(async (pool) => {
+                    result.data.map(async (pool: UserPoolInfo) => {
                         const [token0Metadata, token1Metadata] = await Promise.all([
-                            fetchTokenMetadata(pool.token0Mint),
-                            fetchTokenMetadata(pool.token1Mint),
+                            fetchTokenMetadata(new PublicKey(pool.token0Mint)),
+                            fetchTokenMetadata(new PublicKey(pool.token1Mint)),
                         ]);
                         return {
                             ...pool,
@@ -93,7 +119,7 @@ const ListPools = () => {
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
                     <p className="text-gray-500">Getting list of pools ...</p>
                 </div>
-            </div>
+            </div >
         );
     }
 
@@ -126,17 +152,17 @@ const ListPools = () => {
                             <span className="text-sm text-gray-600">Pool Id:</span>
                             <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="font-mono text-[14px]">
-                                    {formatAddress(pool?.vaultAddress.toBase58())}
+                                    {formatAddress(pool.vaultAddress)}
                                 </Badge>
-
                                 <TooltipProvider>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
-                                            <a href={`https://solscan.io/account/${pool.poolState.toBase58()}?cluster=devnet`}
+                                            <a
+                                                href={`https://solscan.io/account/${pool.poolState}?cluster=devnet`}
                                                 target="_blank"
-                                                rel="noopener noreferrer">
+                                                rel="noopener noreferrer"
+                                            >
                                                 <ExternalLink className="cursor-pointer" size={24} />
-
                                             </a>
                                         </TooltipTrigger>
                                         <TooltipContent>
@@ -173,7 +199,7 @@ const ListPools = () => {
                             <span className="font-semibold">{new Date(Number(pool.unlockTimestamp) * 1000).toLocaleString()}</span>
                         </div>
 
-                        <div className="">
+                        <div>
                             <h4 className="text-sm font-semibold text-gray-700 mb-3">Token Pair</h4>
 
                             <div className="bg-gray-50 rounded-lg p-3 mb-3 flex justify-between items-center">
@@ -198,18 +224,20 @@ const ListPools = () => {
                                         <p className="font-semibold text-sm">{pool.token0Metadata?.name || "Unknown Token"}</p>
                                         <p className="text-xs text-gray-500 mt-[3px]">{pool.token0Metadata?.symbol || "UNKNOWN"}</p>
                                         <div className="text-[12px] text-gray-600 font-mono mt-[3px]">
-                                            {formatAddress(pool.token0Mint.toBase58())}
+                                            {formatAddress(pool.token0Mint)}
                                         </div>
                                     </div>
                                 </div>
                                 <div className="text-[16px] font-mono mt-1 flex items-center gap-2">
-                                    <div className="font-medium">  {formatAmount(pool.vault0Amount, pool.token0Metadata?.decimals || 0)}</div>
+                                    <div className="font-medium">{formatAmount(pool.vault0Amount, pool.token0Metadata?.decimals || 0)}</div>
                                     <TooltipProvider>
                                         <Tooltip>
                                             <TooltipTrigger asChild>
-                                                <a href={`https://solscan.io/account/${pool?.vault0Address?.toBase58()}?cluster=devnet`}
+                                                <a
+                                                    href={`https://solscan.io/account/${pool?.vault0Address}?cluster=devnet`}
                                                     target="_blank"
-                                                    rel="noopener noreferrer">
+                                                    rel="noopener noreferrer"
+                                                >
                                                     <ExternalLink className="cursor-pointer mb-1" size={24} />
                                                 </a>
                                             </TooltipTrigger>
@@ -243,18 +271,20 @@ const ListPools = () => {
                                         <p className="font-semibold text-xs">{pool.token1Metadata?.name || "Unknown Token"}</p>
                                         <p className="text-sm text-gray-500 mt-[3px]">{pool.token1Metadata?.symbol || "UNKNOWN"}</p>
                                         <div className="text-[12px] text-gray-600 font-mono mt-[3px]">
-                                            {formatAddress(pool.token1Mint.toBase58())}
+                                            {formatAddress(pool.token1Mint)}
                                         </div>
                                     </div>
                                 </div>
                                 <div className="text-[16px] font-mono mt-1 flex items-center gap-2">
-                                    <div>  {formatAmount(pool.vault1Amount, pool.token1Metadata?.decimals || 0)}</div>
+                                    <div>{formatAmount(pool.vault1Amount, pool.token1Metadata?.decimals || 0)}</div>
                                     <TooltipProvider>
                                         <Tooltip>
                                             <TooltipTrigger asChild>
-                                                <a href={`https://solscan.io/account/${pool?.vault1Address?.toBase58()}?cluster=devnet`}
+                                                <a
+                                                    href={`https://solscan.io/account/${pool?.vault1Address}?cluster=devnet`}
                                                     target="_blank"
-                                                    rel="noopener noreferrer">
+                                                    rel="noopener noreferrer"
+                                                >
                                                     <ExternalLink className="cursor-pointer mb-1" size={24} />
                                                 </a>
                                             </TooltipTrigger>
@@ -269,7 +299,7 @@ const ListPools = () => {
 
                         <div>
                             <div className="grid grid-cols-2 gap-5">
-                                <Link href={`/lock-lp?poolId=${pool.poolState.toBase58()}`}>
+                                <Link href={`/lock-lp?poolId=${pool.poolState}`}>
                                     <Button
                                         variant="outline"
                                         className="w-full flex items-center gap-2 
@@ -280,7 +310,7 @@ const ListPools = () => {
                                     </Button>
                                 </Link>
 
-                                <Link href={`/withdraw-lp?poolId=${pool.poolState.toBase58()}`}>
+                                <Link href={`/withdraw-lp?poolId=${pool.poolState}`}>
                                     <Button
                                         variant="default"
                                         className="w-full flex items-center gap-2 bg-green-600 transition-colors cursor-pointer border-gear-green h-[30px] hover:bg-green-600"
@@ -291,7 +321,6 @@ const ListPools = () => {
                                 </Link>
                             </div>
                         </div>
-
                     </CardContent>
                 </Card>
             ))}

@@ -1,5 +1,11 @@
 import SuspenseLayout from "@/components/suspense-layout";
 import Withdraw from "@/components/withdraw-form";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Withdraw",
+  description: "Withdraw LP token",
+}
 
 export default function WithdrawLP() {
   return (

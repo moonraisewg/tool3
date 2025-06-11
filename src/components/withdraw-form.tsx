@@ -25,7 +25,6 @@ import {
 } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { connection } from "../service/solana/connection";
 import { Transaction } from "@solana/web3.js";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { debounce } from "lodash";
@@ -175,15 +174,23 @@ export default function Withdraw() {
 
           const signedTx = await signTransaction(transaction);
 
-          const txId = await connection.sendRawTransaction(
-            signedTx.serialize()
-          );
-
-          await connection.confirmTransaction({
-            signature: txId,
-            blockhash: data.blockhash,
-            lastValidBlockHeight: data.lastValidBlockHeight,
+          const sendTxResponse = await fetch("/api/send-transaction", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              transaction: Buffer.from(signedTx.serialize()).toString("base64"),
+              blockhash: data.blockhash,
+              lastValidBlockHeight: data.lastValidBlockHeight,
+            }),
           });
+
+          const sendTxData = await sendTxResponse.json();
+
+          if (!sendTxResponse.ok) {
+            throw new Error(sendTxData.error || "Send transaction failed");
+          }
 
           toast.success("Withdraw token successful", {
             description: `You have withdrawn ${values.amount} LP tokens`,
@@ -191,7 +198,7 @@ export default function Withdraw() {
               label: "View Transaction",
               onClick: () =>
                 window.open(
-                  `https://solscan.io/tx/${txId}?cluster=devnet`,
+                  `https://solscan.io/tx/${sendTxData.txId}?cluster=devnet`,
                   "_blank"
                 ),
             },
@@ -354,8 +361,8 @@ export default function Withdraw() {
             type="submit"
             disabled={loading || (!!unlockInfo && !unlockInfo.isUnlocked)}
             className={`w-full text-white cursor-pointer mt-3 ${!!unlockInfo && !unlockInfo.isUnlocked
-                ? "disabled:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                : " disabled:opacity-50 disabled:cursor-not-allowed"
+              ? "disabled:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              : " disabled:opacity-50 disabled:cursor-not-allowed"
               }`}
             variant="default"
           >

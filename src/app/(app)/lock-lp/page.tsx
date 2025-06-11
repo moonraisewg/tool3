@@ -1,5 +1,11 @@
 import LpLockForm from '@/components/lp-lock-form';
 import SuspenseLayout from "@/components/suspense-layout";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Lock LP",
+  description: "Lock your LP Tokens",
+}
 
 export default function LockLpPage() {
   return (
