@@ -286,11 +286,7 @@ export function useTokenCreation() {
     }
   };
   const initializeTokenData = () => {
-    const loadData = async () => {
-      setIsLoading(false);
-    };
-    
-    loadData();
+    setIsLoading(false);
   };
 
   return {

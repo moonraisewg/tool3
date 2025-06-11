@@ -81,7 +81,8 @@ const TokenCreationForm = () => {
   });
   useEffect(() => {
     initializeTokenData();
-  }, [initializeTokenData]);
+  }, []);
+  
   useEffect(() => {
     const extensionsToOpen = selectedExtensions.filter(extId => {
       if (extId !== "metadata" && extId !== "metadata-pointer") {
@@ -98,7 +99,7 @@ const TokenCreationForm = () => {
       });
       setOpenExtensions(newOpenState);
     }
-  }, [selectedExtensions, openExtensions]);
+  }, [selectedExtensions]);
 
   useEffect(() => {
     const subscription = form.watch((value) => {
