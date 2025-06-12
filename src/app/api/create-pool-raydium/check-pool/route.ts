@@ -1,11 +1,10 @@
 import { NextRequest } from "next/server";
-import { Connection, PublicKey } from "@solana/web3.js";
+import { PublicKey } from "@solana/web3.js";
 import {
     DEVNET_PROGRAM_ID,
     CpmmPoolInfoLayout,
 } from "@raydium-io/raydium-sdk-v2";
-
-const connection = new Connection("https://api.devnet.solana.com", "confirmed");
+import { connectionDevnet } from "@/service/solana/connection";
 
 export async function POST(req: NextRequest) {
     try {
@@ -18,7 +17,7 @@ export async function POST(req: NextRequest) {
         const mintA = new PublicKey(mintAAddress);
         const mintB = new PublicKey(mintBAddress);
 
-        const cpmmPoolsData = await connection.getProgramAccounts(
+        const cpmmPoolsData = await connectionDevnet.getProgramAccounts(
             DEVNET_PROGRAM_ID.CREATE_CPMM_POOL_PROGRAM,
             {
                 filters: [{ dataSize: CpmmPoolInfoLayout.span }],

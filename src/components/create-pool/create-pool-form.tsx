@@ -86,6 +86,7 @@ export default function CreatePoolRaydium() {
                 transaction: Buffer.from(signedTx.serialize()).toString("base64"),
                 blockhash: data.blockhash,
                 lastValidBlockHeight: data.lastValidBlockHeight,
+                cluster: "mainnet"
             }),
         });
 
@@ -117,6 +118,7 @@ export default function CreatePoolRaydium() {
                 transaction: Buffer.from(signedTx.serialize()).toString("base64"),
                 blockhash,
                 lastValidBlockHeight,
+                cluster: "devnet"
             }),
         });
 
@@ -137,14 +139,14 @@ export default function CreatePoolRaydium() {
             if (!signTransaction) throw new Error("Wallet does not support signing");
             if (!selectedToken1 || !selectedToken2) throw new Error("Please select both tokens");
             if (!selectedToken1.decimals || !selectedToken2.decimals) throw new Error("Invalid token decimals");
-
+            const SOL_MINT = "So11111111111111111111111111111111111111112"
             const mintAAddress =
                 selectedToken1.address === "NativeSOL"
-                    ? "So11111111111111111111111111111111111111112"
+                    ? SOL_MINT
                     : selectedToken1.address;
             const mintBAddress =
                 selectedToken2.address === "NativeSOL"
-                    ? "So11111111111111111111111111111111111111112"
+                    ? SOL_MINT
                     : selectedToken2.address;
             const amountA = toLamports(values.amountToken1, selectedToken1.decimals);
             const amountB = toLamports(values.amountToken2, selectedToken2.decimals);
@@ -212,7 +214,7 @@ export default function CreatePoolRaydium() {
                     <p className="text-sm">
                         Payment Tx ID:{" "}
                         <a
-                            href={`https://solscan.io/tx/${paymentTxId}?cluster=mainnet-beta`}
+                            href={`https://solscan.io/tx/${paymentTxId}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-blue-500 hover:underline"
@@ -262,11 +264,13 @@ export default function CreatePoolRaydium() {
                             selectedToken={selectedToken1}
                             setSelectedToken={setSelectedToken1}
                             onAmountChange={(v) => form.setValue("amountToken1", v)}
+                            cluster="devnet"
                         />
                         <SelectToken
                             selectedToken={selectedToken2}
                             setSelectedToken={setSelectedToken2}
                             onAmountChange={(v) => form.setValue("amountToken2", v)}
+                            cluster="devnet"
                         />
                         <div className="flex items-center gap-2">
                             <div>Initial price</div>

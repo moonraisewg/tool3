@@ -45,6 +45,7 @@ interface SelectTokenProps {
   externalAmount?: string;
   amountLoading?: boolean;
   excludeToken?: string;
+  cluster?: string
 }
 
 const SelectToken: React.FC<SelectTokenProps> = ({
@@ -56,6 +57,7 @@ const SelectToken: React.FC<SelectTokenProps> = ({
   externalAmount,
   amountLoading = false,
   excludeToken,
+  cluster = "mainnet"
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [tokens, setTokens] = useState<UserToken[]>([]);
@@ -89,7 +91,7 @@ const SelectToken: React.FC<SelectTokenProps> = ({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ publicKey: publicKey.toString() }),
+        body: JSON.stringify({ publicKey: publicKey.toString(), cluster }),
       });
 
       if (!response.ok) {
@@ -143,7 +145,7 @@ const SelectToken: React.FC<SelectTokenProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [publicKey, setSelectedToken, selectedToken, excludeToken]);
+  }, [publicKey, setSelectedToken, selectedToken, excludeToken, cluster]);
 
   const setHalf = () => {
     if (selectedToken) {

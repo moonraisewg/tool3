@@ -7,7 +7,8 @@ import {
 import bs58 from "bs58";
 import { Connection, Keypair, PublicKey, TransactionInstruction } from "@solana/web3.js";
 import { createAssociatedTokenAccountInstruction, getAssociatedTokenAddress, getAssociatedTokenAddressSync } from "@solana/spl-token";
-import { connection } from "@/service/solana/connection";
+import { connectionDevnet } from "./solana/connection";
+
 
 export const txVersion = TxVersion.V0
 
@@ -22,7 +23,7 @@ export const owner = Keypair.fromSecretKey(bs58.decode(ADMIN_PRIVATE_KEY));
 
 let cachedRaydium: Raydium | null = null;
 
-export const initSdk = async (): Promise<Raydium> => {
+export const initSdk = async (connection: Connection): Promise<Raydium> => {
   if (cachedRaydium) return cachedRaydium;
 
   console.log("Initializing Raydium SDK...");
@@ -68,7 +69,7 @@ const getPoolInfoById = async (
   poolInfo: ApiV3PoolInfoStandardItemCpmm;
   poolKeys?: CpmmKeys;
 }> => {
-  const raydium = await initSdk();
+  const raydium = await initSdk(connectionDevnet);
 
   if (raydium.cluster === "mainnet") {
     const data = await raydium.api.fetchPoolById({ ids: poolId });
@@ -109,7 +110,7 @@ export const fetchLpMintAndBalanceFromRaydium = async (
           new PublicKey(userPublicKey)
         );
 
-        const balanceInfo = await connection.getTokenAccountBalance(
+        const balanceInfo = await connectionDevnet.getTokenAccountBalance(
           lpTokenAccount
         );
         balance = balanceInfo.value.uiAmount ?? 0;

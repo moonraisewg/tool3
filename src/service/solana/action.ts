@@ -3,7 +3,7 @@ import { PublicKey, TransactionInstruction } from "@solana/web3.js";
 import { program } from "./program";
 import { findUserLockPda } from "./pda";
 import { getAccount } from "@solana/spl-token";
-import { connection } from "./connection";
+import { connectionDevnet } from "./connection";
 
 export const initializeVault = async ({
   publicKey,
@@ -243,11 +243,11 @@ export async function getUserLockedPools(
           );
 
           const token0VaultAccount = await getAccount(
-            connection,
+            connectionDevnet,
             poolStateAccount.token0Vault
           );
           const token1VaultAccount = await getAccount(
-            connection,
+            connectionDevnet,
             poolStateAccount.token1Vault
           );
 

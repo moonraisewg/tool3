@@ -7,7 +7,7 @@ import {
 } from "@solana/spl-token";
 import { checkVaultExists } from "@/lib/helper";
 import { withdraw } from "@/service/solana/action";
-import { connection } from "@/service/solana/connection";
+import { connectionDevnet } from "@/service/solana/connection";
 
 interface WithdrawRequestBody {
   walletPublicKey: string;
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
     } = vaultCheck;
     const poolState = poolId;
 
-    const lpMintInfo = await getMint(connection, new PublicKey(lpMint));
+    const lpMintInfo = await getMint(connectionDevnet, new PublicKey(lpMint));
     const decimals = lpMintInfo.decimals;
 
     const amountFloat = parseFloat(body.amount.toString());
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
     const transaction = new Transaction();
 
     try {
-      const userToken0AccountInfo = await connection.getAccountInfo(
+      const userToken0AccountInfo = await connectionDevnet.getAccountInfo(
         userToken0Account
       );
       if (!userToken0AccountInfo) {
@@ -141,7 +141,7 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      const userToken1AccountInfo = await connection.getAccountInfo(
+      const userToken1AccountInfo = await connectionDevnet.getAccountInfo(
         userToken1Account
       );
       if (!userToken1AccountInfo) {
@@ -200,7 +200,7 @@ export async function POST(req: NextRequest) {
     transaction.add(withdrawInstruction);
 
     const { blockhash, lastValidBlockHeight } =
-      await connection.getLatestBlockhash();
+      await connectionDevnet.getLatestBlockhash();
 
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = walletPublicKey;
@@ -219,14 +219,13 @@ export async function POST(req: NextRequest) {
     let errorMessage = "Failed to process withdraw";
 
     if (error instanceof SendTransactionError) {
-      const logs = await error.getLogs(connection);
+      const logs = await error.getLogs(connectionDevnet);
       console.error("SendTransactionError:", {
         message: error.message,
         logs,
       });
-      errorMessage = `Transaction failed: ${
-        error.message
-      }. Logs: ${JSON.stringify(logs)}`;
+      errorMessage = `Transaction failed: ${error.message
+        }. Logs: ${JSON.stringify(logs)}`;
     } else if (error instanceof Error) {
       if (error.message.includes("LockNotYetExpired")) {
         errorMessage = "Lock period has not yet expired";

@@ -27,6 +27,8 @@ const PAYMENT_AMOUNT_LAMPORTS = 0.001 * LAMPORTS_PER_SOL;
 
 const adminKeypair: Keypair = Keypair.fromSecretKey(bs58.decode(ADMIN_SECRET_KEY));
 
+const SOL_MINT = "So11111111111111111111111111111111111111112"
+
 function isValidBase58(str: string): boolean {
     return /^[1-9A-HJ-NP-Za-km-z]+$/.test(str);
 }
@@ -102,7 +104,7 @@ async function createTokenTransferTx(
         );
     }
 
-    if (mintAAddress === "So11111111111111111111111111111111111111112") {
+    if (mintAAddress === SOL_MINT) {
         tx.add(
             SystemProgram.transfer({
                 fromPubkey: userPublicKey,
@@ -219,7 +221,7 @@ export async function POST(req: Request) {
         }
 
         const userPubKey = new PublicKey(userPublicKey);
-        const raydium = await initSdk();
+        const raydium = await initSdk(connectionDevnet);
 
         if (!paymentTxId) {
             // Create payment transaction
@@ -304,7 +306,7 @@ export async function POST(req: Request) {
         const accountsInfo = await connectionDevnet.getMultipleAccountsInfo([adminAtaA, adminAtaB]);
         const tokenABalance = accountsInfo[0]
             ? Number(accountsInfo[0].data.slice(64, 72).readBigUInt64LE())
-            : mintAAddress === "So11111111111111111111111111111111111111112"
+            : mintAAddress === SOL_MINT
                 ? adminBalance
                 : 0;
         const tokenBBalance = accountsInfo[1] ? Number(accountsInfo[1].data.slice(64, 72).readBigUInt64LE()) : 0;

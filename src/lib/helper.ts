@@ -1,5 +1,4 @@
 import { PublicKey } from "@solana/web3.js";
-import { connection } from "@/service/solana/connection";
 import {
   findVaultPda,
   findVaultTokenPda,
@@ -11,6 +10,7 @@ import {
   TOKEN_2022_PROGRAM_ID,
   getAssociatedTokenAddress,
 } from "@solana/spl-token";
+import { connectionDevnet, connectionMainnet } from "@/service/solana/connection";
 
 interface VaultCheckResult {
   exists: boolean;
@@ -42,8 +42,8 @@ export const checkVaultExists = async (
     // Luôn fetch pool state để lấy thông tin token
     const poolState = await program.account.poolState.fetch(poolId);
 
-    const vaultInfo = await connection.getAccountInfo(vault);
-    const vaultTokenAccountInfo = await connection.getAccountInfo(
+    const vaultInfo = await connectionDevnet.getAccountInfo(vault);
+    const vaultTokenAccountInfo = await connectionDevnet.getAccountInfo(
       vaultTokenAccount
     );
 
@@ -109,7 +109,7 @@ export const checkVaultExists = async (
 };
 
 export async function getTokenProgram(mint: PublicKey): Promise<PublicKey> {
-  const mintAccountInfo = await connection.getAccountInfo(mint);
+  const mintAccountInfo = await connectionMainnet.getAccountInfo(mint);
 
   if (!mintAccountInfo) {
     throw new Error("Mint account not found");
