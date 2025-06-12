@@ -32,15 +32,8 @@ export async function POST(request: Request) {
     }
 
     const HELIUS_API_KEY = process.env.HELIUS_API_KEY;
-    const cluster = process.env.CLUSTER;
-    if (!HELIUS_API_KEY) {
-      return NextResponse.json(
-        { error: "Helius API key not configured" },
-        { status: 500 }
-      );
-    }
 
-    const HELIUS_URL = `https://${cluster}.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
+    const HELIUS_URL = `https://devnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
 
     const response = await fetch(HELIUS_URL, {
       method: "POST",

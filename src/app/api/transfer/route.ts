@@ -7,7 +7,7 @@ import {
   getAccount,
   createTransferInstruction,
 } from "@solana/spl-token";
-import { connection } from "@/service/solana/connection";
+import { connectionMainnet } from "@/service/solana/connection";
 import bs58 from "bs58";
 import { getTokenFeeFromSolAndUsd } from "@/service/jupiter/calculate-fee";
 import { getTokenProgram } from "@/lib/helper";
@@ -53,7 +53,7 @@ async function prepareTransaction(
   const receiverPublicKey = new PublicKey(body.receiverWalletPublicKey);
   const tokenMint = new PublicKey(body.tokenMint);
 
-  const mintInfo = await getMint(connection, tokenMint);
+  const mintInfo = await getMint(connectionMainnet, tokenMint);
   const decimals = mintInfo.decimals;
   const tokenProgram = await getTokenProgram(mintInfo.address);
 
@@ -80,7 +80,7 @@ async function prepareTransaction(
 
   try {
     await getAccount(
-      connection,
+      connectionMainnet,
       receiverTokenAccount,
       "confirmed",
       tokenProgram
@@ -90,7 +90,7 @@ async function prepareTransaction(
   }
 
   try {
-    await getAccount(connection, feeTokenAccount, "confirmed", tokenProgram);
+    await getAccount(connectionMainnet, feeTokenAccount, "confirmed", tokenProgram);
   } catch {
     accountCreationCount++;
   }
@@ -111,7 +111,7 @@ async function prepareTransaction(
 
   try {
     const senderAccount = await getAccount(
-      connection,
+      connectionMainnet,
       senderTokenAccount,
       "confirmed",
       tokenProgram
@@ -137,7 +137,7 @@ async function prepareTransaction(
 
   try {
     await getAccount(
-      connection,
+      connectionMainnet,
       receiverTokenAccount,
       "confirmed",
       tokenProgram
@@ -154,7 +154,7 @@ async function prepareTransaction(
   }
 
   try {
-    await getAccount(connection, feeTokenAccount, "confirmed", tokenProgram);
+    await getAccount(connectionMainnet, feeTokenAccount, "confirmed", tokenProgram);
   } catch {
     const createFeeAccountIx = createAssociatedTokenAccountInstruction(
       adminKeypair.publicKey,
@@ -189,7 +189,7 @@ async function prepareTransaction(
   transaction.add(netTransferIx);
 
   const { blockhash, lastValidBlockHeight } =
-    await connection.getLatestBlockhash();
+    await connectionMainnet.getLatestBlockhash();
   transaction.recentBlockhash = blockhash;
   transaction.feePayer = adminKeypair.publicKey;
   transaction.partialSign(adminKeypair);
@@ -226,7 +226,7 @@ async function executeSignedTransaction(body: TransferRequestBody) {
       throw new Error("No valid signatures found");
     }
 
-    const signature = await connection.sendRawTransaction(
+    const signature = await connectionMainnet.sendRawTransaction(
       signedTransaction.serialize(),
       {
         skipPreflight: false,
@@ -235,7 +235,7 @@ async function executeSignedTransaction(body: TransferRequestBody) {
       }
     );
 
-    const confirmation = await connection.confirmTransaction(signature);
+    const confirmation = await connectionMainnet.confirmTransaction(signature);
 
     if (confirmation.value.err) {
       throw new Error(

@@ -1,17 +1,19 @@
 import { NextResponse } from "next/server";
 import { Transaction } from "@solana/web3.js";
-import { connection } from "@/service/solana/connection";
+import { connectionDevnet, connectionMainnet } from "@/service/solana/connection";
 
 export async function POST(req: Request) {
     try {
-        const { transaction, blockhash, lastValidBlockHeight } = await req.json();
+        const { transaction, blockhash, lastValidBlockHeight, cluster } = await req.json();
 
-        if (!transaction || !blockhash || !lastValidBlockHeight) {
+        if (!transaction || !blockhash || !lastValidBlockHeight || !cluster) {
             return NextResponse.json(
-                { error: "Thiếu các trường bắt buộc" },
+                { error: "Missing required fields" },
                 { status: 400 }
             );
         }
+
+        const connection = cluster.toLowerCase() === "devnet" ? connectionDevnet : connectionMainnet;
 
         const tx = Transaction.from(Buffer.from(transaction, "base64"));
 
@@ -26,7 +28,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: true, txId });
     } catch (error: unknown) {
         const message =
-            error instanceof Error ? error.message : "Xử lý giao dịch thất bại";
+            error instanceof Error ? error.message : "Failed transaction processing";
         return NextResponse.json({ error: message }, { status: 500 });
     }
 }

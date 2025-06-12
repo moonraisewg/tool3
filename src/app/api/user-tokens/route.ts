@@ -101,20 +101,24 @@ async function loadFallbackTokenList(forceRefresh = false): Promise<Record<strin
 
 export async function POST(req: NextRequest) {
   try {
-    const { publicKey, forceRefresh = false } = await req.json();
+
+    const { publicKey, cluster = "mainnet", forceRefresh = false } = await req.json();
 
     if (!publicKey || !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(publicKey)) {
       return NextResponse.json({ error: "Invalid public key" }, { status: 400 });
     }
 
-    const heliusApiKey = process.env.HELIUS_API_KEY;
-    const cluster = process.env.CLUSTER;
-    if (!heliusApiKey || !cluster) {
-      throw new Error("Helius API key or cluster is not configured");
+    let RPC
+    const HELIUS_API_KEY = process.env.HELIUS_API_KEY
+
+    if (cluster === "mainnet") {
+      RPC = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
+    } else {
+      RPC = `https://devnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
     }
 
     const response = await fetch(
-      `https://${cluster}.helius-rpc.com/?api-key=${heliusApiKey}`,
+      RPC,
       {
         method: "POST",
         headers: {

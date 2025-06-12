@@ -7,7 +7,7 @@ import {
 } from "@solana/web3.js";
 import { NextResponse } from "next/server";
 import bs58 from "bs58";
-import { connection, connectionDevnet } from "@/service/solana/connection";
+import { connectionMainnet, connectionDevnet } from "@/service/solana/connection";
 import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 
 const ADMIN_PRIVATE_KEY = process.env.ADMIN_PRIVATE_KEY || "";
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
             );
         }
 
-        const txSignature = await connection.sendRawTransaction(
+        const txSignature = await connectionMainnet.sendRawTransaction(
             transaction.serialize(),
             {
                 skipPreflight: false,
@@ -89,7 +89,7 @@ export async function POST(request: Request) {
             }
         );
 
-        const confirmation = await connection.confirmTransaction(
+        const confirmation = await connectionMainnet.confirmTransaction(
             txSignature,
             "confirmed"
         );

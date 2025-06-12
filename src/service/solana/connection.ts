@@ -1,13 +1,15 @@
 import { Connection } from "@solana/web3.js";
 
-const heliusApiKey = process.env.HELIUS_API_KEY;
-const cluster = process.env.CLUSTER;
-const rpc = `https://${cluster}.helius-rpc.com/?api-key=${heliusApiKey}`;
-const rpcDevnet = `https://devnet.helius-rpc.com/?api-key=${heliusApiKey}`;
-const rpcMainnet = `https://mainnet.helius-rpc.com/?api-key=${heliusApiKey}`;
+const RPC_DEVNET = process.env.RPC_DEVNET;
+const RPC_MAINNET = process.env.RPC_MAINNET;
 
-export const connection = new Connection(rpc, "confirmed");
+if (!RPC_DEVNET) {
+    throw new Error("Environment variable RPC_DEVNET is not set!");
+}
 
-export const connectionDevnet = new Connection(rpcDevnet, "confirmed");
+if (!RPC_MAINNET) {
+    throw new Error("Environment variable RPC_MAINNET is not set!");
+}
 
-export const connectionMainnet = new Connection(rpcMainnet, "confirmed");
+export const connectionDevnet = new Connection(RPC_DEVNET, "confirmed");
+export const connectionMainnet = new Connection(RPC_MAINNET, "confirmed");

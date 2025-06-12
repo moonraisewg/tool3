@@ -201,6 +201,7 @@ export default function LpLockForm() {
               transaction: Buffer.from(signedTx.serialize()).toString("base64"),
               blockhash: data.blockhash,
               lastValidBlockHeight: data.lastValidBlockHeight,
+              cluster: "devnet"
             }),
           });
 

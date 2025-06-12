@@ -171,7 +171,7 @@ export default function BuySollMainnet() {
                     label: "View Transaction",
                     onClick: () =>
                         window.open(
-                            `https://solscan.io/tx/${confirmData.solTxSignature}?cluster=devnet`,
+                            `https://solscan.io/tx/${confirmData.solTxSignature}`,
                             "_blank"
                         ),
                 },
