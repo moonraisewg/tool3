@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PublicKey, Transaction, Keypair } from "@solana/web3.js";
+import { PublicKey, Transaction } from "@solana/web3.js";
 import {
   getAssociatedTokenAddress,
   getMint,
@@ -8,9 +8,14 @@ import {
   createTransferInstruction,
 } from "@solana/spl-token";
 import { connectionMainnet } from "@/service/solana/connection";
-import bs58 from "bs58";
 import { getTokenFeeFromSolAndUsd } from "@/service/jupiter/calculate-fee";
 import { getTokenProgram } from "@/lib/helper";
+import {
+  adminKeypair,
+  FEE_WALLET,
+  TRANSACTION_FEE_SOL,
+  ACCOUNT_CREATION_FEE_SOL,
+} from "@/config";
 
 interface TransferRequestBody {
   walletPublicKey: string;
@@ -19,13 +24,6 @@ interface TransferRequestBody {
   tokenMint: string;
   signedTransaction: number[];
 }
-
-const ADMIN_PRIVATE_KEY = process.env.ADMIN_PRIVATE_KEY!;
-const adminKeypair = Keypair.fromSecretKey(bs58.decode(ADMIN_PRIVATE_KEY));
-const YOUR_FEE_WALLET = new PublicKey(process.env.ADMIN_PUBLIC_KEY!);
-
-const TRANSACTION_FEE_SOL = 0.000005;
-const ACCOUNT_CREATION_FEE_SOL = 0.00203928;
 
 export async function POST(req: NextRequest) {
   try {
@@ -71,7 +69,7 @@ async function prepareTransaction(
   );
   const feeTokenAccount = await getAssociatedTokenAddress(
     tokenMint,
-    YOUR_FEE_WALLET,
+    FEE_WALLET,
     false,
     tokenProgram
   );
@@ -90,7 +88,12 @@ async function prepareTransaction(
   }
 
   try {
-    await getAccount(connectionMainnet, feeTokenAccount, "confirmed", tokenProgram);
+    await getAccount(
+      connectionMainnet,
+      feeTokenAccount,
+      "confirmed",
+      tokenProgram
+    );
   } catch {
     accountCreationCount++;
   }
@@ -154,12 +157,17 @@ async function prepareTransaction(
   }
 
   try {
-    await getAccount(connectionMainnet, feeTokenAccount, "confirmed", tokenProgram);
+    await getAccount(
+      connectionMainnet,
+      feeTokenAccount,
+      "confirmed",
+      tokenProgram
+    );
   } catch {
     const createFeeAccountIx = createAssociatedTokenAccountInstruction(
       adminKeypair.publicKey,
       feeTokenAccount,
-      YOUR_FEE_WALLET,
+      FEE_WALLET,
       tokenMint,
       tokenProgram
     );
