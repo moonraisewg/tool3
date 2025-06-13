@@ -31,11 +31,9 @@ export async function POST(request: Request) {
       return NextResponse.json(cached.metadata);
     }
 
-    const HELIUS_API_KEY = process.env.HELIUS_API_KEY;
+    const RPC_DEVNET = process.env.RPC_DEVNET!;;
 
-    const HELIUS_URL = `https://devnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
-
-    const response = await fetch(HELIUS_URL, {
+    const response = await fetch(RPC_DEVNET, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
