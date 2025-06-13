@@ -109,12 +109,10 @@ export async function POST(req: NextRequest) {
     }
 
     let RPC
-    const HELIUS_API_KEY = process.env.HELIUS_API_KEY
-
     if (cluster === "mainnet") {
-      RPC = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
+      RPC = process.env.RPC_MAINNET!;
     } else {
-      RPC = `https://devnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
+      RPC = process.env.RPC_DEVNET!;
     }
 
     const response = await fetch(
