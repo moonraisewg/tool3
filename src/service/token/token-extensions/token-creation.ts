@@ -49,7 +49,7 @@ export type TokenExtensionType = {
 
 export function useTokenCreation() {
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedExtensions, setSelectedExtensions] = useState<string[]>(["metadata", "metadata-pointer"]);
+  const [selectedExtensions, setSelectedExtensions] = useState<string[]>([]);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, Record<string, string>>>({});
   const [activeTab, setActiveTab] = useState<string>("metadata");
@@ -77,23 +77,33 @@ export function useTokenCreation() {
 
   const toggleExtension = (extensionId: string, tokenExtensions: TokenExtensionType[]) => {
     const extension = tokenExtensions.find(ext => ext.id === extensionId);
-    if (extension?.isRequired) {
-      return;
-    }
     if (extension?.disabled) {
       toast.error(`Cannot use ${extension.name} feature: ${extension.disabledReason}`);
       return;
     }
     
+    const isMetadataType = extensionId === "metadata" || extensionId === "metadata-pointer";
+    
     if (selectedExtensions.includes(extensionId)) {
-
-      setSelectedExtensions(prev => prev.filter(id => id !== extensionId));
-      if (activeTab === extensionId) {
-        const remainingExtensions = selectedExtensions.filter(id => id !== extensionId);
-        if (remainingExtensions.length > 0) {
-          setActiveTab(remainingExtensions[0]);
-        } else {
-          setActiveTab("metadata"); 
+      if (isMetadataType) {
+        setSelectedExtensions(prev => prev.filter(id => id !== "metadata" && id !== "metadata-pointer"));
+        if (activeTab === "metadata" || activeTab === "metadata-pointer") {
+          const remainingExtensions = selectedExtensions.filter(id => id !== "metadata" && id !== "metadata-pointer");
+          if (remainingExtensions.length > 0) {
+            setActiveTab(remainingExtensions[0]);
+          } else {
+            setActiveTab("metadata");
+          }
+        }
+      } else {
+        setSelectedExtensions(prev => prev.filter(id => id !== extensionId));
+        if (activeTab === extensionId) {
+          const remainingExtensions = selectedExtensions.filter(id => id !== extensionId);
+          if (remainingExtensions.length > 0) {
+            setActiveTab(remainingExtensions[0]);
+          } else {
+            setActiveTab("metadata"); 
+          }
         }
       }
     } else {
@@ -104,7 +114,19 @@ export function useTokenCreation() {
         return;
       }
       
-      setSelectedExtensions(prev => [...prev, extensionId]);    
+      if (isMetadataType) {
+        const newExtensions = [...selectedExtensions];
+        if (!newExtensions.includes("metadata")) {
+          newExtensions.push("metadata");
+        }
+        if (!newExtensions.includes("metadata-pointer")) {
+          newExtensions.push("metadata-pointer");
+        }
+        setSelectedExtensions(newExtensions);
+      } else {
+        setSelectedExtensions(prev => [...prev, extensionId]);
+      }
+      
       if (extensionId === "transfer-fees") {
         const transferFeeExt = tokenExtensions.find(ext => ext.id === "transfer-fees");
         if (transferFeeExt) {
@@ -229,13 +251,15 @@ export function useTokenCreation() {
     }
   };
   const validateTokenData = (): boolean => {
+    const hasMetadataExtension = selectedExtensions.includes("metadata") || selectedExtensions.includes("metadata-pointer");
+    
     const basicValidation = validateBasicTokenData({
       name: tokenData.name,
       symbol: tokenData.symbol,
       decimals: tokenData.decimals,
       supply: tokenData.supply,
       imageUrl: tokenData.imageUrl
-    });
+    }, hasMetadataExtension);
     
     setFormErrors(basicValidation.errors);
     const extensionValidation = checkExtensionRequiredFields(selectedExtensions, tokenData.extensionOptions);
@@ -317,21 +341,19 @@ export const tokenExtensions: TokenExtensionType[] = [
     id: "metadata",
     icon: () => null,
     name: "Token Metadata",
-    description: "Metadata embedded directly into the token (always enabled)",
+    description: "Metadata embedded directly into the token",
     color: "text-blue-500",
     bgColor: "bg-blue-500/10",
-    options: [],
-    isRequired: true
+    options: []
   },
   {
     id: "metadata-pointer",
     icon: () => null,
     name: "Metadata Pointer",
-    description: "Link metadata with token (always enabled)",
+    description: "Link metadata with token",
     color: "text-pink-400",
     bgColor: "bg-pink-400/10",
-    options: [],
-    isRequired: true
+    options: []
   },
   {
     id: "transfer-fees",

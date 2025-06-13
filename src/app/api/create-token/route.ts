@@ -57,26 +57,31 @@ interface CreateTokenRequestBody {
 export async function POST(req: NextRequest) {
   try {
     const body: CreateTokenRequestBody = await req.json();
-    if (!body.walletPublicKey || !body.name || !body.symbol || 
-        !body.decimals || !body.supply || !body.selectedExtensions) {
+    
+    if (!body.walletPublicKey || !body.decimals || !body.supply || !body.selectedExtensions) {
       return NextResponse.json(
         { error: "Missing required parameters" },
         { status: 400 }
       );
     }
-
-    let walletPublicKey: PublicKey;
-    try {
-      walletPublicKey = new PublicKey(body.walletPublicKey);
-    /* eslint-disable @typescript-eslint/no-unused-vars */
-    } catch (error) {
-    /* eslint-enable @typescript-eslint/no-unused-vars */
-      return NextResponse.json(
-        { error: "Invalid wallet public key" },
-        { status: 400 }
-      );
+    const hasMetadataExtension = body.selectedExtensions.includes("metadata") || 
+                               body.selectedExtensions.includes("metadata-pointer");
+    if (hasMetadataExtension) {
+      if (!body.selectedExtensions.includes("metadata")) {
+        body.selectedExtensions.push("metadata");
+      }
+      if (!body.selectedExtensions.includes("metadata-pointer")) {
+        body.selectedExtensions.push("metadata-pointer");
+      }
+      
+      if (!body.name || !body.symbol) {
+        return NextResponse.json(
+          { error: "Name and symbol are required when using metadata extension" },
+          { status: 400 }
+        );
+      }
     }
-
+    
     const decimals = typeof body.decimals === 'string' ? 
       parseInt(body.decimals) : body.decimals;
     
@@ -97,6 +102,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const tokenName = hasMetadataExtension ? body.name : (body.name || "Unnamed Token");
+    const tokenSymbol = hasMetadataExtension ? body.symbol : (body.symbol || "UNNAMED");
+
+    let walletPublicKey: PublicKey;
+    try {
+      walletPublicKey = new PublicKey(body.walletPublicKey);
+    /* eslint-disable @typescript-eslint/no-unused-vars */
+    } catch (error) {
+    /* eslint-enable @typescript-eslint/no-unused-vars */
+      return NextResponse.json(
+        { error: "Invalid wallet public key" },
+        { status: 400 }
+      );
+    }
+
     let imageHttpUrl = "";
     if (body.imageUrl) {
       imageHttpUrl = body.imageUrl;
@@ -106,8 +126,8 @@ export async function POST(req: NextRequest) {
     }
 
     const metadataBase: Record<string, unknown> = {
-      name: body.name,
-      symbol: body.symbol,
+      name: tokenName,
+      symbol: tokenSymbol,
       description: body.description || "",
       seller_fee_basis_points: 0,
       attributes: [
@@ -147,7 +167,7 @@ export async function POST(req: NextRequest) {
 
   
     metadataBase.collection = {
-      name: body.name,
+      name: tokenName,
       family: "Token-2022"
     };
 
@@ -163,7 +183,7 @@ export async function POST(req: NextRequest) {
     
       metadataUri = ipfsToHTTP(ipfsUri);
       
-      console.log("Created metadata URI for token:", metadataUri);
+      console.log(`Created metadata URI: ${metadataUri}`);
     /* eslint-disable @typescript-eslint/no-unused-vars */
     } catch (_) {
     /* eslint-enable @typescript-eslint/no-unused-vars */
@@ -194,16 +214,40 @@ export async function POST(req: NextRequest) {
       .setTokenInfo(
         decimals,
         walletPublicKey 
-      )
-      .addTokenMetadata(
-        body.name,
-        body.symbol,
+      );
+     
+    let metadataAdded = false;
+    
+    if (body.selectedExtensions.includes("metadata") || body.selectedExtensions.includes("metadata-pointer")) {
+      tokenBuilder.addTokenMetadata(
+        tokenName,
+        tokenSymbol,
         metadataUri, 
         additionalMetadata
       );
+      metadataAdded = true;
+    } else {
+      try {
+        // @ts-expect-error - Access to private property
+        if (Array.isArray(tokenBuilder.extensions)) {
+          // @ts-expect-error - Remove MetadataPointer extension from the list
+          tokenBuilder.extensions = tokenBuilder.extensions.filter(
+              ext => ext !== 16 // ExtensionType.MetadataPointer from @solana/spl-token
+          );
+            // @ts-expect-error - Clear tokenMetadata if it has been set
+          tokenBuilder.tokenMetadata = undefined;
+          // @ts-expect-error - Clear metadata if it has been set
+          tokenBuilder.metadata = undefined;
+        }
+      } catch (e) {
+        console.error("Could not remove metadata extension:", e);
+      }
+    }
     
     for (const extensionId of body.selectedExtensions) {
-      if (extensionId === "metadata" || extensionId === "metadata-pointer") continue;
+      if (extensionId === "metadata" || extensionId === "metadata-pointer") {
+        continue;
+      }
       
       if (extensionId === "transfer-fees" && body.extensionOptions?.["transfer-fees"]) {
         const feePercentage = parseFloat(body.extensionOptions["transfer-fees"]["fee-percentage"] || "1");
@@ -241,7 +285,7 @@ export async function POST(req: NextRequest) {
         tokenBuilder.addMintCloseAuthority(closeAuthorityAddress);
       }
       else if (extensionId === "default-account-state") {
-        const defaultState = 1; // Mặc định luôn là frozen
+        const defaultState = 1; 
         const freezeAuthority = body.extensionOptions?.["default-account-state"]?.["freeze-authority"] 
           ? new PublicKey(body.extensionOptions["default-account-state"]["freeze-authority"])
           : walletPublicKey;
@@ -257,6 +301,8 @@ export async function POST(req: NextRequest) {
 
     const { instructions: createInstructions, signers, mint } = 
       await tokenBuilder.createTokenInstructions(walletPublicKey);
+    
+    console.log(`Token created with mint: ${mint.toString()}, metadata: ${metadataAdded ? "yes" : "no"}`);
     
     const createTransaction = new Transaction();
     
@@ -284,7 +330,8 @@ export async function POST(req: NextRequest) {
       mint: mint.toString(),
       decimals,
       mintAmount: mintAmount.toString(),
-      useToken2022
+      useToken2022,
+      metadataUri
     });
 
   } catch (error: unknown) {

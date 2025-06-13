@@ -16,7 +16,7 @@ export function validateBasicTokenData(tokenData: {
   decimals: string | number;
   supply: string | number;
   imageUrl?: string;
-}): {
+}, hasMetadataExtension: boolean = true): {
   isValid: boolean;
   errors: {
     name?: string;
@@ -35,17 +35,19 @@ export function validateBasicTokenData(tokenData: {
   } = {};
   let isValid = true;
   
-  if (!tokenData.name.trim()) {
-    errors.name = "Token name is required";
-    isValid = false;
-  }
-  
-  if (!tokenData.symbol.trim()) {
-    errors.symbol = "Token symbol is required";
-    isValid = false;
-  } else if (tokenData.symbol.length > 10) {
-    errors.symbol = "Token symbol must not exceed 10 characters";
-    isValid = false;
+  if (hasMetadataExtension) {
+    if (!tokenData.name.trim()) {
+      errors.name = "Token name is required";
+      isValid = false;
+    }
+    
+    if (!tokenData.symbol.trim()) {
+      errors.symbol = "Token symbol is required";
+      isValid = false;
+    } else if (tokenData.symbol.length > 10) {
+      errors.symbol = "Token symbol must not exceed 10 characters";
+      isValid = false;
+    }
   }
 
   if (!tokenData.decimals) {
@@ -70,7 +72,7 @@ export function validateBasicTokenData(tokenData: {
     }
   }
   
-  if (!tokenData.imageUrl) {
+  if (hasMetadataExtension && !tokenData.imageUrl) {
     errors.image = "You must upload an image for the token";
     isValid = false;
   }

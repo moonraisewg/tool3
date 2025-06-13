@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -18,32 +18,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useTokenCreation, tokenExtensions, TextOptionType, SliderOptionType } from "@/service/token/token-extensions/token-creation";
-import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import React from "react";
 import Image from "next/image";
 
-
-const formSchema = z.object({
-  name: z.string().min(1, { message: "Token name is required" }),
-  symbol: z.string().min(1, { message: "Token symbol is required" }).max(10, { message: "Token symbol must not exceed 10 characters" }),
-  decimals: z.string().refine(val => {
-    const num = parseInt(val);
-    return !isNaN(num) && num >= 0 && num <= 9;
-  }, { message: "Decimals must be a number between 0-9" }),
-  supply: z.string().refine(val => {
-    const num = parseFloat(val);
-    return !isNaN(num) && num > 0;
-  }, { message: "Supply must be greater than 0" }),
-  description: z.string().optional(),
-  websiteUrl: z.string().url({ message: "Please enter a valid URL" }).optional().or(z.literal("")),
-  twitterUrl: z.string().url({ message: "Please enter a valid URL" }).optional().or(z.literal("")),
-  telegramUrl: z.string().url({ message: "Please enter a valid URL" }).optional().or(z.literal("")),
-  discordUrl: z.string().url({ message: "Please enter a valid URL" }).optional().or(z.literal(""))
-});
-
-const TokenCreationForm = () => {
+export const TokenCreationForm = () => {
   const {
     selectedExtensions,
     uploadingImage,
@@ -54,17 +34,29 @@ const TokenCreationForm = () => {
     toggleExtension,
     updateExtensionOption,
     handleCreateToken,
-    setTokenData,
-    initializeTokenData
+    setTokenData
   } = useTokenCreation();
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [openExtensions, setOpenExtensions] = useState<Record<string, boolean>>({});
-  const toggleExtensionOpen = (extId: string) => {
-    setOpenExtensions(prev => ({
-      ...prev,
-      [extId]: !prev[extId]
-    }));
-  };
+  
+  const formSchema = z.object({
+    name: z.string().optional(),
+    symbol: z.string().max(10, { message: "Token symbol must not exceed 10 characters" }).optional(),
+    decimals: z.string().refine(val => {
+      const num = parseInt(val);
+      return !isNaN(num) && num >= 0 && num <= 9;
+    }, { message: "Decimals must be a number between 0-9" }),
+    supply: z.string().refine(val => {
+      const num = parseFloat(val);
+      return !isNaN(num) && num > 0;
+    }, { message: "Supply must be greater than 0" }),
+    description: z.string().optional(),
+    websiteUrl: z.string().url({ message: "Please enter a valid URL" }).optional().or(z.literal("")),
+    twitterUrl: z.string().url({ message: "Please enter a valid URL" }).optional().or(z.literal("")),
+    telegramUrl: z.string().url({ message: "Please enter a valid URL" }).optional().or(z.literal("")),
+    discordUrl: z.string().url({ message: "Please enter a valid URL" }).optional().or(z.literal(""))
+  });
+  
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -79,27 +71,59 @@ const TokenCreationForm = () => {
       discordUrl: ""
     },
   });
+  
+  const toggleExtensionOpen = (extId: string) => {
+    setOpenExtensions(prev => ({
+      ...prev,
+      [extId]: !prev[extId]
+    }));
+  };
+  
+  const initializeTokenData = useCallback(() => {
+    setTokenData({
+      name: "",
+      symbol: "",
+      decimals: "9",
+      supply: "1000000",
+      description: "",
+      image: null,
+      imageUrl: "",
+      extensionOptions: {},
+      websiteUrl: "",
+      twitterUrl: "",
+      telegramUrl: "",
+      discordUrl: ""
+    });
+    
+    form.reset({
+      name: "",
+      symbol: "",
+      decimals: "9",
+      supply: "1000000",
+      description: "",
+      websiteUrl: "",
+      twitterUrl: "",
+      telegramUrl: "",
+      discordUrl: ""
+    });
+  }, [form, setTokenData]);
+
+  const handleOpenExtensions = useCallback(() => {
+    const newOpenState = { ...openExtensions };
+    selectedExtensions.forEach(extId => {
+      newOpenState[extId] = true;
+    });
+    setOpenExtensions(newOpenState);
+  }, [selectedExtensions, openExtensions]);
+
   useEffect(() => {
     initializeTokenData();
-  }, []);
+  }, [initializeTokenData]);
   
+  // Mở auto extension khi chọn
   useEffect(() => {
-    const extensionsToOpen = selectedExtensions.filter(extId => {
-      if (extId !== "metadata" && extId !== "metadata-pointer") {
-        const ext = tokenExtensions.find(e => e.id === extId);
-        return ext && ext.options && ext.options.length > 0;
-      }
-      return false;
-    });
-
-    if (extensionsToOpen.length > 0) {
-      const newOpenState = {...openExtensions};
-      extensionsToOpen.forEach(extId => {
-        newOpenState[extId] = true;
-      });
-      setOpenExtensions(newOpenState);
-    }
-  }, [selectedExtensions]);
+    handleOpenExtensions();
+  }, [handleOpenExtensions]);
 
   useEffect(() => {
     const subscription = form.watch((value) => {
@@ -119,6 +143,7 @@ const TokenCreationForm = () => {
     
     return () => subscription.unsubscribe();
   }, [form, setTokenData]);
+  
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -130,10 +155,25 @@ const TokenCreationForm = () => {
       handleImageUpload(file);
     }
   };
+  
   const onSubmit = () => {
-    if (!imagePreview && !tokenData.imageUrl) {
-      toast.error("Please upload a token image");
-      return;
+    const hasMetadataExtension = selectedExtensions.includes("metadata") || selectedExtensions.includes("metadata-pointer");
+    
+    if (hasMetadataExtension) {
+      if (!form.getValues('name')) {
+        form.setError('name', { type: 'manual', message: 'Token name is required' });
+        return;
+      }
+      
+      if (!form.getValues('symbol')) {
+        form.setError('symbol', { type: 'manual', message: 'Token symbol is required' });
+        return;
+      }
+      
+      if (!imagePreview && !tokenData.imageUrl) {
+        toast.error("Please upload a token image");
+        return;
+      }
     }
     
     handleCreateToken();
@@ -251,7 +291,6 @@ const TokenCreationForm = () => {
                     </div>
                   </div>
 
-                  {/* Social Links Section */}
                   <div className="space-y-4">
                     <h3 className="text-lg font-medium">Social Links (Optional)</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -322,7 +361,6 @@ const TokenCreationForm = () => {
           </Card>
         </div>
 
-        {/* Extensions Panel */}
         <div className="space-y-4">
           <div className="sticky top-4">
             <Card className="mb-4">
@@ -370,9 +408,6 @@ const TokenCreationForm = () => {
                             <div className="flex items-center gap-2">
                               {extension.icon && <extension.icon className={`w-5 h-5 ${extension.color}`} />}
                               <span className="font-medium">{extension.name}</span>
-                              {extension.isRequired && (
-                                <Badge variant="secondary" className="text-xs">Required</Badge>
-                              )}
                               {hasError && (
                                 <span className="text-xs text-red-500 px-2 py-0.5 bg-red-50 rounded">Required fields missing</span>
                               )}
@@ -389,15 +424,13 @@ const TokenCreationForm = () => {
                               <div className="flex-shrink-0 ml-2">
                                 {isSelected ? (
                                   <div className="flex items-center">
-                                    {!extension.isRequired && (
-                                      <X
-                                        className="w-5 h-5 text-gray-400 hover:text-red-500 mr-1 cursor-pointer"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          toggleExtension(extension.id, tokenExtensions);
-                                        }}
-                                      />
-                                    )}
+                                    <X
+                                      className="w-5 h-5 text-gray-400 hover:text-red-500 mr-1 cursor-pointer"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleExtension(extension.id, tokenExtensions);
+                                      }}
+                                    />
                                     <Check className="w-5 h-5 text-green-500" />
                                   </div>
                                 ) : (
@@ -414,7 +447,6 @@ const TokenCreationForm = () => {
                           <div className="p-4 bg-white">
                             {extension.id === "transfer-fees" ? (
                               <div className="space-y-4">
-                                {/* Fee Percentage as slider */}
                                 <div className="space-y-2">
                                   {extension.options.filter(opt => opt.id === "fee-percentage").map(option => {
                                     const optionValue = tokenData.extensionOptions?.[extension.id]?.[option.id];
@@ -443,7 +475,6 @@ const TokenCreationForm = () => {
                                   })}
                                 </div>
                                 
-                                {/* Other fields in a grid layout */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   {extension.options.filter(opt => opt.id !== "fee-percentage").map(option => {
                                     const optionValue = tokenData.extensionOptions?.[extension.id]?.[option.id];
@@ -570,6 +601,4 @@ const TokenCreationForm = () => {
       </div>
     </div>
   );
-};
-
-export default TokenCreationForm; 
+}; 

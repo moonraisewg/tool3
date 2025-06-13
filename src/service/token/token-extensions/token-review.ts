@@ -148,8 +148,16 @@ export function useTokenReview(router: { push: (url: string) => void }) {
           
           if (parsedData.selectedExtensions) {
             const extensions = [...parsedData.selectedExtensions];
-            if (!extensions.includes("metadata")) {
-              extensions.push("metadata");
+            
+            
+            const hasMetadataExtension = extensions.includes("metadata") || extensions.includes("metadata-pointer");
+            if (hasMetadataExtension) {
+              if (!extensions.includes("metadata")) {
+                extensions.push("metadata");
+              }
+              if (!extensions.includes("metadata-pointer")) {
+                extensions.push("metadata-pointer");
+              }
             }
             
             const compatibility = checkExtensionsCompatibility(extensions);
@@ -222,7 +230,19 @@ export function useTokenReview(router: { push: (url: string) => void }) {
       return;
     }
     
-    const compatibility = checkExtensionsCompatibility(selectedExtensions);
+    
+    const updatedExtensions = [...selectedExtensions];
+    const hasMetadataExtension = updatedExtensions.includes("metadata") || updatedExtensions.includes("metadata-pointer");
+    if (hasMetadataExtension) {
+      if (!updatedExtensions.includes("metadata")) {
+        updatedExtensions.push("metadata");
+      }
+      if (!updatedExtensions.includes("metadata-pointer")) {
+        updatedExtensions.push("metadata-pointer");
+      }
+    }
+    
+    const compatibility = checkExtensionsCompatibility(updatedExtensions);
     if (!compatibility.compatible) {
       const incompatibleNames = compatibility.incompatiblePairs!.map(pair => {
         const ext1 = tokenExtensionsMap[pair[0]]?.name || pair[0];
@@ -233,7 +253,7 @@ export function useTokenReview(router: { push: (url: string) => void }) {
       toast.error(`Cannot create token: The extensions ${incompatibleNames} are not compatible with each other`);
       return;
     }
-    const requiredCheck = checkExtensionRequiredFields(selectedExtensions, tokenData.extensionOptions || {});
+    const requiredCheck = checkExtensionRequiredFields(updatedExtensions, tokenData.extensionOptions || {});
     if (!requiredCheck.valid) {
       const missingFieldsInfo = Object.entries(requiredCheck.missingFields)
         .map(([extId, fields]) => {
@@ -259,12 +279,15 @@ export function useTokenReview(router: { push: (url: string) => void }) {
         description: tokenData.description || "",
         imageUrl: imageUrl,
         extensionOptions: tokenData.extensionOptions,
-        selectedExtensions,
+        selectedExtensions: updatedExtensions,
         websiteUrl: tokenData.websiteUrl || "",
         twitterUrl: tokenData.twitterUrl || "",
         telegramUrl: tokenData.telegramUrl || "",
         discordUrl: tokenData.discordUrl || ""
       };
+      
+      console.log("TokenReview: Sending request with extensions:", selectedExtensions);
+      console.log("TokenReview: Extension options:", tokenData.extensionOptions);
       
       const response = await fetch("/api/create-token", {
         method: "POST",
@@ -332,9 +355,10 @@ export function useTokenReview(router: { push: (url: string) => void }) {
       }, 'confirmed');
 
       toast.dismiss(toastId3);
+      
       toast.success("Token created and minted successfully!");
       
-      setMetadataUri(""); 
+      setMetadataUri("");
       setSuccess(true);
       
       localStorage.removeItem('tokenData');

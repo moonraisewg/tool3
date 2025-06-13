@@ -19,7 +19,7 @@
 
 # production
 /build
-
+/TEB_UI/
 # misc
 .DS_Store
 *.pem
