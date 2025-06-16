@@ -120,7 +120,6 @@ export const TokenCreationForm = () => {
     initializeTokenData();
   }, [initializeTokenData]);
   
-  // Mở auto extension khi chọn
   useEffect(() => {
     handleOpenExtensions();
   }, [handleOpenExtensions]);

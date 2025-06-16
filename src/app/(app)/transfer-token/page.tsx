@@ -8,13 +8,17 @@ import { Label } from "@/components/ui/label";
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Check, ExternalLink, Loader2, Search } from "lucide-react";
+import { Check, ExternalLink, Loader2, Search, Plus, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { UserToken } from "@/components/transfer/select-token";
 import Image from "next/image";
-import { transferToken, TokenTransferResult } from "@/service/token/token-extensions/tool/transfer-token-extension";
+import { transferToken, TokenTransferResult, transferTokenToMultipleRecipients } from "@/service/token/token-extensions/tool/transfer-token-extension";
 
-// Define interface for token assets from API
+interface Recipient {
+  address: string;
+  amount: string;
+}
+
 interface TokenAsset {
   interface: string;
   id: string;
@@ -42,32 +46,37 @@ export default function TransferTokenPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedToken, setSelectedToken] = useState<UserToken | null>(null);
   const [tokens, setTokens] = useState<UserToken[]>([]);
-  const [amount, setAmount] = useState("");
-  const [recipient, setRecipient] = useState("");
+  const [recipients, setRecipients] = useState<Recipient[]>([{ address: "", amount: "" }]);
   const [memo, setMemo] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [transferInProgress, setTransferInProgress] = useState(false);
   const [transferSuccess, setTransferSuccess] = useState(false);
-  const [transferResult, setTransferResult] = useState<TokenTransferResult | null>(null);
+  const [transferResults, setTransferResults] = useState<TokenTransferResult[]>([]);
   
-  // Xử lý khi chọn token từ modal
   const handleTokenSelect = (token: UserToken) => {
     setSelectedToken(token);
     setIsModalOpen(false);
   };
   
-  // Fetch danh sách token của người dùng
+ 
   const fetchUserTokens = useCallback(async () => {
     if (!publicKey) return;
     
     try {
       setIsLoading(true);
+      
+     
+      const urlCluster = window.location.href.includes('cluster=devnet') ? 'devnet' : 'mainnet';
+      
       const response = await fetch("/api/user-tokens", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ publicKey: publicKey.toString() }),
+        body: JSON.stringify({ 
+          publicKey: publicKey.toString(),
+          cluster: urlCluster
+        }),
       });
 
       if (!response.ok) {
@@ -104,6 +113,58 @@ export default function TransferTokenPage() {
     }
   }, [publicKey]);
   
+  // Thêm người nhận mới
+  const addRecipient = () => {
+    setRecipients([...recipients, { address: "", amount: "" }]);
+  };
+  
+  // Xóa người nhận
+  const removeRecipient = (index: number) => {
+    if (recipients.length > 1) {
+      setRecipients(recipients.filter((_, i) => i !== index));
+    }
+  };
+  
+  // Cập nhật thông tin người nhận
+  const updateRecipient = (index: number, field: keyof Recipient, value: string) => {
+    console.log(`Updating recipient ${index}, field: ${field}, value: ${value}`);
+    
+    const newRecipients = [...recipients];
+    
+    // Đảm bảo index tồn tại trong mảng
+    if (index >= newRecipients.length) {
+      console.error(`Index ${index} out of bounds, max index is ${newRecipients.length - 1}`);
+      return;
+    }
+    
+    newRecipients[index] = { 
+      ...newRecipients[index], 
+      [field]: value 
+    };
+    
+    console.log(`Updated recipients:`, newRecipients);
+    setRecipients(newRecipients);
+  };
+  
+  // Kiểm tra tổng số token chuyển không vượt quá số dư
+  const validateTotalAmount = (): boolean => {
+    if (!selectedToken) return false;
+    
+    const totalAmount = recipients.reduce((sum, recipient) => {
+      const amount = parseFloat(recipient.amount) || 0;
+      return sum + amount;
+    }, 0);
+    
+    const balance = parseFloat(selectedToken.balance);
+    
+    if (totalAmount > balance) {
+      toast.error(`Total amount exceeds your balance (${balance} ${selectedToken.symbol})`);
+      return false;
+    }
+    
+    return true;
+  };
+  
   // Xử lý khi submit form
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,13 +179,61 @@ export default function TransferTokenPage() {
       return;
     }
     
-    if (!amount || parseFloat(amount) <= 0) {
-      toast.error("Please enter a valid amount");
+    // Kiểm tra từng người nhận
+    const validRecipients: Recipient[] = [];
+    const invalidRecipients: string[] = [];
+    
+    console.log("Checking recipients:", recipients);
+    
+    recipients.forEach((recipient, index) => {
+      // Bỏ qua các ô hoàn toàn trống
+      if (!recipient.address && (!recipient.amount || parseFloat(recipient.amount) <= 0)) {
+        console.log(`Recipient ${index + 1}: Completely empty, skipping`);
+        return;
+      }
+      
+      // Kiểm tra địa chỉ
+      if (!recipient.address) {
+        console.log(`Recipient ${index + 1}: Missing address`);
+        invalidRecipients.push(`Recipient ${index + 1}: Missing address`);
+        return;
+      }
+      
+      // Kiểm tra số lượng
+      if (!recipient.amount || parseFloat(recipient.amount) <= 0 || isNaN(parseFloat(recipient.amount))) {
+        console.log(`Recipient ${index + 1}: Invalid amount "${recipient.amount}"`);
+        invalidRecipients.push(`Recipient ${index + 1}: Invalid amount`);
+        return;
+      }
+      
+      // Nếu đã qua mọi kiểm tra, thêm vào danh sách hợp lệ
+      console.log(`Recipient ${index + 1}: Valid - Address: ${recipient.address}, Amount: ${recipient.amount}`);
+      validRecipients.push(recipient);
+    });
+    
+    // Nếu có lỗi, hiển thị và dừng
+    if (invalidRecipients.length > 0) {
+      toast.error(
+        <div>
+          <p>Please fix the following errors:</p>
+          <ul className="list-disc pl-4 mt-1">
+            {invalidRecipients.map((error, i) => (
+              <li key={i}>{error}</li>
+            ))}
+          </ul>
+        </div>
+      );
       return;
     }
     
-    if (!recipient) {
-      toast.error("Please enter a recipient address");
+    if (validRecipients.length === 0) {
+      toast.error("Please add at least one valid recipient with amount");
+      return;
+    }
+    
+    console.log("Valid recipients:", validRecipients);
+    
+    if (!validateTotalAmount()) {
       return;
     }
     
@@ -135,13 +244,17 @@ export default function TransferTokenPage() {
       
       toastId = toast.loading("Preparing transfer...");
       
+      if (validRecipients.length === 1) {
+        // Chuyển cho một người nhận
+        const recipient = validRecipients[0];
+      
       const result = await transferToken(
         connection,
         wallet,
         {
           mintAddress: selectedToken.address,
-          recipientAddress: recipient,
-          amount: amount,
+            recipientAddress: recipient.address,
+            amount: recipient.amount,
           decimals: selectedToken.decimals || 0
         },
         {
@@ -162,8 +275,43 @@ export default function TransferTokenPage() {
       if (result) {
         console.log("Transaction signature:", result.signature);
         toast.dismiss(toastId);
-        setTransferResult(result);
+          setTransferResults([result]);
+          setTransferSuccess(true);
+        }
+      } else {
+        // Chuyển cho nhiều người nhận
+        const transferParams = validRecipients.map(recipient => ({
+          mintAddress: selectedToken.address,
+          recipientAddress: recipient.address,
+          amount: recipient.amount,
+          decimals: selectedToken.decimals || 0
+        }));
+        
+        const results = await transferTokenToMultipleRecipients(
+          connection,
+          wallet,
+          transferParams,
+          {
+            memo: memo,
+            onStart: () => {},
+            onSuccess: () => {
+              toast.dismiss(toastId);
+              toast.success("Transfers successful!");
+            },
+            onError: (err: Error) => {
+              toast.dismiss(toastId);
+              toast.error(`Transfers failed: ${err.message}`);
+            },
+            onFinish: () => setTransferInProgress(false)
+          }
+        );
+        
+        if (results && results.length > 0) {
+          console.log("Transaction results:", results);
+          toast.dismiss(toastId);
+          setTransferResults(results);
         setTransferSuccess(true);
+        }
       }
     } catch (error: unknown) {
       console.error("Error in transfer:", error);
@@ -175,18 +323,55 @@ export default function TransferTokenPage() {
     }
   };
   
-  // Xử lý khi người dùng nhấn nút MAX
-  const handleMaxAmount = () => {
-    if (selectedToken) {
-      setAmount(selectedToken.balance);
+  const handleSetMaxForAll = () => {
+    if (!selectedToken) return;
+    
+    const balance = parseFloat(selectedToken.balance);
+    const count = recipients.length;
+    
+    if (count === 0) return;
+    
+    const amountPerRecipient = (balance / count).toFixed(selectedToken.decimals || 6);
+    
+    setRecipients(recipients.map(r => ({
+      ...r,
+      amount: amountPerRecipient
+    })));
+  };
+  
+  const handleMaxAmount = (index: number) => {
+    if (!selectedToken) return;
+    
+    // Calculate remaining balance after accounting for other recipients
+    const totalOtherAmount = recipients.reduce((sum, r, i) => {
+      if (i === index) return sum;
+      return sum + (parseFloat(r.amount) || 0);
+    }, 0);
+    
+    const availableBalance = parseFloat(selectedToken.balance) - totalOtherAmount;
+    
+    if (availableBalance <= 0) {
+      toast.error("No remaining balance available");
+      return;
     }
+    
+    const newRecipients = [...recipients];
+    newRecipients[index] = {
+      ...newRecipients[index],
+      amount: availableBalance.toString()
+    };
+    
+    setRecipients(newRecipients);
+  };
+  
+  const calculateTotalAmount = (): number => {
+    return recipients.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
   };
   
   const handleCloseSuccessDialog = () => {
     setTransferSuccess(false);
-    setTransferResult(null);
-    setAmount("");
-    setRecipient("");
+    setTransferResults([]);
+    setRecipients([{ address: "", amount: "" }]);
     setMemo("");
   };
   
@@ -196,22 +381,20 @@ export default function TransferTokenPage() {
     }
   }, [publicKey, fetchUserTokens]);
   
-  // Filter tokens cho modal search
+
   const filteredTokens = tokens.filter(
     (token) =>
       token?.symbol?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       token.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       token.address.toLowerCase().includes(searchQuery.toLowerCase()),
   );
-  
-  // Helper function để rút gọn địa chỉ
+
   const shortenAddress = (address: string) => {
     if (address.length <= 10) return address;
     return `${address.slice(0, 5)}...${address.slice(-5)}`;
   };
   
-  // Hiển thị màn hình thành công
-  if (transferSuccess && transferResult) {
+  if (transferSuccess && transferResults.length > 0) {
     return (
       <div className="container mx-auto px-4 py-8">
         <Card className="max-w-2xl mx-auto">
@@ -227,22 +410,22 @@ export default function TransferTokenPage() {
             <div className="space-y-4 mb-8">
               <div className="p-4 bg-gray-50 rounded-lg">
                 <p className="text-sm font-medium text-gray-500">Token</p>
-                <p className="text-base font-mono break-all">{transferResult.mintAddress}</p>
-              </div>
+                <p className="text-base font-mono break-all">{transferResults[0].mintAddress}</p>
+              </div>              
               
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm font-medium text-gray-500">Amount</p>
-                <p className="text-base font-mono">{transferResult.amount} {selectedToken?.symbol || ""}</p>
+              {transferResults.map((result, index) => (
+                <div key={index} className="p-4 bg-gray-50 rounded-lg">
+                  <p className="text-sm font-medium text-gray-500">Recipient {index + 1}</p>
+                  <div className="flex justify-between items-center">
+                    <p className="text-base font-mono break-all">{shortenAddress(result.recipientAddress)}</p>
+                    <p className="text-base font-mono">{result.amount} {selectedToken?.symbol || ""}</p>
               </div>
-              
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm font-medium text-gray-500">Recipient</p>
-                <p className="text-base font-mono break-all">{transferResult.recipientAddress}</p>
               </div>
+              ))}
               
               <div className="p-4 bg-gray-50 rounded-lg">
                 <p className="text-sm font-medium text-gray-500">Transaction</p>
-                <p className="text-base font-mono break-all">{transferResult.signature}</p>
+                <p className="text-base font-mono break-all">{transferResults[0].signature}</p>
               </div>
             </div>
 
@@ -256,10 +439,11 @@ export default function TransferTokenPage() {
               
               <Button 
                 onClick={() => {
-                  window.open(
-                    `https://explorer.solana.com/tx/${transferResult.signature}?cluster=devnet`, 
-                    "_blank"
-                  );
+                  const urlCluster = window.location.href.includes('cluster=devnet') ? 'devnet' : 'mainnet';
+                  const explorerUrl = urlCluster === 'devnet' 
+                    ? `https://explorer.solana.com/tx/${transferResults[0].signature}?cluster=devnet`
+                    : `https://explorer.solana.com/tx/${transferResults[0].signature}`;
+                  window.open(explorerUrl, "_blank");
                 }}
               >
                 View on Explorer <ExternalLink className="ml-2 h-4 w-4" />
@@ -301,45 +485,110 @@ export default function TransferTokenPage() {
                 <span>▼</span>
               </Button>
               {selectedToken && (
+                <div className="flex justify-between items-center">
                 <div className="text-sm text-gray-500">
                   Balance: {selectedToken.balance} {selectedToken.symbol}
+                  </div>
+                  {recipients.length > 1 && (
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={handleSetMaxForAll}
+                    >
+                      Distribute Evenly
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
             
-            {/* Amount */}
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <Label htmlFor="amount">Amount</Label>
+            {/* Recipients */}
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <Label>Recipients</Label>
+              </div>
+              
+              <div className="max-h-[350px] overflow-y-auto pr-1 space-y-4">
+                {recipients.map((recipient, index) => (
+                  <div key={index} className="p-4 border border-gray-200 rounded-lg space-y-3">
+                    <div className="flex justify-between items-center">
+                      <h4 className="text-sm font-medium">Recipient {index + 1}</h4>
+                      {recipients.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeRecipient(index)}
+                          className="h-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <div>
+                        <Label htmlFor={`recipient-${index}`} className="sr-only">Recipient Address</Label>
+                        <Input
+                          id={`recipient-${index}`}
+                          placeholder="Enter Solana address"
+                          value={recipient.address}
+                          onChange={(e) => updateRecipient(index, "address", e.target.value)}
+                        />
+                      </div>
+                      
+                      <div>
+                        <div className="flex justify-between">
+                          <Label htmlFor={`amount-${index}`} className="sr-only">Amount</Label>
+                          <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="sm"
+                            className="h-6 text-xs"
+                            onClick={() => handleMaxAmount(index)}
+                            disabled={!selectedToken}
+                          >
+                            MAX
+                          </Button>
+                        </div>
+                        <Input
+                          id={`amount-${index}`}
+                          placeholder="0.00"
+                          value={recipient.amount}
+                          onChange={(e) => updateRecipient(index, "amount", e.target.value)}
+                          disabled={!selectedToken}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="flex justify-center mt-3">
                 <Button 
                   type="button" 
-                  variant="ghost" 
+                  variant="outline" 
                   size="sm"
-                  className="h-6 text-xs"
-                  onClick={handleMaxAmount}
-                  disabled={!selectedToken}
+                  className="h-8 w-full"
+                  onClick={addRecipient}
                 >
-                  MAX
+                  <Plus className="h-4 w-4 mr-1" /> Add Recipient
                 </Button>
               </div>
-              <Input
-                id="amount"
-                placeholder="0.00"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                disabled={!selectedToken}
-              />
-            </div>
-            
-            {/* Recipient */}
-            <div className="space-y-2">
-              <Label htmlFor="recipient">Recipient Address</Label>
-              <Input
-                id="recipient"
-                placeholder="Enter Solana address"
-                value={recipient}
-                onChange={(e) => setRecipient(e.target.value)}
-              />
+              
+              {selectedToken && recipients.length > 0 && (
+                <div className="flex justify-between items-center px-4 py-2 bg-gray-50 rounded-lg">
+                  <span className="text-sm font-medium">Total Amount:</span>
+                  <span className="font-medium">
+                    {calculateTotalAmount()} {selectedToken.symbol} 
+                    {calculateTotalAmount() > parseFloat(selectedToken.balance) && (
+                      <span className="text-red-500 ml-2">(Exceeds balance)</span>
+                    )}
+                  </span>
+                </div>
+              )}
             </div>
             
             {/* Memo (for MemoTransfer extension) */}

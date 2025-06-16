@@ -25,7 +25,6 @@ export function SelectTokenModal({
 }: SelectTokenModalProps) {
   const [searchQuery, setSearchQuery] = useState("");
   
-  // Filter tokens based on search query
   const filteredTokens = tokens.filter(
     (token) =>
       token?.symbol?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -33,7 +32,6 @@ export function SelectTokenModal({
       token.address.toLowerCase().includes(searchQuery.toLowerCase()),
   );
   
-  // Helper function to shorten addresses
   const shortenAddress = (address: string) => {
     if (address.length <= 10) return address;
     return `${address.slice(0, 5)}...${address.slice(-5)}`;

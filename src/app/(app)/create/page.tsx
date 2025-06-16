@@ -1,5 +1,5 @@
 "use client"
-import TokenCreationForm from "@/components/token-creation-form"
+import { TokenCreationForm } from "@/components/token-creation-form"
 import SuspenseLayout from "@/components/suspense-layout"
 
 export default function CreateToken() {

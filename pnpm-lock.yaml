@@ -77,6 +77,9 @@ importers:
       '@types/lodash':
         specifier: ^4.17.17
         version: 4.17.17
+      alert:
+        specifier: ^6.0.2
+        version: 6.0.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       axios:
         specifier: ^1.9.0
         version: 1.9.0(debug@4.4.1)
@@ -2966,6 +2969,12 @@ packages:
 
   ajv@6.12.6:
     resolution: {integrity: sha512-j3fVLgvTo527anyYyJOGTYJbG+vnnQYvE0m5mmkc1TK+nxAppkCLMIL0aZ4dblVCNoGShhm+kzE4ZUykBoMg4g==}
+
+  alert@6.0.2:
+    resolution: {integrity: sha512-Oi8u2HRNN6mzpjgKGii2Uuf9iOhyfbeUAHH/5MwnVmC8DS9GrEBjZBFpoavkNj+ZKnBr/Lqx+6YKLDKrggKfPA==}
+    peerDependencies:
+      react: ^18.0.0
+      react-dom: ^18.0.0
 
   algo-msgpack-with-bigint@2.1.1:
     resolution: {integrity: sha512-F1tGh056XczEaEAqu7s+hlZUDWwOBT70Eq0lfMpBP2YguSQVyxRbprLq5rELXKQOyOaixTWYhMeMQMzP0U5FoQ==}
@@ -11227,6 +11236,11 @@ snapshots:
       fast-json-stable-stringify: 2.1.0
       json-schema-traverse: 0.4.1
       uri-js: 4.4.1
+
+  alert@6.0.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0):
+    dependencies:
+      react: 19.1.0
+      react-dom: 19.1.0(react@19.1.0)
 
   algo-msgpack-with-bigint@2.1.1: {}
 

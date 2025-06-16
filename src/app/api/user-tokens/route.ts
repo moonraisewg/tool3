@@ -101,7 +101,7 @@ async function loadFallbackTokenList(): Promise<Record<string, Token>> {
 
 export async function POST(req: NextRequest) {
   try {
-    const { publicKey } = await req.json();
+    const { publicKey, cluster } = await req.json();
 
     if (!publicKey || !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(publicKey)) {
       return NextResponse.json(
@@ -111,13 +111,14 @@ export async function POST(req: NextRequest) {
     }
 
     const heliusApiKey = process.env.HELIUS_API_KEY;
-    const cluster = process.env.CLUSTER;
+    const clusterValue = cluster || process.env.CLUSTER || 'devnet';
+    
     if (!heliusApiKey) {
       throw new Error("Helius API key is not configured");
     }
 
     const response = await fetch(
-      `https://${cluster}.helius-rpc.com/?api-key=${heliusApiKey}`,
+      `https://${clusterValue}.helius-rpc.com/?api-key=${heliusApiKey}`,
       {
         method: "POST",
         headers: {

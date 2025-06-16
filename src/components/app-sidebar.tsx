@@ -72,6 +72,10 @@ export const route = {
           title: "Burn Token",
           url: "/burn-token",
         },
+        {
+          title: "Permanent Delegate",
+          url: "/permanent-delegate-recovery",
+        },
       ],
     },
     {
@@ -116,6 +120,10 @@ export const route = {
         {
           title: "Burn Token",
           url: "/burn-token?cluster=devnet",
+        },
+        {
+          title: "Permanent Delegate",
+          url: "/permanent-delegate-recovery?cluster=devnet",
         },
       ],
     },
