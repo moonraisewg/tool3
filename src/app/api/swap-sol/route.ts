@@ -12,19 +12,14 @@ import {
   createTransferInstruction,
 } from "@solana/spl-token";
 import { connectionMainnet } from "@/service/solana/connection";
-import { getTokenFeeFromSolAndUsd } from "@/service/jupiter/calculate-fee";
+import { getTokenFeeFromUsd } from "@/service/jupiter/calculate-fee";
 import { getTokenProgram } from "@/lib/helper";
 import {
   getJupiterQuote,
   getJupiterSwapInstructions,
   type JupiterInstruction,
 } from "@/service/jupiter/swap";
-import {
-  adminKeypair,
-  FEE_WALLET,
-  TRANSACTION_FEE_SOL,
-  ACCOUNT_CREATION_FEE_SOL,
-} from "@/config";
+import { adminKeypair, FEE_WALLET } from "@/config";
 
 interface SwapRequestBody {
   walletPublicKey: string;
@@ -116,37 +111,7 @@ async function prepareSwapTransaction(
     inputTokenProgram
   );
 
-  let accountCreationCount = 0;
-
-  try {
-    await getAccount(
-      connectionMainnet,
-      userOutputTokenAccount,
-      "confirmed",
-      outputTokenProgram
-    );
-  } catch {
-    accountCreationCount++;
-  }
-
-  try {
-    await getAccount(
-      connectionMainnet,
-      feeTokenAccount,
-      "confirmed",
-      inputTokenProgram
-    );
-  } catch {
-    accountCreationCount++;
-  }
-
-  const totalAdminCostSOL =
-    TRANSACTION_FEE_SOL + accountCreationCount * ACCOUNT_CREATION_FEE_SOL;
-
-  const feeInTokens = await getTokenFeeFromSolAndUsd(
-    totalAdminCostSOL,
-    body.inputTokenMint
-  );
+  const feeInTokens = await getTokenFeeFromUsd(body.inputTokenMint);
   const feeAmount = Math.round(feeInTokens * Math.pow(10, inputDecimals));
 
   const totalRequiredAmount = inputAmountInLamports + feeAmount;
@@ -273,7 +238,6 @@ async function prepareSwapTransaction(
       feeAmount: feeAmount / Math.pow(10, inputDecimals),
       totalRequired: totalRequiredAmount / Math.pow(10, inputDecimals),
     },
-    adminCostSOL: totalAdminCostSOL,
   });
 }
 

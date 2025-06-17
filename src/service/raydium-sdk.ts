@@ -2,15 +2,19 @@ import {
   Raydium,
   CpmmKeys,
   ApiV3PoolInfoStandardItemCpmm,
-  TxVersion
+  TxVersion,
 } from "@raydium-io/raydium-sdk-v2";
-import bs58 from "bs58";
-import { Connection, Keypair, PublicKey, TransactionInstruction } from "@solana/web3.js";
-import { createAssociatedTokenAccountInstruction, getAssociatedTokenAddress, getAssociatedTokenAddressSync } from "@solana/spl-token";
+
+import { adminKeypair } from "@/config";
+import { Connection, PublicKey, TransactionInstruction } from "@solana/web3.js";
+import {
+  createAssociatedTokenAccountInstruction,
+  getAssociatedTokenAddress,
+  getAssociatedTokenAddressSync,
+} from "@solana/spl-token";
 import { connectionDevnet } from "./solana/connection";
 
-
-export const txVersion = TxVersion.V0
+export const txVersion = TxVersion.V0;
 
 const ADMIN_PRIVATE_KEY = process.env.ADMIN_PRIVATE_KEY;
 const cluster = "devnet";
@@ -19,7 +23,7 @@ if (!ADMIN_PRIVATE_KEY) {
   throw new Error("ADMIN_PRIVATE_KEY not set in .env");
 }
 
-export const owner = Keypair.fromSecretKey(bs58.decode(ADMIN_PRIVATE_KEY));
+export const owner = adminKeypair;
 
 let cachedRaydium: Raydium | null = null;
 
@@ -48,20 +52,20 @@ export const createAtaIfMissing = async (
   owner: PublicKey,
   mint: PublicKey
 ): Promise<{ ata: PublicKey; instructions: TransactionInstruction[] }> => {
-  const ata = await getAssociatedTokenAddress(mint, owner)
-  const accountInfo = await connection.getAccountInfo(ata)
+  const ata = await getAssociatedTokenAddress(mint, owner);
+  const accountInfo = await connection.getAccountInfo(ata);
   if (accountInfo === null) {
     const instruction = createAssociatedTokenAccountInstruction(
       payer, // funding payer
-      ata,   // ATA address
+      ata, // ATA address
       owner, // token account owner
-      mint   // token mint
-    )
-    return { ata, instructions: [instruction] }
+      mint // token mint
+    );
+    return { ata, instructions: [instruction] };
   }
 
-  return { ata, instructions: [] }
-}
+  return { ata, instructions: [] };
+};
 
 const getPoolInfoById = async (
   poolId: string
