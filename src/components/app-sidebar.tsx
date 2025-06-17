@@ -26,7 +26,17 @@ import {
   Wallet,
 } from "@nsmr/pixelart-react";
 
-export const route = {
+interface RouteItem {
+  title: string;
+  icon?: React.ElementType;
+  url: string;
+  hidden?: boolean;
+};
+
+export const route: {
+  mainnet: RouteItem[];
+  devnet: RouteItem[];
+} = {
   mainnet: [
     {
       title: "Transfer",
@@ -47,6 +57,16 @@ export const route = {
       title: "Create liquidity pool",
       icon: AddBox,
       url: "/create-pool",
+    },
+    {
+      title: "Create Raydium CPMM Pool",
+      url: "/create-pool/raydium-cpmm",
+      hidden: true
+    },
+    {
+      title: "Create Meteora DAMM Pool",
+      url: "/create-pool/meteora-damm",
+      hidden: true
     },
   ],
   devnet: [
@@ -87,14 +107,14 @@ export function AppSidebar() {
           <SidebarGroupLabel>Main</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navMain.map((item) => (
+              {navMain.filter(item => !item.hidden).map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
                     isActive={pathname.split("?")[0] === item.url.split("?")[0]}
                   >
                     <Link href={item.url} className="flex items-center">
-                      <item.icon className="mr-2 h-4 w-4" />
+                      {item.icon && <item.icon className="mr-2 h-4 w-4" />}
                       <span>{item.title}</span>
                     </Link>
                   </SidebarMenuButton>

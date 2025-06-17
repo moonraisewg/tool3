@@ -334,64 +334,9 @@ export async function POST(req: Request) {
       });
     }
 
-    // Verify token transfer transaction
-    const tx = await connectionDevnet.getTransaction(tokenTransferTxId, {
-      commitment: "confirmed",
-      maxSupportedTransactionVersion: 0,
-    });
-    if (!tx || !tx.meta) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Invalid or unconfirmed token transfer transaction",
-        },
-        { status: 400 }
-      );
-    }
-
-    // Check token balances in admin ATA
-    const adminAtaA = getAssociatedTokenAddressSync(
-      new PublicKey(mintAAddress),
-      adminKeypair.publicKey
-    );
-    const adminAtaB = getAssociatedTokenAddressSync(
-      new PublicKey(mintBAddress),
-      adminKeypair.publicKey
-    );
-    const accountsInfo = await connectionDevnet.getMultipleAccountsInfo([
-      adminAtaA,
-      adminAtaB,
-    ]);
-    const tokenABalance = accountsInfo[0]
-      ? Number(accountsInfo[0].data.slice(64, 72).readBigUInt64LE())
-      : mintAAddress === SOL_MINT
-      ? adminBalance
-      : 0;
-    const tokenBBalance = accountsInfo[1]
-      ? Number(accountsInfo[1].data.slice(64, 72).readBigUInt64LE())
-      : 0;
-
-    if (tokenABalance < Number(amountA)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Insufficient ${mintA.symbol} transferred. Available: ${
-            tokenABalance / 10 ** mintA.decimals
-          }, Required: ${Number(amountA) / 10 ** mintA.decimals}`,
-        },
-        { status: 400 }
-      );
-    }
-    if (tokenBBalance < Number(amountB)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Insufficient ${mintB.symbol} transferred. Available: ${
-            tokenBBalance / 10 ** mintB.decimals
-          }, Required: ${Number(amountB) / 10 ** mintB.decimals}`,
-        },
-        { status: 400 }
-      );
+    const transferTx = await connectionDevnet.getTransaction(tokenTransferTxId, { commitment: "confirmed" });
+    if (!transferTx) {
+      return NextResponse.json({ success: false, error: "Invalid token transfer transaction" }, { status: 400 });
     }
 
     const feeConfigs = await raydium.api.getCpmmConfigs();

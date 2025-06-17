@@ -74,6 +74,8 @@ const SelectToken: React.FC<SelectTokenProps> = ({
   const handleTokenSelect = (token: UserToken) => {
     setSelectedToken(token);
     setIsModalOpen(false);
+    setAmount("")
+    onAmountChange("");
   };
 
   const fetchAllTokens = useCallback(async () => {
