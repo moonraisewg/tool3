@@ -144,9 +144,9 @@ export default function TransferForm() {
       className={`md:p-2 max-w-[550px] mx-auto my-2 ${!isMobile && "border-gear"
         }`}
     >
-      <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">
-        Gasless Token Transfer
-      </h2>
+      <h1 className="text-2xl font-bold text-gray-900 mb-6 text-center">
+        Tool3 - Powerful All-in-One Token Tool
+      </h1>
 
       <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
         <p className="text-sm text-green-800">

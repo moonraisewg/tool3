@@ -199,7 +199,7 @@ export default function SellSolDevnet() {
 
     return (
         <div className={`md:p-2 max-w-[550px] mx-auto my-2 ${!isMobile && "border-gear"}`}>
-            <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">Buy SOL Devnet</h2>
+            <h1 className="text-2xl font-bold text-gray-900 mb-8 text-center">Buy SOL Devnet</h1>
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 flex flex-col justify-center">
                     <div className="px-[5px] space-y-6">

@@ -2,9 +2,11 @@ import type { Metadata } from "next"
 import PoolSelection from "@/components/create-pool/pool-selection";
 
 export const metadata: Metadata = {
-    title: "Create Liquidity Pool",
-    description: "Create a new concentrated liquidity pool",
-}
+    title: "Create a New Liquidity Pool Easily and Securely",
+    description:
+        "Effortlessly create a new liquidity pool with our user-friendly interface. Manage your pools efficiently and take full control of your DeFi assets.",
+};
+
 
 export default function CreatePool() {
     return (

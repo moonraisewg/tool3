@@ -2,9 +2,10 @@ import type { Metadata } from "next"
 import CreateMeteoraDammPool from "@/components/create-pool/create-meteora-damm-pool";
 
 export const metadata: Metadata = {
-    title: "Meteora DAMM",
-    description: "Create a new pool with Meteora DAMM",
-}
+    title: "Meteora DAMM - Create New Liquidity Pools Easily",
+    description:
+        "Create a new liquidity pool effortlessly with Meteora DAMM. Experience seamless pool creation, secure transactions, and advanced AMM features.",
+};
 
 export default function CreatePoolWithMeteoraDamm() {
     return (
