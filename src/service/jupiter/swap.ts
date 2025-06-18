@@ -35,7 +35,6 @@ export interface SwapInstructionsRequest {
   dynamicComputeUnitLimit?: boolean;
 }
 
-// ✅ Interface mới theo response thực tế từ Jupiter
 export interface JupiterInstruction {
   programId: string;
   accounts: Array<{
@@ -83,7 +82,8 @@ export async function getJupiterQuote(
   inputMint: string,
   outputMint: string,
   amount: number,
-  slippageBps: number = 100
+  slippageBps: number = 100,
+  onlyDirectRoutes: boolean = true
 ): Promise<QuoteResponse> {
   try {
     const params = new URLSearchParams({
@@ -93,6 +93,10 @@ export async function getJupiterQuote(
       slippageBps: slippageBps.toString(),
       swapMode: "ExactIn",
     });
+
+    if (onlyDirectRoutes) {
+      params.append("onlyDirectRoutes", "true");
+    }
 
     const response = await fetch(
       `https://lite-api.jup.ag/swap/v1/quote?${params.toString()}`

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -19,6 +19,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { Transaction } from "@solana/web3.js";
 import SelectToken, { UserToken } from "./select-token";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useWatch } from "react-hook-form";
 
 const formSchema = z.object({
   recipient: z
@@ -29,9 +30,11 @@ const formSchema = z.object({
 });
 
 export default function TransferForm() {
-  const isMobile = useIsMobile()
+  const isMobile = useIsMobile();
   const [selectedToken, setSelectedToken] = useState<UserToken | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  const [estimatedFee, setEstimatedFee] = useState<number>(0.5);
+  const [feeLoading, setFeeLoading] = useState(false);
   const { publicKey, signTransaction } = useWallet();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -41,6 +44,36 @@ export default function TransferForm() {
       amount: "",
     },
   });
+
+  const recipient = useWatch({ control: form.control, name: "recipient" });
+
+  useEffect(() => {
+    const checkFee = async () => {
+      if (recipient && selectedToken && recipient.length >= 32) {
+        setFeeLoading(true);
+        try {
+          const response = await fetch("/api/calculate-fee", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              recipientAddress: recipient,
+              tokenMint: selectedToken.address,
+            }),
+          });
+          const data = await response.json();
+          setEstimatedFee(data.fee || 0.5);
+        } catch (error) {
+          console.error("Error checking fee:", error);
+          setEstimatedFee(0.5);
+        }
+        setFeeLoading(false);
+      } else {
+        setEstimatedFee(0.5);
+      }
+    };
+
+    checkFee();
+  }, [recipient, selectedToken]);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
@@ -113,13 +146,14 @@ export default function TransferForm() {
       }
 
       toast.success("🎉 Gasless Transfer Successful!", {
-        description: `Transferred ${values.amount} ${selectedToken.symbol || selectedToken.name
-          } to ${values.recipient.slice(0, 8)}...${values.recipient.slice(-8)}`,
+        description: `Transferred ${values.amount} ${
+          selectedToken.symbol || selectedToken.name
+        } to ${values.recipient.slice(0, 8)}...${values.recipient.slice(-8)}`,
         action: {
           label: "View Transaction",
           onClick: () =>
             window.open(
-              `https://solscan.io/tx/${executeResult.signature}?cluster=devnet`,
+              `https://solscan.io/tx/${executeResult.signature}`,
               "_blank"
             ),
         },
@@ -141,12 +175,26 @@ export default function TransferForm() {
 
   return (
     <div
-      className={`md:p-2 max-w-[550px] mx-auto my-2 ${!isMobile && "border-gear"
-        }`}
+      className={`md:p-2 max-w-[550px] mx-auto my-2 ${
+        !isMobile && "border-gear"
+      }`}
     >
       <h1 className="text-2xl font-bold text-gray-900 mb-6 text-center">
         Tool3 - Powerful All-in-One Token Tool
       </h1>
+
+      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+        <p className="text-sm text-blue-800">
+          💰 <strong>Estimated Fee:</strong>{" "}
+          {feeLoading ? (
+            <span className="text-gray-600">Calculating...</span>
+          ) : (
+            <span className="font-semibold">
+              ${estimatedFee.toFixed(3)} USDT
+            </span>
+          )}
+        </p>
+      </div>
 
       <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
         <p className="text-sm text-green-800">
@@ -198,6 +246,6 @@ export default function TransferForm() {
           </Button>
         </form>
       </Form>
-    </div >
+    </div>
   );
 }

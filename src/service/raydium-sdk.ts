@@ -16,12 +16,7 @@ import { connectionDevnet } from "./solana/connection";
 
 export const txVersion = TxVersion.V0;
 
-const ADMIN_PRIVATE_KEY = process.env.ADMIN_PRIVATE_KEY;
 const cluster = "devnet";
-
-if (!ADMIN_PRIVATE_KEY) {
-  throw new Error("ADMIN_PRIVATE_KEY not set in .env");
-}
 
 export const owner = adminKeypair;
 

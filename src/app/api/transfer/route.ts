@@ -10,7 +10,8 @@ import {
 import { connectionMainnet } from "@/service/solana/connection";
 import { getTokenFeeFromUsd } from "@/service/jupiter/calculate-fee";
 import { getTokenProgram } from "@/lib/helper";
-import { adminKeypair, FEE_WALLET } from "@/config";
+import { adminKeypair } from "@/config";
+import { calculateTransferFee } from "@/utils/ata-checker";
 
 interface TransferRequestBody {
   walletPublicKey: string;
@@ -64,12 +65,17 @@ async function prepareTransaction(
   );
   const feeTokenAccount = await getAssociatedTokenAddress(
     tokenMint,
-    FEE_WALLET,
+    adminKeypair.publicKey,
     false,
     tokenProgram
   );
 
-  const feeInTokens = await getTokenFeeFromUsd(body.tokenMint);
+  const feeUsdt = await calculateTransferFee(
+    body.receiverWalletPublicKey,
+    body.tokenMint
+  );
+
+  const feeInTokens = await getTokenFeeFromUsd(body.tokenMint, feeUsdt);
   const feeAmount = Math.round(feeInTokens * Math.pow(10, decimals));
 
   const netAmount = Math.round(
@@ -132,7 +138,7 @@ async function prepareTransaction(
     const createFeeAccountIx = createAssociatedTokenAccountInstruction(
       adminKeypair.publicKey,
       feeTokenAccount,
-      FEE_WALLET,
+      adminKeypair.publicKey,
       tokenMint,
       tokenProgram
     );

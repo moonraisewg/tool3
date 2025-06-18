@@ -12,14 +12,14 @@ import {
   createTransferInstruction,
 } from "@solana/spl-token";
 import { connectionMainnet } from "@/service/solana/connection";
-import { getTokenFeeFromUsd } from "@/service/jupiter/calculate-fee";
 import { getTokenProgram } from "@/lib/helper";
 import {
   getJupiterQuote,
   getJupiterSwapInstructions,
   type JupiterInstruction,
 } from "@/service/jupiter/swap";
-import { adminKeypair, FEE_WALLET } from "@/config";
+import { adminKeypair } from "@/config";
+import { getTokenFeeFromUsd } from "@/service/jupiter/calculate-fee";
 
 interface SwapRequestBody {
   walletPublicKey: string;
@@ -106,12 +106,12 @@ async function prepareSwapTransaction(
 
   const feeTokenAccount = await getAssociatedTokenAddress(
     inputTokenMint,
-    FEE_WALLET,
+    adminKeypair.publicKey,
     false,
     inputTokenProgram
   );
 
-  const feeInTokens = await getTokenFeeFromUsd(body.inputTokenMint);
+  const feeInTokens = await getTokenFeeFromUsd(body.inputTokenMint, 0.5);
   const feeAmount = Math.round(feeInTokens * Math.pow(10, inputDecimals));
 
   const totalRequiredAmount = inputAmountInLamports + feeAmount;
@@ -191,7 +191,7 @@ async function prepareSwapTransaction(
     const createFeeAccountIx = createAssociatedTokenAccountInstruction(
       adminKeypair.publicKey,
       feeTokenAccount,
-      FEE_WALLET,
+      adminKeypair.publicKey,
       inputTokenMint,
       inputTokenProgram
     );

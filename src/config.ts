@@ -1,8 +1,8 @@
-import { Keypair, PublicKey } from "@solana/web3.js";
+import { Keypair } from "@solana/web3.js";
 import bs58 from "bs58";
 import crypto from "crypto";
 
-const DECRYPT_PASSWORD = "dipts";
+const EC = process.env.EC!;
 
 function decryptAES256(encryptedText: string, password: string): string {
   const [ivHex, encryptedHex] = encryptedText.split(":");
@@ -18,17 +18,8 @@ function decryptAES256(encryptedText: string, password: string): string {
 }
 
 const encryptedPrivateKey = process.env.ADMIN_PRIVATE_KEY_ENCRYPTED!;
-const decryptedPrivateKey = decryptAES256(
-  encryptedPrivateKey,
-  DECRYPT_PASSWORD
-);
+const decryptedPrivateKey = decryptAES256(encryptedPrivateKey, EC);
 
 export const adminKeypair = Keypair.fromSecretKey(
   bs58.decode(decryptedPrivateKey)
 );
-export const ADMIN_PUBLIC_KEY = new PublicKey(process.env.ADMIN_PUBLIC_KEY!);
-export const FEE_WALLET = ADMIN_PUBLIC_KEY;
-
-export const DEFAULT_SLIPPAGE_BPS = 50;
-export const PRIORITY_LEVEL = "medium";
-export const MAX_LAMPORTS_PRIORITY = 1_000_000;
