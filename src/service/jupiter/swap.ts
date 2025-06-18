@@ -35,7 +35,6 @@ export interface SwapInstructionsRequest {
   dynamicComputeUnitLimit?: boolean;
 }
 
-// ✅ Interface mới theo response thực tế từ Jupiter
 export interface JupiterInstruction {
   programId: string;
   accounts: Array<{

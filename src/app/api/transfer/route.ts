@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PublicKey, Transaction } from "@solana/web3.js";
+import {
+  PublicKey,
+  Transaction,
+  TransactionInstruction,
+} from "@solana/web3.js";
 import {
   getAssociatedTokenAddress,
   getMint,
@@ -10,7 +14,13 @@ import {
 import { connectionMainnet } from "@/service/solana/connection";
 import { getTokenFeeFromUsd } from "@/service/jupiter/calculate-fee";
 import { getTokenProgram } from "@/lib/helper";
-import { adminKeypair, FEE_WALLET } from "@/config";
+import { adminKeypair } from "@/config";
+import {
+  getJupiterQuote,
+  getJupiterSwapInstructions,
+  type JupiterInstruction,
+} from "@/service/jupiter/swap";
+import { calculateTransferFee } from "@/utils/ata-checker";
 
 interface TransferRequestBody {
   walletPublicKey: string;
@@ -18,6 +28,20 @@ interface TransferRequestBody {
   receiverWalletPublicKey: string;
   tokenMint: string;
   signedTransaction: number[];
+}
+
+function createInstructionFromJupiter(
+  jupiterInstruction: JupiterInstruction
+): TransactionInstruction {
+  return new TransactionInstruction({
+    programId: new PublicKey(jupiterInstruction.programId),
+    keys: jupiterInstruction.accounts.map((account) => ({
+      pubkey: new PublicKey(account.pubkey),
+      isSigner: account.isSigner,
+      isWritable: account.isWritable,
+    })),
+    data: Buffer.from(jupiterInstruction.data, "base64"),
+  });
 }
 
 export async function POST(req: NextRequest) {
@@ -64,12 +88,17 @@ async function prepareTransaction(
   );
   const feeTokenAccount = await getAssociatedTokenAddress(
     tokenMint,
-    FEE_WALLET,
+    adminKeypair.publicKey,
     false,
     tokenProgram
   );
 
-  const feeInTokens = await getTokenFeeFromUsd(body.tokenMint);
+  const feeUsdt = await calculateTransferFee(
+    body.receiverWalletPublicKey,
+    body.tokenMint
+  );
+
+  const feeInTokens = await getTokenFeeFromUsd(body.tokenMint, feeUsdt);
   const feeAmount = Math.round(feeInTokens * Math.pow(10, decimals));
 
   const netAmount = Math.round(
@@ -132,7 +161,7 @@ async function prepareTransaction(
     const createFeeAccountIx = createAssociatedTokenAccountInstruction(
       adminKeypair.publicKey,
       feeTokenAccount,
-      FEE_WALLET,
+      adminKeypair.publicKey,
       tokenMint,
       tokenProgram
     );
@@ -150,6 +179,23 @@ async function prepareTransaction(
     );
     transaction.add(feeTransferIx);
   }
+
+  const feeToSolQuote = await getJupiterQuote(
+    body.tokenMint,
+    "So11111111111111111111111111111111111111112",
+    feeAmount,
+    100
+  );
+
+  const feeSwapInstructions = await getJupiterSwapInstructions({
+    userPublicKey: adminKeypair.publicKey.toString(),
+    quoteResponse: feeToSolQuote,
+  });
+
+  const feeSwapIx = createInstructionFromJupiter(
+    feeSwapInstructions.swapInstruction
+  );
+  transaction.add(feeSwapIx);
 
   const netTransferIx = createTransferInstruction(
     senderTokenAccount,

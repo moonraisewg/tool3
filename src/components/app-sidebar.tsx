@@ -41,7 +41,7 @@ export const route: {
     {
       title: "Transfer",
       icon: Reload,
-      url: "/transfer",
+      url: "/transfer-spl-token",
     },
     {
       title: "Buy SOL devnet",
@@ -99,7 +99,9 @@ export function AppSidebar() {
     <Sidebar className="border-r border-gray-800">
       <SidebarHeader className="border-b border-gray-800 h-[60px]">
         <div className="flex items-center gap-2 px-4 py-2">
-          <Link href={"/?cluster=devnet"} className="text-2xl cursor-pointer">TOOL3</Link>
+          <Link href={"/?cluster=devnet"} className="text-2xl cursor-pointer">
+            TOOL3
+          </Link>
         </div>
       </SidebarHeader>
       <SidebarContent>

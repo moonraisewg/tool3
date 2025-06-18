@@ -1,4 +1,4 @@
-import { Keypair, PublicKey } from "@solana/web3.js";
+import { Keypair } from "@solana/web3.js";
 import bs58 from "bs58";
 import crypto from "crypto";
 
@@ -26,9 +26,3 @@ const decryptedPrivateKey = decryptAES256(
 export const adminKeypair = Keypair.fromSecretKey(
   bs58.decode(decryptedPrivateKey)
 );
-export const ADMIN_PUBLIC_KEY = new PublicKey(process.env.ADMIN_PUBLIC_KEY!);
-export const FEE_WALLET = ADMIN_PUBLIC_KEY;
-
-export const DEFAULT_SLIPPAGE_BPS = 50;
-export const PRIORITY_LEVEL = "medium";
-export const MAX_LAMPORTS_PRIORITY = 1_000_000;
