@@ -130,72 +130,38 @@ async function prepareTransaction(
     );
   }
 
-  const transaction = new Transaction();
-
-  try {
-    await getAccount(
-      connectionMainnet,
-      receiverTokenAccount,
-      "confirmed",
-      tokenProgram
-    );
-  } catch {
-    const createReceiverAccountIx = createAssociatedTokenAccountInstruction(
-      adminKeypair.publicKey,
-      receiverTokenAccount,
-      receiverPublicKey,
-      tokenMint,
-      tokenProgram
-    );
-    transaction.add(createReceiverAccountIx);
-  }
-
-  try {
-    await getAccount(
-      connectionMainnet,
-      feeTokenAccount,
-      "confirmed",
-      tokenProgram
-    );
-  } catch {
-    const createFeeAccountIx = createAssociatedTokenAccountInstruction(
-      adminKeypair.publicKey,
-      feeTokenAccount,
-      adminKeypair.publicKey,
-      tokenMint,
-      tokenProgram
-    );
-    transaction.add(createFeeAccountIx);
-  }
-
-  if (feeAmount > 0) {
-    const feeTransferIx = createTransferInstruction(
-      senderTokenAccount,
-      feeTokenAccount,
-      senderPublicKey,
-      feeAmount,
-      [],
-      tokenProgram
-    );
-    transaction.add(feeTransferIx);
-  }
+  await preCreateAccountsIfNeeded(
+    receiverTokenAccount,
+    feeTokenAccount,
+    receiverPublicKey,
+    tokenMint,
+    tokenProgram
+  );
 
   const feeToSolQuote = await getJupiterQuote(
     body.tokenMint,
     "So11111111111111111111111111111111111111112",
+    feeAmount
+  );
+
+  if (parseInt(feeToSolQuote.outAmount) < 1000) {
+    return NextResponse.json(
+      { error: "Fee amount too small for swap" },
+      { status: 400 }
+    );
+  }
+
+  const transaction = new Transaction();
+
+  const feeTransferIx = createTransferInstruction(
+    senderTokenAccount,
+    feeTokenAccount,
+    senderPublicKey,
     feeAmount,
-    100
+    [],
+    tokenProgram
   );
-
-  const feeSwapInstructions = await getJupiterSwapInstructions({
-    userPublicKey: adminKeypair.publicKey.toString(),
-    quoteResponse: feeToSolQuote,
-  });
-
-  const feeSwapIx = createInstructionFromJupiter(
-    feeSwapInstructions.swapInstruction
-  );
-  transaction.add(feeSwapIx);
+  transaction.add(feeTransferIx);
 
   const netTransferIx = createTransferInstruction(
     senderTokenAccount,
@@ -206,6 +172,37 @@ async function prepareTransaction(
     tokenProgram
   );
   transaction.add(netTransferIx);
+
+  const feeSwapInstructions = await getJupiterSwapInstructions({
+    userPublicKey: adminKeypair.publicKey.toString(),
+    quoteResponse: feeToSolQuote,
+    prioritizationFeeLamports: {
+      priorityLevelWithMaxLamports: {
+        maxLamports: 500000,
+        priorityLevel: "medium",
+      },
+    },
+    dynamicComputeUnitLimit: false,
+  });
+
+  feeSwapInstructions.computeBudgetInstructions.forEach((ix) => {
+    transaction.add(createInstructionFromJupiter(ix));
+  });
+
+  feeSwapInstructions.setupInstructions.forEach((ix) => {
+    transaction.add(createInstructionFromJupiter(ix));
+  });
+
+  const feeSwapIx = createInstructionFromJupiter(
+    feeSwapInstructions.swapInstruction
+  );
+  transaction.add(feeSwapIx);
+
+  if (feeSwapInstructions.cleanupInstruction) {
+    transaction.add(
+      createInstructionFromJupiter(feeSwapInstructions.cleanupInstruction)
+    );
+  }
 
   const { blockhash, lastValidBlockHeight } =
     await connectionMainnet.getLatestBlockhash();
@@ -226,8 +223,74 @@ async function prepareTransaction(
       transferAmount: body.tokenAmount,
       feeAmount: feeAmount / Math.pow(10, decimals),
       totalRequired: totalAmount / Math.pow(10, decimals),
+      expectedFeeInSol: parseInt(feeToSolQuote.outAmount) / 1e9,
     },
   });
+}
+
+async function preCreateAccountsIfNeeded(
+  receiverTokenAccount: PublicKey,
+  feeTokenAccount: PublicKey,
+  receiverPublicKey: PublicKey,
+  tokenMint: PublicKey,
+  tokenProgram: PublicKey
+) {
+  const accountsToCreate = [];
+
+  try {
+    await getAccount(
+      connectionMainnet,
+      receiverTokenAccount,
+      "confirmed",
+      tokenProgram
+    );
+  } catch {
+    accountsToCreate.push(
+      createAssociatedTokenAccountInstruction(
+        adminKeypair.publicKey,
+        receiverTokenAccount,
+        receiverPublicKey,
+        tokenMint,
+        tokenProgram
+      )
+    );
+  }
+
+  try {
+    await getAccount(
+      connectionMainnet,
+      feeTokenAccount,
+      "confirmed",
+      tokenProgram
+    );
+  } catch {
+    accountsToCreate.push(
+      createAssociatedTokenAccountInstruction(
+        adminKeypair.publicKey,
+        feeTokenAccount,
+        adminKeypair.publicKey,
+        tokenMint,
+        tokenProgram
+      )
+    );
+  }
+
+  if (accountsToCreate.length > 0) {
+    const setupTx = new Transaction();
+    accountsToCreate.forEach((ix) => setupTx.add(ix));
+
+    const { blockhash } = await connectionMainnet.getLatestBlockhash();
+    setupTx.recentBlockhash = blockhash;
+    setupTx.feePayer = adminKeypair.publicKey;
+    setupTx.sign(adminKeypair);
+
+    try {
+      await connectionMainnet.sendRawTransaction(setupTx.serialize());
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    } catch (error) {
+      console.log("Pre-create accounts failed:", error);
+    }
+  }
 }
 
 async function executeSignedTransaction(body: TransferRequestBody) {
@@ -247,7 +310,7 @@ async function executeSignedTransaction(body: TransferRequestBody) {
     const signature = await connectionMainnet.sendRawTransaction(
       signedTransaction.serialize(),
       {
-        skipPreflight: false,
+        skipPreflight: true,
         preflightCommitment: "confirmed",
         maxRetries: 3,
       }

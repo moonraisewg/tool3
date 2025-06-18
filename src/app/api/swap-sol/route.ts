@@ -3,17 +3,15 @@ import {
   PublicKey,
   Transaction,
   TransactionInstruction,
-  SystemProgram,
-  LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
 import {
   getAssociatedTokenAddress,
   getMint,
   createAssociatedTokenAccountInstruction,
   getAccount,
+  createTransferInstruction,
 } from "@solana/spl-token";
 import { connectionMainnet } from "@/service/solana/connection";
-import { getTokenFeeFromUsd } from "@/service/jupiter/calculate-fee";
 import { getTokenProgram } from "@/lib/helper";
 import {
   getJupiterQuote,
@@ -21,11 +19,12 @@ import {
   type JupiterInstruction,
 } from "@/service/jupiter/swap";
 import { adminKeypair } from "@/config";
+import { getTokenFeeFromUsd } from "@/service/jupiter/calculate-fee";
 
 interface SwapRequestBody {
   walletPublicKey: string;
   inputTokenMint: string;
-  outputTokenMint: string; // Giả sử là SOL mint
+  outputTokenMint: string;
   inputAmount: number;
   slippageBps?: number;
   signedTransaction?: number[];
@@ -85,14 +84,10 @@ async function prepareSwapTransaction(
     body.inputAmount * Math.pow(10, inputDecimals)
   );
 
-  const feeInTokens = await getTokenFeeFromUsd(body.inputTokenMint, 0.5);
-  const feeAmount = Math.round(feeInTokens * Math.pow(10, inputDecimals));
-  const totalSwapAmount = inputAmountInLamports + feeAmount;
-
   const quote = await getJupiterQuote(
     body.inputTokenMint,
     body.outputTokenMint,
-    totalSwapAmount
+    inputAmountInLamports
   );
 
   const userInputTokenAccount = await getAssociatedTokenAddress(
@@ -109,7 +104,18 @@ async function prepareSwapTransaction(
     outputTokenProgram
   );
 
-  // ✅ Check balance cho total amount
+  const feeTokenAccount = await getAssociatedTokenAddress(
+    inputTokenMint,
+    adminKeypair.publicKey,
+    false,
+    inputTokenProgram
+  );
+
+  const feeInTokens = await getTokenFeeFromUsd(body.inputTokenMint, 0.5);
+  const feeAmount = Math.round(feeInTokens * Math.pow(10, inputDecimals));
+
+  const totalRequiredAmount = inputAmountInLamports + feeAmount;
+
   try {
     const userAccount = await getAccount(
       connectionMainnet,
@@ -118,11 +124,11 @@ async function prepareSwapTransaction(
       inputTokenProgram
     );
 
-    if (userAccount.amount < BigInt(totalSwapAmount)) {
+    if (userAccount.amount < BigInt(totalRequiredAmount)) {
       return NextResponse.json(
         {
           error: "Insufficient token balance",
-          required: totalSwapAmount.toString(),
+          required: totalRequiredAmount.toString(),
           available: userAccount.amount.toString(),
         },
         { status: 400 }
@@ -174,24 +180,40 @@ async function prepareSwapTransaction(
     transaction.add(createOutputAccountIx);
   }
 
+  try {
+    await getAccount(
+      connectionMainnet,
+      feeTokenAccount,
+      "confirmed",
+      inputTokenProgram
+    );
+  } catch {
+    const createFeeAccountIx = createAssociatedTokenAccountInstruction(
+      adminKeypair.publicKey,
+      feeTokenAccount,
+      adminKeypair.publicKey,
+      inputTokenMint,
+      inputTokenProgram
+    );
+    transaction.add(createFeeAccountIx);
+  }
+
+  if (feeAmount > 0) {
+    const feeTransferIx = createTransferInstruction(
+      userInputTokenAccount,
+      feeTokenAccount,
+      userPublicKey,
+      feeAmount,
+      [],
+      inputTokenProgram
+    );
+    transaction.add(feeTransferIx);
+  }
+
   const swapIx = createInstructionFromJupiter(
     swapInstructionsResponse.swapInstruction
   );
   transaction.add(swapIx);
-
-  const totalSolOutput = parseFloat(quote.outAmount);
-  const feeRatio = feeAmount / totalSwapAmount;
-  const feeSolAmount = Math.round(totalSolOutput * feeRatio);
-  const userSolAmount = totalSolOutput - feeSolAmount;
-
-  if (feeSolAmount > 0) {
-    const feeTransferIx = SystemProgram.transfer({
-      fromPubkey: userPublicKey,
-      toPubkey: adminKeypair.publicKey,
-      lamports: feeSolAmount,
-    });
-    transaction.add(feeTransferIx);
-  }
 
   const { blockhash, lastValidBlockHeight } =
     await connectionMainnet.getLatestBlockhash();
@@ -203,24 +225,18 @@ async function prepareSwapTransaction(
     .serialize({ requireAllSignatures: false })
     .toString("base64");
 
-  const adjustedQuote = {
-    ...quote,
-    inAmount: inputAmountInLamports.toString(), // Chỉ input amount
-    outAmount: userSolAmount.toString(),
-  };
-
   return NextResponse.json({
     success: true,
     transaction: serializedTransaction,
     blockhash,
     lastValidBlockHeight,
-    quote: adjustedQuote,
+    quote,
     breakdown: {
       inputAmount: body.inputAmount,
-      expectedOutputAmount: userSolAmount / LAMPORTS_PER_SOL,
+      expectedOutputAmount:
+        parseFloat(quote.outAmount) / Math.pow(10, outputMintInfo.decimals),
       feeAmount: feeAmount / Math.pow(10, inputDecimals),
-      totalRequired: totalSwapAmount / Math.pow(10, inputDecimals),
-      feeSolAmount: feeSolAmount / LAMPORTS_PER_SOL,
+      totalRequired: totalRequiredAmount / Math.pow(10, inputDecimals),
     },
   });
 }

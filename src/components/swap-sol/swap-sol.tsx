@@ -185,7 +185,7 @@ export default function SwapSolForm() {
           label: "View Transaction",
           onClick: () =>
             window.open(
-              `https://solscan.io/tx/${executeData.signature}?cluster=devnet`,
+              `https://solscan.io/tx/${executeData.signature}`,
               "_blank"
             ),
         },
@@ -221,7 +221,8 @@ export default function SwapSolForm() {
 
       <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
         <p className="text-sm text-green-800">
-          ⚡ <strong>100% Gasless:</strong> No SOL needed for swapping to SOL!
+          ⚡ <strong>No SOL ownership required:</strong> Just $0.50 per
+          transaction!
         </p>
       </div>
 

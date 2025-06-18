@@ -153,7 +153,7 @@ export default function TransferForm() {
           label: "View Transaction",
           onClick: () =>
             window.open(
-              `https://solscan.io/tx/${executeResult.signature}?cluster=devnet`,
+              `https://solscan.io/tx/${executeResult.signature}`,
               "_blank"
             ),
         },

@@ -16,7 +16,7 @@ export async function calculateTransferFee(
       recipientPubkey
     );
 
-    const recipientATAInfo = await Promise.all([
+    const [recipientATAInfo] = await Promise.all([
       connectionMainnet.getAccountInfo(recipientATA),
     ]);
 
