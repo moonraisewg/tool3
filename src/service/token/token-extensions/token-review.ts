@@ -4,6 +4,8 @@ import { Transaction } from "@solana/web3.js";
 import { toast } from "sonner";
 import { checkExtensionsCompatibility } from "@/utils/token/token-compatibility";
 import { checkExtensionRequiredFields } from "@/utils/token/token-validation";
+import { useNetwork } from "@/context/NetworkContext";
+import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
 
 export interface TokenCreationResult {
   mint: string;
@@ -114,6 +116,8 @@ export interface TokenDataType {
 export function useTokenReview(router: { push: (url: string) => void }) {
   const { connection } = useConnection();
   const wallet = useWallet();
+  const { network } = useNetwork()
+
 
   const [isLoading, setIsLoading] = useState(true);
   const [tokenData, setTokenData] = useState<TokenDataType | null>(null);
@@ -132,7 +136,7 @@ export function useTokenReview(router: { push: (url: string) => void }) {
         const savedData = localStorage.getItem('tokenData');
         if (savedData) {
           const parsedData = JSON.parse(savedData);
-          
+
           setTokenData({
             name: parsedData.name,
             symbol: parsedData.symbol,
@@ -145,11 +149,11 @@ export function useTokenReview(router: { push: (url: string) => void }) {
             telegramUrl: parsedData.telegramUrl || "",
             discordUrl: parsedData.discordUrl || ""
           });
-          
+
           if (parsedData.selectedExtensions) {
             const extensions = [...parsedData.selectedExtensions];
-            
-            
+
+
             const hasMetadataExtension = extensions.includes("metadata") || extensions.includes("metadata-pointer");
             if (hasMetadataExtension) {
               if (!extensions.includes("metadata")) {
@@ -159,7 +163,7 @@ export function useTokenReview(router: { push: (url: string) => void }) {
                 extensions.push("metadata-pointer");
               }
             }
-            
+
             const compatibility = checkExtensionsCompatibility(extensions);
             if (!compatibility.compatible && compatibility.incompatiblePairs) {
               const incompatibleNames = compatibility.incompatiblePairs.map(pair => {
@@ -167,13 +171,13 @@ export function useTokenReview(router: { push: (url: string) => void }) {
                 const ext2 = tokenExtensionsMap[pair[1]]?.name || pair[1];
                 return `${ext1} and ${ext2}`;
               }).join(", ");
-              
+
               toast.error(
-                `Incompatible extensions detected: ${incompatibleNames}. Please go back to the token creation page and adjust.`, 
+                `Incompatible extensions detected: ${incompatibleNames}. Please go back to the token creation page and adjust.`,
                 { duration: 6000 }
               );
             }
-            
+
             const requiredCheck = checkExtensionRequiredFields(extensions, parsedData.extensionOptions);
             if (!requiredCheck.valid) {
               const missingFieldsInfo = Object.entries(requiredCheck.missingFields)
@@ -181,20 +185,20 @@ export function useTokenReview(router: { push: (url: string) => void }) {
                   const extName = tokenExtensionsMap[extId]?.name || extId;
                   return `${extName}: ${fields.join(', ')}`;
                 }).join("; ");
-              
+
               toast.error(
                 `Missing required information for extensions: ${missingFieldsInfo}. Please go back to the token creation page and complete all fields.`,
                 { duration: 6000 }
               );
-              
+
               setTimeout(() => {
                 router.push('/create');
               }, 3000);
             }
-            
+
             setSelectedExtensions(extensions);
           }
-          
+
           if (parsedData.imageUrl) {
             setImageUrl(parsedData.imageUrl);
           }
@@ -205,7 +209,7 @@ export function useTokenReview(router: { push: (url: string) => void }) {
         }
       }
     };
-    
+
     loadData();
   }, [router]);
 
@@ -224,13 +228,14 @@ export function useTokenReview(router: { push: (url: string) => void }) {
       toast.error("Wallet does not support transaction signing");
       return;
     }
-    
+
     if (!tokenData) {
       toast.error("Token data not available");
       return;
     }
-    
-    
+
+    const cluster = network === WalletAdapterNetwork.Mainnet ? "Mainnet" : "Devnet"
+
     const updatedExtensions = [...selectedExtensions];
     const hasMetadataExtension = updatedExtensions.includes("metadata") || updatedExtensions.includes("metadata-pointer");
     if (hasMetadataExtension) {
@@ -241,7 +246,7 @@ export function useTokenReview(router: { push: (url: string) => void }) {
         updatedExtensions.push("metadata-pointer");
       }
     }
-    
+
     const compatibility = checkExtensionsCompatibility(updatedExtensions);
     if (!compatibility.compatible) {
       const incompatibleNames = compatibility.incompatiblePairs!.map(pair => {
@@ -249,7 +254,7 @@ export function useTokenReview(router: { push: (url: string) => void }) {
         const ext2 = tokenExtensionsMap[pair[1]]?.name || pair[1];
         return `${ext1} and ${ext2}`;
       }).join(", ");
-      
+
       toast.error(`Cannot create token: The extensions ${incompatibleNames} are not compatible with each other`);
       return;
     }
@@ -260,14 +265,14 @@ export function useTokenReview(router: { push: (url: string) => void }) {
           const extName = tokenExtensionsMap[extId]?.name || extId;
           return `${extName}: ${fields.join(', ')}`;
         }).join("; ");
-      
+
       toast.error(`Cannot create token: Missing required information for extensions - ${missingFieldsInfo}`);
       return;
     }
 
     setIsCreating(true);
     setCreationError(null);
-    
+
     try {
       const toastId1 = toast.loading("Preparing token data...");
       const requestData = {
@@ -283,12 +288,13 @@ export function useTokenReview(router: { push: (url: string) => void }) {
         websiteUrl: tokenData.websiteUrl || "",
         twitterUrl: tokenData.twitterUrl || "",
         telegramUrl: tokenData.telegramUrl || "",
-        discordUrl: tokenData.discordUrl || ""
+        discordUrl: tokenData.discordUrl || "",
+        cluster
       };
-      
+
       console.log("TokenReview: Sending request with extensions:", selectedExtensions);
       console.log("TokenReview: Extension options:", tokenData.extensionOptions);
-      
+
       const response = await fetch("/api/create-token", {
         method: "POST",
         headers: {
@@ -304,10 +310,10 @@ export function useTokenReview(router: { push: (url: string) => void }) {
 
       const tokenTxData = await response.json();
       toast.dismiss(toastId1);
-      
+
       const transactionBuffer = Buffer.from(tokenTxData.transaction, "base64");
       const transaction = Transaction.from(transactionBuffer);
-      
+
       const signedTransaction = await wallet.signTransaction(transaction);
       const toastId2 = toast.loading("Creating token on blockchain...");
       const signature = await connection.sendRawTransaction(signedTransaction.serialize());
@@ -316,7 +322,7 @@ export function useTokenReview(router: { push: (url: string) => void }) {
         lastValidBlockHeight: tokenTxData.lastValidBlockHeight,
         signature
       }, 'confirmed');
-      
+
       const mintAddress = tokenTxData.mint;
       setCreatedTokenMint(mintAddress);
       setTransactionSignature(signature);
@@ -327,9 +333,10 @@ export function useTokenReview(router: { push: (url: string) => void }) {
         mintAddress: mintAddress,
         amount: tokenData.supply,
         decimals: parseInt(tokenData.decimals),
-        useToken2022: tokenTxData.useToken2022
+        useToken2022: tokenTxData.useToken2022,
+        cluster
       };
-      
+
       const mintResponse = await fetch("/api/create-token/mint", {
         method: "POST",
         headers: {
@@ -355,18 +362,18 @@ export function useTokenReview(router: { push: (url: string) => void }) {
       }, 'confirmed');
 
       toast.dismiss(toastId3);
-      
+
       toast.success("Token created and minted successfully!");
-      
+
       setMetadataUri("");
       setSuccess(true);
-      
+
       localStorage.removeItem('tokenData');
     } catch (error: Error | unknown) {
       console.error("Detailed token creation error:", error);
-      
+
       let errorMessage = error instanceof Error ? error.message : "Error creating token";
-      
+
       if (error instanceof Error && 'code' in error && error.code === 4001) {
         errorMessage = "Transaction rejected by user";
       } else if (typeof errorMessage === 'string') {
@@ -378,7 +385,7 @@ export function useTokenReview(router: { push: (url: string) => void }) {
           errorMessage = "Transaction size exceeds limit. Try reducing the number of extensions.";
         }
       }
-      
+
       setCreationError(errorMessage);
       toast.error(`Error: ${errorMessage}`);
     } finally {
@@ -403,7 +410,7 @@ export function useTokenReview(router: { push: (url: string) => void }) {
     transactionSignature,
     creationError,
     metadataUri,
-    
+
     handleConfirmCreate,
     handleBack,
     goToHome,
@@ -416,31 +423,31 @@ export function getExtensionDetails(extId: string, options: Record<string, strin
 } | null {
   if (extId === "permanent-delegate" && options?.["delegate-address"]) {
     const address = String(options["delegate-address"]);
-    const truncatedAddress = address.length > 20 ? 
+    const truncatedAddress = address.length > 20 ?
       `${address.substring(0, 10)}...${address.substring(address.length - 6)}` : address;
-    
+
     return { address, truncatedAddress };
   }
-  
+
   if (extId === "transfer-fees" && options?.["fee-percentage"] !== undefined) {
     return {
       displayItems: [{ label: "Fee Rate", value: `${options["fee-percentage"]}%` }]
     };
   }
-  
+
   if (extId === "interest-bearing" && options?.["interest-rate"] !== undefined) {
     return {
       displayItems: [{ label: "Annual Rate", value: `${options["interest-rate"]}%` }]
     };
   }
-  
+
   if (extId === "mint-close-authority" && options?.["close-authority"]) {
     const address = String(options["close-authority"]);
-    const truncatedAddress = address.length > 20 ? 
+    const truncatedAddress = address.length > 20 ?
       `${address.substring(0, 10)}...${address.substring(address.length - 6)}` : address;
-    
+
     return { address, truncatedAddress };
   }
-  
+
   return null;
 } 

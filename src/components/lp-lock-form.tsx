@@ -32,7 +32,6 @@ import {
 } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { connection } from "../service/solana/connection";
 import { Transaction } from "@solana/web3.js";
 import { add, format, fromUnixTime } from "date-fns";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -193,25 +192,33 @@ export default function LpLockForm() {
 
           const signedTx = await signTransaction(transaction);
 
-          const txId = await connection.sendRawTransaction(
-            signedTx.serialize()
-          );
-
-          await connection.confirmTransaction({
-            signature: txId,
-            blockhash: data.blockhash,
-            lastValidBlockHeight: data.lastValidBlockHeight,
+          const sendTxResponse = await fetch("/api/send-transaction", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              transaction: Buffer.from(signedTx.serialize()).toString("base64"),
+              blockhash: data.blockhash,
+              lastValidBlockHeight: data.lastValidBlockHeight,
+              cluster: "devnet"
+            }),
           });
 
+          const sendTxData = await sendTxResponse.json();
+
+          if (!sendTxResponse.ok) {
+            throw new Error(sendTxData.error || "Failed to send transaction");
+          }
+
           toast.success("Lock LP token successful", {
-            description: `You have locked ${
-              values.amount
-            } LP tokens for ${" "} ${values.lockPeriod}`,
+            description: `You have locked ${values.amount
+              } LP tokens for ${" "} ${values.lockPeriod}`,
             action: {
               label: "View Transaction",
               onClick: () =>
                 window.open(
-                  `https://solscan.io/tx/${txId}?cluster=devnet`,
+                  `https://solscan.io/tx/${sendTxData.txId}?cluster=devnet`,
                   "_blank"
                 ),
             },
@@ -257,9 +264,8 @@ export default function LpLockForm() {
   }, [searchParams, publicKey, fetchPoolInfo, form]);
   return (
     <div
-      className={`md:p-3 max-w-[550px] mx-auto my-2 ${
-        !isMobile && "border-gear"
-      }`}
+      className={`md:p-3 max-w-[550px] mx-auto my-2 ${!isMobile && "border-gear"
+        }`}
     >
       <div className="text-2xl font-bold text-gray-900 mb-6 flex items-center justify-center">
         Lock LP Tokens
@@ -424,9 +430,9 @@ export default function LpLockForm() {
                 <span className="text-gray-500">Unlock Date</span>
                 {form.watch("lockPeriod")
                   ? format(
-                      fromUnixTime(getLockTimestamp(form.watch("lockPeriod"))),
-                      "dd/MM/yyyy"
-                    )
+                    fromUnixTime(getLockTimestamp(form.watch("lockPeriod"))),
+                    "dd/MM/yyyy"
+                  )
                   : "--"}
               </div>
             </div>

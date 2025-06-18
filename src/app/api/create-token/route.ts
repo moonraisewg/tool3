@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PublicKey, Transaction } from "@solana/web3.js";
-import { connection } from "@/service/solana/connection";
 import { TokenBuilder } from "solana-token-extension-boost";
 import { ipfsToHTTP, pinJSONToIPFS } from "@/utils/pinata";
+import { ClusterType } from "@/types/types";
+import { connectionDevnet, connectionMainnet } from "@/service/solana/connection";
 
 interface TransferFeesOptions {
   'fee-percentage'?: string;
@@ -52,20 +53,23 @@ interface CreateTokenRequestBody {
   twitterUrl?: string;
   telegramUrl?: string;
   discordUrl?: string;
+  cluster?: ClusterType;
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body: CreateTokenRequestBody = await req.json();
-    
     if (!body.walletPublicKey || !body.decimals || !body.supply || !body.selectedExtensions) {
       return NextResponse.json(
         { error: "Missing required parameters" },
         { status: 400 }
       );
     }
-    const hasMetadataExtension = body.selectedExtensions.includes("metadata") || 
-                               body.selectedExtensions.includes("metadata-pointer");
+
+    const connection = body.cluster === "mainnet" ? connectionMainnet : connectionDevnet;
+
+    const hasMetadataExtension = body.selectedExtensions.includes("metadata") ||
+      body.selectedExtensions.includes("metadata-pointer");
     if (hasMetadataExtension) {
       if (!body.selectedExtensions.includes("metadata")) {
         body.selectedExtensions.push("metadata");
@@ -73,7 +77,7 @@ export async function POST(req: NextRequest) {
       if (!body.selectedExtensions.includes("metadata-pointer")) {
         body.selectedExtensions.push("metadata-pointer");
       }
-      
+
       if (!body.name || !body.symbol) {
         return NextResponse.json(
           { error: "Name and symbol are required when using metadata extension" },
@@ -81,20 +85,20 @@ export async function POST(req: NextRequest) {
         );
       }
     }
-    
-    const decimals = typeof body.decimals === 'string' ? 
+
+    const decimals = typeof body.decimals === 'string' ?
       parseInt(body.decimals) : body.decimals;
-    
-    const supplyAmount = typeof body.supply === 'string' ? 
+
+    const supplyAmount = typeof body.supply === 'string' ?
       parseFloat(body.supply) : body.supply;
-      
+
     if (isNaN(decimals) || decimals < 0 || decimals > 9) {
       return NextResponse.json(
         { error: "Decimals must be a number between 0-9" },
         { status: 400 }
       );
     }
-    
+
     if (isNaN(supplyAmount) || supplyAmount <= 0) {
       return NextResponse.json(
         { error: "Supply must be a positive number" },
@@ -108,9 +112,9 @@ export async function POST(req: NextRequest) {
     let walletPublicKey: PublicKey;
     try {
       walletPublicKey = new PublicKey(body.walletPublicKey);
-    /* eslint-disable @typescript-eslint/no-unused-vars */
+      /* eslint-disable @typescript-eslint/no-unused-vars */
     } catch (error) {
-    /* eslint-enable @typescript-eslint/no-unused-vars */
+      /* eslint-enable @typescript-eslint/no-unused-vars */
       return NextResponse.json(
         { error: "Invalid wallet public key" },
         { status: 400 }
@@ -137,7 +141,7 @@ export async function POST(req: NextRequest) {
     };
 
     if (imageHttpUrl && imageHttpUrl.trim() !== '') {
-      metadataBase.image = imageHttpUrl;     
+      metadataBase.image = imageHttpUrl;
       metadataBase.properties = {
         files: [
           {
@@ -165,7 +169,7 @@ export async function POST(req: NextRequest) {
       };
     }
 
-  
+
     metadataBase.collection = {
       name: tokenName,
       family: "Token-2022"
@@ -179,14 +183,14 @@ export async function POST(req: NextRequest) {
     let metadataUri = "";
     try {
       const ipfsUri = await pinJSONToIPFS(metadataBase);
-      
-    
+
+
       metadataUri = ipfsToHTTP(ipfsUri);
-      
+
       console.log(`Created metadata URI: ${metadataUri}`);
-    /* eslint-disable @typescript-eslint/no-unused-vars */
+      /* eslint-disable @typescript-eslint/no-unused-vars */
     } catch (_) {
-    /* eslint-enable @typescript-eslint/no-unused-vars */
+      /* eslint-enable @typescript-eslint/no-unused-vars */
       console.error("Error creating metadata URI");
       return NextResponse.json(
         { error: "Failed to create metadata for token" },
@@ -196,7 +200,7 @@ export async function POST(req: NextRequest) {
 
 
     const additionalMetadata: Record<string, string> = {};
-    
+
     if (body.description) additionalMetadata["description"] = body.description;
     if (body.websiteUrl) additionalMetadata["website"] = body.websiteUrl;
     if (body.twitterUrl) additionalMetadata["twitter"] = body.twitterUrl;
@@ -204,25 +208,25 @@ export async function POST(req: NextRequest) {
     if (body.discordUrl) additionalMetadata["discord"] = body.discordUrl;
 
 
-    const realExtensions = body.selectedExtensions.filter(ext => 
+    const realExtensions = body.selectedExtensions.filter(ext =>
       ext !== "metadata" && ext !== "metadata-pointer"
     );
-    
+
     const useToken2022 = realExtensions.length > 0;
-    
+
     const tokenBuilder = new TokenBuilder(connection)
       .setTokenInfo(
         decimals,
-        walletPublicKey 
+        walletPublicKey
       );
-     
+
     let metadataAdded = false;
-    
+
     if (body.selectedExtensions.includes("metadata") || body.selectedExtensions.includes("metadata-pointer")) {
       tokenBuilder.addTokenMetadata(
         tokenName,
         tokenSymbol,
-        metadataUri, 
+        metadataUri,
         additionalMetadata
       );
       metadataAdded = true;
@@ -232,9 +236,9 @@ export async function POST(req: NextRequest) {
         if (Array.isArray(tokenBuilder.extensions)) {
           // @ts-expect-error - Remove MetadataPointer extension from the list
           tokenBuilder.extensions = tokenBuilder.extensions.filter(
-              ext => ext !== 16 // ExtensionType.MetadataPointer from @solana/spl-token
+            ext => ext !== 16 // ExtensionType.MetadataPointer from @solana/spl-token
           );
-            // @ts-expect-error - Clear tokenMetadata if it has been set
+          // @ts-expect-error - Clear tokenMetadata if it has been set
           tokenBuilder.tokenMetadata = undefined;
           // @ts-expect-error - Clear metadata if it has been set
           tokenBuilder.metadata = undefined;
@@ -243,16 +247,16 @@ export async function POST(req: NextRequest) {
         console.error("Could not remove metadata extension:", e);
       }
     }
-    
+
     for (const extensionId of body.selectedExtensions) {
       if (extensionId === "metadata" || extensionId === "metadata-pointer") {
         continue;
       }
-      
+
       if (extensionId === "transfer-fees" && body.extensionOptions?.["transfer-fees"]) {
         const feePercentage = parseFloat(body.extensionOptions["transfer-fees"]["fee-percentage"] || "1");
         const feeBasisPoints = feePercentage * 100;
-        
+
         let maxFeeValue: bigint;
         if (body.extensionOptions["transfer-fees"]["max-fee"]) {
           const maxFeeInput = body.extensionOptions["transfer-fees"]["max-fee"];
@@ -261,14 +265,14 @@ export async function POST(req: NextRequest) {
         } else {
           maxFeeValue = BigInt(Math.pow(10, decimals));
         }
-        
+
         tokenBuilder.addTransferFee(
           feeBasisPoints,
           maxFeeValue,
           walletPublicKey,
           walletPublicKey
         );
-      } 
+      }
       else if (extensionId === "non-transferable") {
         tokenBuilder.addNonTransferable();
       }
@@ -285,8 +289,8 @@ export async function POST(req: NextRequest) {
         tokenBuilder.addMintCloseAuthority(closeAuthorityAddress);
       }
       else if (extensionId === "default-account-state") {
-        const defaultState = 1; 
-        const freezeAuthority = body.extensionOptions?.["default-account-state"]?.["freeze-authority"] 
+        const defaultState = 1;
+        const freezeAuthority = body.extensionOptions?.["default-account-state"]?.["freeze-authority"]
           ? new PublicKey(body.extensionOptions["default-account-state"]["freeze-authority"])
           : walletPublicKey;
         tokenBuilder.addDefaultAccountState(defaultState, freezeAuthority);
@@ -299,27 +303,27 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const { instructions: createInstructions, signers, mint } = 
+    const { instructions: createInstructions, signers, mint } =
       await tokenBuilder.createTokenInstructions(walletPublicKey);
-    
+
     console.log(`Token created with mint: ${mint.toString()}, metadata: ${metadataAdded ? "yes" : "no"}`);
-    
+
     const createTransaction = new Transaction();
-    
+
     const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
     createTransaction.recentBlockhash = blockhash;
     createTransaction.feePayer = walletPublicKey;
-    
+
     createInstructions.forEach(ix => createTransaction.add(ix));
-    
+
     if (signers.length > 0) {
       createTransaction.partialSign(...signers);
     }
-    
+
     const serializedTransaction = createTransaction
       .serialize({ requireAllSignatures: false })
       .toString("base64");
-    
+
     const mintAmount = BigInt(Math.floor(supplyAmount * Math.pow(10, decimals)));
 
     return NextResponse.json({
@@ -336,11 +340,11 @@ export async function POST(req: NextRequest) {
 
   } catch (error: unknown) {
     console.error("Create token error:", error);
-    
-    const errorMessage = error instanceof Error 
-      ? error.message 
+
+    const errorMessage = error instanceof Error
+      ? error.message
       : "Failed to create token transaction";
-      
+
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 } 

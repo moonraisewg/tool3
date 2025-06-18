@@ -44,6 +44,8 @@ interface SelectTokenProps {
   disabled?: boolean;
   externalAmount?: string;
   amountLoading?: boolean;
+  excludeToken?: string;
+  cluster?: string
 }
 
 const SelectToken: React.FC<SelectTokenProps> = ({
@@ -54,6 +56,8 @@ const SelectToken: React.FC<SelectTokenProps> = ({
   disabled,
   externalAmount,
   amountLoading = false,
+  excludeToken,
+  cluster = "mainnet"
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [tokens, setTokens] = useState<UserToken[]>([]);
@@ -70,6 +74,8 @@ const SelectToken: React.FC<SelectTokenProps> = ({
   const handleTokenSelect = (token: UserToken) => {
     setSelectedToken(token);
     setIsModalOpen(false);
+    setAmount("")
+    onAmountChange("");
   };
 
   const fetchAllTokens = useCallback(async () => {
@@ -87,7 +93,7 @@ const SelectToken: React.FC<SelectTokenProps> = ({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ publicKey: publicKey.toString() }),
+        body: JSON.stringify({ publicKey: publicKey.toString(), cluster }),
       });
 
       if (!response.ok) {
@@ -111,7 +117,8 @@ const SelectToken: React.FC<SelectTokenProps> = ({
             logoURI: asset.content?.links?.image,
             decimals: asset.token_info?.decimals || 0,
           };
-        });
+        })
+        .filter((token: UserToken) => !excludeToken || token.address !== excludeToken);
 
       const solToken: UserToken = {
         address: "NativeSOL",
@@ -123,7 +130,7 @@ const SelectToken: React.FC<SelectTokenProps> = ({
         decimals: 9,
       };
 
-      const allTokens = [solToken, ...formattedTokens];
+      const allTokens = excludeToken !== "NativeSOL" ? [solToken, ...formattedTokens] : formattedTokens;
       setTokens(allTokens);
 
       if (allTokens.length > 0 && !selectedToken) {
@@ -140,7 +147,7 @@ const SelectToken: React.FC<SelectTokenProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [publicKey, setSelectedToken, selectedToken]);
+  }, [publicKey, setSelectedToken, selectedToken, excludeToken, cluster]);
 
   const setHalf = () => {
     if (selectedToken) {

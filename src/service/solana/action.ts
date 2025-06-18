@@ -3,7 +3,7 @@ import { PublicKey, TransactionInstruction } from "@solana/web3.js";
 import { program } from "./program";
 import { findUserLockPda } from "./pda";
 import { getAccount } from "@solana/spl-token";
-import { connection } from "./connection";
+import { connectionDevnet } from "./connection";
 
 export const initializeVault = async ({
   publicKey,
@@ -194,14 +194,14 @@ export const transfer = async ({
 export interface UserPoolInfo {
   vaultAddress: PublicKey;
   poolState: PublicKey;
-  lockedAmount: bigint;
-  unlockTimestamp: bigint;
-  depositTokenPerLp0: bigint;
-  depositTokenPerLp1: bigint;
+  lockedAmount: string;
+  unlockTimestamp: string;
+  depositTokenPerLp0: string;
+  depositTokenPerLp1: string;
   token0Mint: PublicKey;
   token1Mint: PublicKey;
-  vault0Amount: bigint;
-  vault1Amount: bigint;
+  vault0Amount: string;
+  vault1Amount: string;
   lpMintDecimals: number;
   lpRatio?: number;
   vault0Address?: PublicKey;
@@ -243,16 +243,16 @@ export async function getUserLockedPools(
           );
 
           const token0VaultAccount = await getAccount(
-            connection,
+            connectionDevnet,
             poolStateAccount.token0Vault
           );
           const token1VaultAccount = await getAccount(
-            connection,
+            connectionDevnet,
             poolStateAccount.token1Vault
           );
 
-          const vault0Amount = BigInt(token0VaultAccount.amount.toString());
-          const vault1Amount = BigInt(token1VaultAccount.amount.toString());
+          const vault0Amount = token0VaultAccount.amount.toString();
+          const vault1Amount = token1VaultAccount.amount.toString();
 
           const lpSupply = BigInt(poolStateAccount.lpSupply.toString());
           const lpRatio =
@@ -263,14 +263,10 @@ export async function getUserLockedPools(
           userPoolInfos.push({
             vaultAddress,
             poolState: vault.poolState,
-            lockedAmount: BigInt(userLockData.amount.toString()),
-            unlockTimestamp: BigInt(userLockData.unlockTimestamp.toString()),
-            depositTokenPerLp0: BigInt(
-              userLockData.depositTokenPerLp0.toString()
-            ),
-            depositTokenPerLp1: BigInt(
-              userLockData.depositTokenPerLp1.toString()
-            ),
+            lockedAmount: userLockData.amount.toString(),
+            unlockTimestamp: userLockData.unlockTimestamp.toString(),
+            depositTokenPerLp0: userLockData.depositTokenPerLp0.toString(),
+            depositTokenPerLp1: userLockData.depositTokenPerLp1.toString(),
             token0Mint: poolStateAccount.token0Mint,
             token1Mint: poolStateAccount.token1Mint,
             vault0Amount,

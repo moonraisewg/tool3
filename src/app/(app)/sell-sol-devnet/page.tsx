@@ -1,4 +1,10 @@
 import SellSolDevnet from "@/components/sell-sol-devnet/sell-sol-devnet";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+    title: "Buy Sol Devnet",
+    description: "Buy Sol Devnet",
+}
 
 export default function WithdrawLP() {
     return (

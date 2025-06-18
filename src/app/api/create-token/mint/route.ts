@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PublicKey, Transaction } from "@solana/web3.js";
-import { connection } from "@/service/solana/connection";
+import { connectionDevnet, connectionMainnet } from "@/service/solana/connection";
 import { TransferFeeToken } from "solana-token-extension-boost";
+import { ClusterType } from "@/types/types";
+
 
 interface MintTokenRequestBody {
   walletPublicKey: string;
@@ -10,6 +12,7 @@ interface MintTokenRequestBody {
   decimals: number;
   useToken2022?: boolean;
   recipientAddress?: string;
+  cluster?: ClusterType;
 }
 
 export async function POST(req: NextRequest) {
@@ -23,16 +26,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-  
+    const connection = body.cluster === "mainnet" ? connectionMainnet : connectionDevnet;
+
     let walletPublicKey: PublicKey;
     let mintPublicKey: PublicKey;
-    
+
     try {
       walletPublicKey = new PublicKey(body.walletPublicKey);
       mintPublicKey = new PublicKey(body.mintAddress);
-    /* eslint-disable @typescript-eslint/no-unused-vars */
+      /* eslint-disable @typescript-eslint/no-unused-vars */
     } catch (_) {
-    /* eslint-enable @typescript-eslint/no-unused-vars */
+      /* eslint-enable @typescript-eslint/no-unused-vars */
       return NextResponse.json(
         { error: "Invalid public key format" },
         { status: 400 }
@@ -47,21 +51,21 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    
+
     const mintAmount = BigInt(Math.floor(amountValue * Math.pow(10, body.decimals)));
-    
+
     // Xác định recipient 
-    const recipient = body.recipientAddress 
+    const recipient = body.recipientAddress
       ? new PublicKey(body.recipientAddress)
       : walletPublicKey;
-    
+
     const transferFeeConfig = {
-      feeBasisPoints: 0, 
+      feeBasisPoints: 0,
       maxFee: BigInt(0),
       transferFeeConfigAuthority: walletPublicKey,
       withdrawWithheldAuthority: walletPublicKey
     };
-    
+
     const token = new TransferFeeToken(
       connection,
       mintPublicKey,
@@ -69,16 +73,16 @@ export async function POST(req: NextRequest) {
     );
 
     const { instructions, address: tokenAccount } = await token.createAccountAndMintToInstructions(
-      recipient,            
-      walletPublicKey,      
-      mintAmount,          
-      walletPublicKey       
+      recipient,
+      walletPublicKey,
+      mintAmount,
+      walletPublicKey
     );
     const transaction = new Transaction();
     const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = walletPublicKey;
-    
+
     instructions.forEach(ix => transaction.add(ix));
     const serializedTransaction = transaction
       .serialize({ requireAllSignatures: false })
@@ -93,11 +97,11 @@ export async function POST(req: NextRequest) {
 
   } catch (error: unknown) {
     console.error("Mint token error:", error);
-    
-    const errorMessage = error instanceof Error 
-      ? error.message 
+
+    const errorMessage = error instanceof Error
+      ? error.message
       : "Failed to create mint transaction";
-      
+
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 } 

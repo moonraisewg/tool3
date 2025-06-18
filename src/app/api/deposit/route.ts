@@ -3,8 +3,8 @@ import { PublicKey, Transaction } from "@solana/web3.js";
 import { getAssociatedTokenAddress, getMint } from "@solana/spl-token";
 import { checkVaultExists } from "@/lib/helper";
 import { deposit, initializeVault } from "@/service/solana/action";
+import { connectionDevnet } from "@/service/solana/connection";
 
-import { connection } from "@/service/solana/connection";
 
 interface DepositRequestBody {
   walletPublicKey: string;
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     const poolId = new PublicKey(body.poolId);
     const tokenMint = new PublicKey(body.tokenMint);
 
-    const mintInfo = await getMint(connection, tokenMint);
+    const mintInfo = await getMint(connectionDevnet, tokenMint);
     const decimals = mintInfo.decimals;
     const amountFloat = parseFloat(body.amount.toString());
     if (isNaN(amountFloat) || amountFloat <= 0) {
@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
     transaction.add(depositInstruction);
 
     const { blockhash, lastValidBlockHeight } =
-      await connection.getLatestBlockhash();
+      await connectionDevnet.getLatestBlockhash();
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = walletPublicKey;
 

@@ -2,24 +2,27 @@ import {
   Raydium,
   CpmmKeys,
   ApiV3PoolInfoStandardItemCpmm,
+  TxVersion,
 } from "@raydium-io/raydium-sdk-v2";
-import bs58 from "bs58";
-import { Keypair, PublicKey } from "@solana/web3.js";
-import { getAssociatedTokenAddressSync } from "@solana/spl-token";
-import { connection } from "@/service/solana/connection";
 
-const ADMIN_PRIVATE_KEY = process.env.ADMIN_PRIVATE_KEY;
+import { adminKeypair } from "@/config";
+import { Connection, PublicKey, TransactionInstruction } from "@solana/web3.js";
+import {
+  createAssociatedTokenAccountInstruction,
+  getAssociatedTokenAddress,
+  getAssociatedTokenAddressSync,
+} from "@solana/spl-token";
+import { connectionDevnet } from "./solana/connection";
+
+export const txVersion = TxVersion.V0;
+
 const cluster = "devnet";
 
-if (!ADMIN_PRIVATE_KEY) {
-  throw new Error("ADMIN_PRIVATE_KEY not set in .env");
-}
-
-export const owner = Keypair.fromSecretKey(bs58.decode(ADMIN_PRIVATE_KEY));
+export const owner = adminKeypair;
 
 let cachedRaydium: Raydium | null = null;
 
-export const initSdk = async (): Promise<Raydium> => {
+export const initSdk = async (connection: Connection): Promise<Raydium> => {
   if (cachedRaydium) return cachedRaydium;
 
   console.log("Initializing Raydium SDK...");
@@ -38,13 +41,34 @@ export const initSdk = async (): Promise<Raydium> => {
   }
 };
 
+export const createAtaIfMissing = async (
+  connection: Connection,
+  payer: PublicKey,
+  owner: PublicKey,
+  mint: PublicKey
+): Promise<{ ata: PublicKey; instructions: TransactionInstruction[] }> => {
+  const ata = await getAssociatedTokenAddress(mint, owner);
+  const accountInfo = await connection.getAccountInfo(ata);
+  if (accountInfo === null) {
+    const instruction = createAssociatedTokenAccountInstruction(
+      payer, // funding payer
+      ata, // ATA address
+      owner, // token account owner
+      mint // token mint
+    );
+    return { ata, instructions: [instruction] };
+  }
+
+  return { ata, instructions: [] };
+};
+
 const getPoolInfoById = async (
   poolId: string
 ): Promise<{
   poolInfo: ApiV3PoolInfoStandardItemCpmm;
   poolKeys?: CpmmKeys;
 }> => {
-  const raydium = await initSdk();
+  const raydium = await initSdk(connectionDevnet);
 
   if (raydium.cluster === "mainnet") {
     const data = await raydium.api.fetchPoolById({ ids: poolId });
@@ -85,7 +109,7 @@ export const fetchLpMintAndBalanceFromRaydium = async (
           new PublicKey(userPublicKey)
         );
 
-        const balanceInfo = await connection.getTokenAccountBalance(
+        const balanceInfo = await connectionDevnet.getTokenAccountBalance(
           lpTokenAccount
         );
         balance = balanceInfo.value.uiAmount ?? 0;

@@ -9,36 +9,48 @@ interface JupiterPriceResponse {
 }
 
 const API_BASE = "https://lite-api.jup.ag";
+const USDT_MINT = "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB";
 const SOL_MINT = "So11111111111111111111111111111111111111112";
-const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 
-export async function getTokenFeeFromSolAndUsd(
-  solAmount: number,
+export async function getTokenFeeFromUsd(
   targetTokenMint: string,
-  usdAmount: number = 0.5
+  usdAmount: number
 ): Promise<number> {
   try {
-    const [solRes, usdcRes] = await Promise.all([
-      fetch(`${API_BASE}/price/v2?ids=${SOL_MINT}&vsToken=${targetTokenMint}`),
-      fetch(`${API_BASE}/price/v2?ids=${USDC_MINT}&vsToken=${targetTokenMint}`),
-    ]);
+    const usdtRes = await fetch(
+      `${API_BASE}/price/v2?ids=${USDT_MINT}&vsToken=${targetTokenMint}`
+    );
 
-    if (!solRes.ok || !usdcRes.ok) {
+    if (!usdtRes.ok) {
       throw new Error("API Jupiter trả về lỗi");
     }
 
-    const solData: JupiterPriceResponse = await solRes.json();
-    const usdcData: JupiterPriceResponse = await usdcRes.json();
+    const usdtData: JupiterPriceResponse = await usdtRes.json();
+    const usdtToTokenRate = parseFloat(usdtData.data[USDT_MINT].price);
 
-    const solToTokenRate = parseFloat(solData.data[SOL_MINT].price);
-    const usdcToTokenRate = parseFloat(usdcData.data[USDC_MINT].price);
-
-    const tokensFromSol = solAmount * solToTokenRate;
-    const tokensFromUsd = usdAmount * usdcToTokenRate;
-
-    return tokensFromSol + tokensFromUsd;
+    return usdAmount * usdtToTokenRate;
   } catch (err) {
     console.error("Lỗi khi lấy giá token từ Jupiter:", err);
+    throw err;
+  }
+}
+
+export async function convertSOLToUSDT(solAmount: number): Promise<number> {
+  try {
+    const response = await fetch(
+      `${API_BASE}/price/v2?ids=${SOL_MINT}&vsToken=${USDT_MINT}`
+    );
+
+    if (!response.ok) {
+      throw new Error("API Jupiter trả về lỗi");
+    }
+
+    const data: JupiterPriceResponse = await response.json();
+    const solToUsdtRate = parseFloat(data.data[SOL_MINT].price);
+
+    return solAmount * solToUsdtRate;
+  } catch (err) {
+    console.error("Lỗi khi convert SOL sang USDT:", err);
     throw err;
   }
 }

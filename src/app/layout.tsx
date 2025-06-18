@@ -7,6 +7,7 @@ import WalletProviderComponent from "@/components/wallet-provider";
 import { Toaster } from "sonner";
 import { NetworkProvider } from "@/context/NetworkContext";
 import SuspenseLayout from "@/components/suspense-layout";
+import { GoogleTagManager } from "@next/third-parties/google";
 
 export const metadata: Metadata = {
   title: "Tool3",
@@ -19,6 +20,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <GoogleTagManager gtmId="GTM-T3L7ZX2F" />
+      </head>
       <body className="flex flex-col h-screen">
         <SuspenseLayout>
           <NetworkProvider>
@@ -38,6 +42,6 @@ export default function RootLayout({
           </NetworkProvider>
         </SuspenseLayout>
       </body>
-    </html >
+    </html>
   );
 }

@@ -3,7 +3,8 @@ import { PublicKey } from "@solana/web3.js";
 import { getUserLockInfo } from "@/service/fetch-user-lock";
 import { checkVaultExists } from "@/lib/helper";
 import { getMint } from "@solana/spl-token";
-import { connection } from "@/service/solana/connection";
+import { connectionDevnet } from "@/service/solana/connection";
+
 
 export async function POST(req: NextRequest) {
   try {
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
         { status: 404 }
       );
     }
-    const mintInfo = await getMint(connection, tokenMint);
+    const mintInfo = await getMint(connectionDevnet, tokenMint);
     const decimals = mintInfo.decimals;
 
     const vault = vaultCheck.vault;

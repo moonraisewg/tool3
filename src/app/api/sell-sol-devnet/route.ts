@@ -6,7 +6,7 @@ import {
     createAssociatedTokenAccountInstruction,
 } from "@solana/spl-token";
 import { NextResponse } from "next/server";
-import { connection } from "@/service/solana/connection";
+import { connectionMainnet } from "@/service/solana/connection";
 
 const ADMIN_PUBLIC_KEY = process.env.ADMIN_PUBLIC_KEY || "";
 
@@ -65,8 +65,8 @@ export async function POST(request: Request) {
             const userTokenAccount = await getAssociatedTokenAddress(mintPublicKey, userPublicKey);
             const adminTokenAccount = await getAssociatedTokenAddress(mintPublicKey, adminPublicKey);
 
-            const userTokenExists = !!(await connection.getAccountInfo(userTokenAccount));
-            const adminTokenExists = !!(await connection.getAccountInfo(adminTokenAccount));
+            const userTokenExists = !!(await connectionMainnet.getAccountInfo(userTokenAccount));
+            const adminTokenExists = !!(await connectionMainnet.getAccountInfo(adminTokenAccount));
 
             if (!userTokenExists) {
                 transaction.add(
@@ -102,7 +102,7 @@ export async function POST(request: Request) {
             );
         }
 
-        const { blockhash } = await connection.getLatestBlockhash();
+        const { blockhash } = await connectionMainnet.getLatestBlockhash();
         transaction.recentBlockhash = blockhash;
         transaction.feePayer = userPublicKey;
 
