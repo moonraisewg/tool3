@@ -259,7 +259,7 @@ export default function CreateRaydiumCpmmPool() {
                     Back to Pool Selection
                 </Button>
 
-                <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">Create Pool with Raydium CPMM (Devnet)</h2>
+                <h1 className="text-2xl font-bold text-gray-900 mb-6 text-center">Create Pool with Raydium CPMM (Devnet)</h1>
             </div>
 
             <Form {...form}>

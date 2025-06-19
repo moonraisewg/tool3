@@ -3,9 +3,10 @@ import Withdraw from "@/components/withdraw-form";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Withdraw",
-  description: "Withdraw LP token",
-}
+  title: "Securely Withdraw Your LP Tokens Easily",
+  description:
+    "Withdraw your liquidity provider (LP) tokens quickly and securely using our intuitive interface.",
+};
 
 export default function WithdrawLP() {
   return (
