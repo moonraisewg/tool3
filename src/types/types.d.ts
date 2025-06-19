@@ -5,3 +5,5 @@ export interface Token {
     logoURI?: string;
     decimals?: number;
 }
+
+export type ClusterType = "mainnet" | "devnet";
