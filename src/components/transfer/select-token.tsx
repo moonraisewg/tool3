@@ -106,6 +106,7 @@ const SelectToken: React.FC<SelectTokenProps> = ({
 
       const formattedTokens: UserToken[] = assets
         .filter((asset: Asset) => asset.interface === "FungibleToken" || asset.interface === "FungibleAsset")
+        .filter((asset: Asset) => parseFloat(((asset.token_info?.balance ||0)/Math.pow(10,asset.token_info?.decimals||0)).toString())>0)
         .map((asset: Asset) => {
           const mint = asset.id;
           const balance = (asset.token_info?.balance || 0) / Math.pow(10, asset.token_info?.decimals || 0);

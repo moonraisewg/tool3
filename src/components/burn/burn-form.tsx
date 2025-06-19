@@ -74,12 +74,17 @@ export function BurnForm({}: BurnFormProps) {
     
     try {
       setIsLoading(true);
+      const urlCluster = window.location.href.includes('cluster=devnet') ? 'devnet' : 'mainnet';
+      
       const response = await fetch("/api/user-tokens", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ publicKey: publicKey.toString() }),
+        body: JSON.stringify({ 
+          publicKey: publicKey.toString(),
+          cluster: urlCluster
+        }),
       });
 
       if (!response.ok) {

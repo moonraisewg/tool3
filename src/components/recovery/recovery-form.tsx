@@ -75,12 +75,17 @@ export function RecoveryForm({}: RecoveryFormProps) {
     
     try {
       setIsLoading(true);
+      const urlCluster = window.location.href.includes('cluster=devnet') ? 'devnet' : 'mainnet';
+      
       const response = await fetch("/api/user-tokens", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ publicKey: publicKey.toString() }),
+        body: JSON.stringify({ 
+          publicKey: publicKey.toString(),
+          cluster: urlCluster
+        }),
       });
 
       if (!response.ok) {
@@ -93,7 +98,8 @@ export function RecoveryForm({}: RecoveryFormProps) {
       const formattedTokens: UserToken[] = assets
         .filter((asset: TokenAsset) => 
           (asset.interface === "FungibleToken" || asset.interface === "FungibleAsset") && 
-          asset.id !== "NativeSOL"
+          asset.id !== "NativeSOL" && 
+          parseFloat(((asset.token_info?.balance || 0) / Math.pow(10, asset.token_info?.decimals || 0)).toString()) > 0
         )
         .map((asset: TokenAsset) => {
           const mint = asset.id;

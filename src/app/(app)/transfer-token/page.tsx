@@ -89,7 +89,8 @@ export default function TransferTokenPage() {
       const formattedTokens: UserToken[] = assets
         .filter((asset: TokenAsset) => 
           (asset.interface === "FungibleToken" || asset.interface === "FungibleAsset") && 
-          asset.id !== "NativeSOL" 
+          asset.id !== "NativeSOL" &&
+          parseFloat(((asset.token_info?.balance || 0)/ Math.pow(10, asset.token_info?.decimals||0)).toString())>0
         )
         .map((asset: TokenAsset) => {
           const mint = asset.id;
