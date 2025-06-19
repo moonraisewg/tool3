@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import readlineSync from "readline-sync";
 
-const PASSWORD = "dipts";
+const EC = process.env.EC!;
 
 function encryptAES256(plaintext: string, password: string): string {
   const key = crypto.createHash("sha256").update(password).digest();
@@ -19,5 +19,5 @@ if (!privateKey) {
   process.exit(1);
 }
 
-const encrypted = encryptAES256(privateKey, PASSWORD);
+const encrypted = encryptAES256(privateKey, EC);
 console.log(`\nADMIN_PRIVATE_KEY_ENCRYPTED=${encrypted}\n`);

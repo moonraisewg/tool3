@@ -1,36 +1,78 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Tool LP - Next.js Project
 
-## Getting Started
+This project is built with [Next.js](https://nextjs.org) and bootstrapped using [create-next-app](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-First, run the development server:
+## 🚀 Getting Started
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
+### 1. Clone the repository
+
+git clone https://github.com/moonraisewg/tool-lp.git
+cd tool-lp
+
+### 2. Install dependencies
+
+pnpm install
+
+> Make sure you have [pnpm](https://pnpm.io) installed. You can install it globally with:
+
+npm install -g pnpm
+
+---
+
+### 3. Configure environment variables
+
+Create your own .env file by copying the example:
+
+cp .env.example .env
+
+Then run the encryption script:
+
+pnpm encrypt
+
+🔐 When prompted, enter your private key. The script will output an encrypted value like this:
+
+ADMIN_PRIVATE_KEY_ENCRYPTED=your_encrypted_value_here
+
+Paste this value into your .env file.
+
+---
+
+### 4. Run the development server
+
 pnpm dev
-# or
-bun dev
-```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Visit [http://localhost:3000](http://localhost:3000) in your browser to see the app.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 📦 Available Commands
 
-## Learn More
+| Command      | Description                       |
+| ------------ | --------------------------------- |
+| pnpm dev     | Run the app in development mode   |
+| pnpm build   | Build the app for production      |
+| pnpm start   | Start the production build        |
+| pnpm encrypt | Encrypt your private key for .env |
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 📝 Notes
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Edit the main page in app/page.tsx.
+- This project uses [next/font](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) and the [Geist](https://vercel.com/font) font family.
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 📚 Learn More
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [Next.js Documentation](https://nextjs.org/docs)
+- [Learn Next.js](https://nextjs.org/learn)
+- [Next.js GitHub](https://github.com/vercel/next.js)
+
+---
+
+## ☁️ Deploy on Vercel
+
+Deploy easily with [Vercel](https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app-readme).
+
+See [deployment guide](https://nextjs.org/docs/app/building-your-application/deploying) for details.

@@ -249,9 +249,9 @@ export default function Withdraw() {
       className={`md:p-3 max-w-[550px] mx-auto my-2 ${!isMobile && "border-gear"
         }`}
     >
-      <div className="text-2xl font-bold text-gray-900 mb-6 flex items-center justify-center ">
+      <h1 className="text-2xl font-bold text-gray-900 mb-6 flex items-center justify-center ">
         Withdraw LP Tokens
-      </div>
+      </h1>
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">

@@ -211,13 +211,12 @@ export default function SwapSolForm() {
 
   return (
     <div
-      className={`md:p-2 max-w-[550px] mx-auto my-2 ${
-        !isMobile && "border-gear"
-      }`}
+      className={`md:p-2 max-w-[550px] mx-auto my-2 ${!isMobile && "border-gear"
+        }`}
     >
-      <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">
+      <h1 className="text-2xl font-bold text-gray-900 mb-8 text-center">
         Gasless Swap to SOL
-      </h2>
+      </h1>
 
       <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
         <p className="text-sm text-green-800">

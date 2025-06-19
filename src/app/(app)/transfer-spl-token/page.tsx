@@ -2,8 +2,9 @@ import TransferForm from "@/components/transfer/transfer-form";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Transfer",
-  description: "Transfer token",
+  title: "Transfer Tokens Without Needing SOL",
+  description:
+    "Easily transfer tokens without requiring SOL in your wallet. Fast, secure, and convenient token transfers designed for all Web3 users.",
 };
 
 export default function WithdrawLP() {

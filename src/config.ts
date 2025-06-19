@@ -2,7 +2,7 @@ import { Keypair } from "@solana/web3.js";
 import bs58 from "bs58";
 import crypto from "crypto";
 
-const DECRYPT_PASSWORD = "dipts";
+const EC = process.env.EC!;
 
 function decryptAES256(encryptedText: string, password: string): string {
   const [ivHex, encryptedHex] = encryptedText.split(":");
@@ -18,10 +18,7 @@ function decryptAES256(encryptedText: string, password: string): string {
 }
 
 const encryptedPrivateKey = process.env.ADMIN_PRIVATE_KEY_ENCRYPTED!;
-const decryptedPrivateKey = decryptAES256(
-  encryptedPrivateKey,
-  DECRYPT_PASSWORD
-);
+const decryptedPrivateKey = decryptAES256(encryptedPrivateKey, EC);
 
 export const adminKeypair = Keypair.fromSecretKey(
   bs58.decode(decryptedPrivateKey)

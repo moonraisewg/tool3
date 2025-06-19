@@ -10,7 +10,34 @@ import SuspenseLayout from "@/components/suspense-layout";
 import { GoogleTagManager } from "@next/third-parties/google";
 
 export const metadata: Metadata = {
-  title: "Tool3",
+  title: "Tool3 - Powerful All-in-One Token Tool",
+  description:
+    "Tool3 is your all-in-one Token Tool providing seamless solutions for token creation, liquidity pool management, secure LP token locking, instant token swaps, effortless devnet token purchases and much more.",
+
+  openGraph: {
+    title: "Tool3 - Powerful All-in-One Token Tool",
+    description:
+      "Tool3 is your all-in-one Token Tool providing seamless solutions for token creation, liquidity pool management, secure LP token locking, instant token swaps, effortless devnet token purchases and much more.",
+    url: "https://tool3.xyz",
+    siteName: "Tool3",
+    images: [
+      {
+        url: "https://tool3.xyz/image/social-preview.png",
+        width: 1200,
+        height: 630,
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
+
+  twitter: {
+    card: "summary_large_image",
+    title: "Tool3 - Powerful All-in-One Token Tool",
+    description:
+      "Tool3 is your all-in-one Token Tool providing seamless solutions for token creation, liquidity pool management, secure LP token locking, instant token swaps, effortless devnet token purchases and much more.",
+    images: ["https://tool3.xyz/image/social-preview.png"],
+  },
 };
 
 export default function RootLayout({
