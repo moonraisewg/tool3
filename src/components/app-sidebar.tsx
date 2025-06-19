@@ -54,7 +54,6 @@ export const route = {
       title: "Transfer",
       icon: Reload,
       url: "/transfer-spl-token",
-      url: "/transfer-spl-token",
     },
     {
       title: "Buy SOL devnet",
