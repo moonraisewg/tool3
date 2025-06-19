@@ -17,7 +17,7 @@ export default function Header() {
   const handleNetworkChange = (selectedNetwork: WalletAdapterNetwork) => {
     setNetwork(selectedNetwork);
     const newUrl = selectedNetwork === WalletAdapterNetwork.Devnet
-      ? "/transfer?cluster=devnet"
+      ? "/?cluster=devnet"
       : pathname.replace(/\?cluster=devnet/, "");
     router.push(newUrl);
   };

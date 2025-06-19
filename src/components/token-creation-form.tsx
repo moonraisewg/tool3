@@ -38,7 +38,7 @@ export const TokenCreationForm = () => {
   } = useTokenCreation();
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [openExtensions, setOpenExtensions] = useState<Record<string, boolean>>({});
-  
+
   const formSchema = z.object({
     name: z.string().optional(),
     symbol: z.string().max(10, { message: "Token symbol must not exceed 10 characters" }).optional(),
@@ -56,7 +56,7 @@ export const TokenCreationForm = () => {
     telegramUrl: z.string().url({ message: "Please enter a valid URL" }).optional().or(z.literal("")),
     discordUrl: z.string().url({ message: "Please enter a valid URL" }).optional().or(z.literal(""))
   });
-  
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -71,14 +71,14 @@ export const TokenCreationForm = () => {
       discordUrl: ""
     },
   });
-  
+
   const toggleExtensionOpen = (extId: string) => {
     setOpenExtensions(prev => ({
       ...prev,
       [extId]: !prev[extId]
     }));
   };
-  
+
   const initializeTokenData = useCallback(() => {
     setTokenData({
       name: "",
@@ -94,7 +94,7 @@ export const TokenCreationForm = () => {
       telegramUrl: "",
       discordUrl: ""
     });
-    
+
     form.reset({
       name: "",
       symbol: "",
@@ -119,10 +119,10 @@ export const TokenCreationForm = () => {
   useEffect(() => {
     initializeTokenData();
   }, [initializeTokenData]);
-  
+
   useEffect(() => {
     handleOpenExtensions();
-  }, [handleOpenExtensions]);
+  }, []);
 
   useEffect(() => {
     const subscription = form.watch((value) => {
@@ -139,10 +139,10 @@ export const TokenCreationForm = () => {
         discordUrl: value.discordUrl || "",
       }));
     });
-    
+
     return () => subscription.unsubscribe();
   }, [form, setTokenData]);
-  
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -154,27 +154,27 @@ export const TokenCreationForm = () => {
       handleImageUpload(file);
     }
   };
-  
+
   const onSubmit = () => {
     const hasMetadataExtension = selectedExtensions.includes("metadata") || selectedExtensions.includes("metadata-pointer");
-    
+
     if (hasMetadataExtension) {
       if (!form.getValues('name')) {
         form.setError('name', { type: 'manual', message: 'Token name is required' });
         return;
       }
-      
+
       if (!form.getValues('symbol')) {
         form.setError('symbol', { type: 'manual', message: 'Token symbol is required' });
         return;
       }
-      
+
       if (!imagePreview && !tokenData.imageUrl) {
         toast.error("Please upload a token image");
         return;
       }
     }
-    
+
     handleCreateToken();
   };
 
@@ -201,7 +201,7 @@ export const TokenCreationForm = () => {
                         </FormItem>
                       )}
                     />
-                    
+
                     <FormField
                       control={form.control}
                       name="symbol"
@@ -231,7 +231,7 @@ export const TokenCreationForm = () => {
                         </FormItem>
                       )}
                     />
-                    
+
                     <FormField
                       control={form.control}
                       name="supply"
@@ -306,7 +306,7 @@ export const TokenCreationForm = () => {
                           </FormItem>
                         )}
                       />
-                      
+
                       <FormField
                         control={form.control}
                         name="twitterUrl"
@@ -336,7 +336,7 @@ export const TokenCreationForm = () => {
                           </FormItem>
                         )}
                       />
-                      
+
                       <FormField
                         control={form.control}
                         name="discordUrl"
@@ -371,21 +371,21 @@ export const TokenCreationForm = () => {
                     const isExpanded = openExtensions[extension.id] || false;
                     const hasError = isSelected && validationErrors[extension.id] && Object.keys(validationErrors[extension.id]).length > 0;
                     const hasOptions = extension.options && extension.options.length > 0;
-                    
+
                     return (
-                      <div 
-                        key={extension.id} 
+                      <div
+                        key={extension.id}
                         className={cn(
                           "border rounded-lg overflow-hidden transition-all duration-200",
-                          isSelected 
-                            ? hasError 
-                              ? "border-red-500 bg-red-50/5" 
+                          isSelected
+                            ? hasError
+                              ? "border-red-500 bg-red-50/5"
                               : `border-${extension.color} bg-${extension.bgColor}/20`
                             : "border-gray-200 bg-white hover:bg-gray-50",
                           extension.disabled && "opacity-50 cursor-not-allowed"
                         )}
                       >
-                        <div 
+                        <div
                           className={cn(
                             "p-3 cursor-pointer",
                             isSelected && isExpanded && "border-b border-gray-200"
@@ -413,7 +413,7 @@ export const TokenCreationForm = () => {
                             </div>
                             <div className="flex items-center space-x-2">
                               {isSelected && hasOptions && (
-                                <ChevronRight 
+                                <ChevronRight
                                   className={cn(
                                     "w-4 h-4 text-gray-500 transition-transform",
                                     isExpanded && "transform rotate-90"
@@ -440,8 +440,8 @@ export const TokenCreationForm = () => {
                           </div>
                           <p className="text-sm text-gray-500 mt-1">{extension.description}</p>
                         </div>
-                        
-                
+
+
                         {isSelected && isExpanded && hasOptions && (
                           <div className="p-4 bg-white">
                             {extension.id === "transfer-fees" ? (
@@ -451,7 +451,7 @@ export const TokenCreationForm = () => {
                                     const optionValue = tokenData.extensionOptions?.[extension.id]?.[option.id];
                                     const error = validationErrors[extension.id]?.[option.id];
                                     const sliderOption = option as SliderOptionType;
-                                    
+
                                     return (
                                       <div key={option.id} className="space-y-1">
                                         <div className="flex items-center justify-between">
@@ -460,7 +460,7 @@ export const TokenCreationForm = () => {
                                           </label>
                                           {error && <span className="text-xs text-red-500">{error}</span>}
                                         </div>
-                                        <input 
+                                        <input
                                           type="range"
                                           min={sliderOption.min}
                                           max={sliderOption.max}
@@ -473,13 +473,13 @@ export const TokenCreationForm = () => {
                                     );
                                   })}
                                 </div>
-                                
+
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   {extension.options.filter(opt => opt.id !== "fee-percentage").map(option => {
                                     const optionValue = tokenData.extensionOptions?.[extension.id]?.[option.id];
                                     const error = validationErrors[extension.id]?.[option.id];
                                     const textOption = option as TextOptionType;
-                                    
+
                                     return (
                                       <div key={option.id} className="space-y-1">
                                         <div className="flex items-center justify-between">
@@ -488,7 +488,7 @@ export const TokenCreationForm = () => {
                                           </label>
                                           {error && <span className="text-xs text-red-500">{error}</span>}
                                         </div>
-                                        <Input 
+                                        <Input
                                           type="text"
                                           placeholder={textOption.placeholder}
                                           value={optionValue || ''}
@@ -499,7 +499,7 @@ export const TokenCreationForm = () => {
                                     );
                                   })}
                                 </div>
-                                
+
                                 <div className="bg-gray-50 p-3 rounded-md mt-2">
                                   <div className="flex items-start">
                                     <Info className="w-4 h-4 text-gray-500 mr-2 mt-0.5" />
@@ -516,7 +516,7 @@ export const TokenCreationForm = () => {
                                 {extension.options.map(option => {
                                   const optionValue = tokenData.extensionOptions?.[extension.id]?.[option.id];
                                   const error = validationErrors[extension.id]?.[option.id];
-                                  
+
                                   if (option.type === 'text') {
                                     const textOption = option as TextOptionType;
                                     return (
@@ -527,7 +527,7 @@ export const TokenCreationForm = () => {
                                           </label>
                                           {error && <span className="text-xs text-red-500">{error}</span>}
                                         </div>
-                                        <Input 
+                                        <Input
                                           type="text"
                                           placeholder={textOption.placeholder}
                                           value={optionValue || ''}
@@ -537,7 +537,7 @@ export const TokenCreationForm = () => {
                                       </div>
                                     );
                                   }
-                                  
+
                                   if (option.type === 'slider') {
                                     const sliderOption = option as SliderOptionType;
                                     return (
@@ -548,7 +548,7 @@ export const TokenCreationForm = () => {
                                           </label>
                                           {error && <span className="text-xs text-red-500">{error}</span>}
                                         </div>
-                                        <input 
+                                        <input
                                           type="range"
                                           min={sliderOption.min}
                                           max={sliderOption.max}
@@ -560,7 +560,7 @@ export const TokenCreationForm = () => {
                                       </div>
                                     );
                                   }
-                                  
+
                                   if (option.type === 'select') {
                                     return (
                                       <div key={option.id} className="space-y-1">
@@ -582,7 +582,7 @@ export const TokenCreationForm = () => {
                                       </div>
                                     );
                                   }
-                                  
+
                                   return null;
                                 })}
                               </div>
