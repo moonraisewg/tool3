@@ -122,7 +122,7 @@ export const TokenCreationForm = () => {
 
   useEffect(() => {
     handleOpenExtensions();
-  }, []);
+  }, [handleOpenExtensions]);
 
   useEffect(() => {
     const subscription = form.watch((value) => {

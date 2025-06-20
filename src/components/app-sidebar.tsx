@@ -112,6 +112,11 @@ export const route = {
       url: "/create-pool/meteora-damm",
       hidden: true
     },
+    {
+      icon: Coin,
+      title: "Close account",
+      url: "/close-account",
+    },
   ],
   devnet: [
     {

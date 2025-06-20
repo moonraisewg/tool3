@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import Image from "next/image";
 import { ChevronDown, Loader, Wallet } from "@nsmr/pixelart-react";
 import { useUserTokens, UserToken } from "@/hooks/useUserTokens";
+import { ClusterType } from "@/types/types";
 
 interface SelectTokenProps {
   selectedToken: UserToken | null;
@@ -18,7 +19,7 @@ interface SelectTokenProps {
   amount: string;
   amountLoading?: boolean;
   excludeToken?: string;
-  cluster?: string;
+  cluster?: ClusterType;
 }
 
 const SelectToken: React.FC<SelectTokenProps> = ({

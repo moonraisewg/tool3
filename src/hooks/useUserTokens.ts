@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { toast } from "sonner";
+import { ClusterType } from "@/types/types";
 
 export interface UserToken {
     address: string;
@@ -88,7 +89,7 @@ const loadFallbackTokenList = async (forceRefresh = false): Promise<Record<strin
     }
 };
 
-export const useUserTokens = (cluster: string = "mainnet", excludeToken?: string) => {
+export const useUserTokens = (cluster: ClusterType = "mainnet", excludeToken?: string) => {
     const [tokens, setTokens] = useState<UserToken[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
@@ -188,15 +189,6 @@ export const useUserTokens = (cluster: string = "mainnet", excludeToken?: string
                 .filter(
                     (asset: Asset) =>
                         asset.interface === "FungibleToken" || asset.interface === "FungibleAsset"
-                )
-                .filter(
-                    (asset: Asset) =>
-                        parseFloat(
-                            (
-                                (asset.token_info?.balance || 0) /
-                                Math.pow(10, asset.token_info?.decimals || 0)
-                            ).toString()
-                        ) > 0
                 )
                 .map((asset: Asset) => {
                     const mint = asset.id;
