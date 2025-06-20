@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Check, ExternalLink, Loader2, Search, Plus, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { UserToken } from "@/components/transfer/select-token";
+import { UserToken } from "@/hooks/useUserTokens";
 import Image from "next/image";
 import { transferToken, TokenTransferResult, transferTokenToMultipleRecipients } from "@/service/token/token-extensions/tool/transfer-token-extension";
 
