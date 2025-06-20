@@ -21,9 +21,9 @@ const formSchema = z.object({
 export default function CloseAccountForm() {
     const isMobile = useIsMobile();
     const [loading, setLoading] = useState(false);
-    const [estimatedRent, setEstimatedRent] = useState({ user: 0, system: 0 });
+    const [estimatedRent, setEstimatedRent] = useState({ userRent: 0, systemRent: 0 });
     const { publicKey, signTransaction } = useWallet();
-    const { tokens, loading: tokensLoading } = useUserTokens("devnet");
+    const { tokens, loading: tokensLoading, refetch } = useUserTokens("devnet", undefined, true);
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -32,12 +32,10 @@ export default function CloseAccountForm() {
 
     const selectedAccounts = form.watch("selectedAccounts");
 
-    // Lấy danh sách tài khoản có balance == 0
     const zeroBalanceAccounts = tokens.filter(
         (token) => token.address !== "NativeSOL" && parseFloat(token.balance) === 0
     );
 
-    // Xử lý checkbox "Select All"
     const handleSelectAll = (checked: boolean) => {
         if (checked) {
             form.setValue(
@@ -49,11 +47,10 @@ export default function CloseAccountForm() {
         }
     };
 
-    // Ước tính phí rent hoàn lại
     useEffect(() => {
         const fetchRent = async () => {
             if (selectedAccounts.length === 0 || !publicKey) {
-                setEstimatedRent({ user: 0, system: 0 });
+                setEstimatedRent({ userRent: 0, systemRent: 0 });
                 return;
             }
             try {
@@ -69,12 +66,17 @@ export default function CloseAccountForm() {
                 const data = await response.json();
                 if (!response.ok) throw new Error(data.error || "Failed to estimate rent");
                 setEstimatedRent({
-                    user: data.userRent * 0.9, // 90% cho người dùng
-                    system: data.userRent * 0.1, // 10% cho hệ thống
+                    userRent: data.userRent * 0.9,
+                    systemRent: data.userRent * 0.1,
                 });
-            } catch {
-                toast.error("Failed to estimate rent");
-                setEstimatedRent({ user: 0, system: 0 });
+            } catch (error: unknown) {
+                const message =
+                    error instanceof Error
+                        ? error.message
+                        : "Failed to estimate rent";
+                toast.error(message);
+
+                setEstimatedRent({ userRent: 0, systemRent: 0 });
             }
         };
         fetchRent();
@@ -88,7 +90,6 @@ export default function CloseAccountForm() {
                 throw new Error("Please connect your wallet first");
             }
 
-            // Chuẩn bị giao dịch
             const response = await fetch("/api/close-account", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -104,7 +105,6 @@ export default function CloseAccountForm() {
             const transaction = Transaction.from(Buffer.from(data.transaction, "base64"));
             const signedTransaction = await signTransaction(transaction);
 
-            // Thực thi giao dịch
             const executeResponse = await fetch("/api/close-account", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -119,10 +119,10 @@ export default function CloseAccountForm() {
             if (!executeResponse.ok) throw new Error(executeData.error || "Failed to execute transaction");
 
             toast.success("🎉 Accounts closed successfully!", {
-                description: `Closed ${values.selectedAccounts.length} accounts. You received ${(estimatedRent.user / 1_000_000_000).toFixed(9)} SOL.`,
+                description: `Closed ${values.selectedAccounts.length} accounts. You received ${(estimatedRent.userRent / 1_000_000_000).toFixed(9)} SOL from the system wallet.`,
                 action: {
                     label: "View Transaction",
-                    onClick: () => window.open(`https://solscan.io/tx/${executeData.signature}`, "_blank"),
+                    onClick: () => window.open(`https://solscan.io/tx/${executeData.signature}?cluster=devnet`, "_blank"),
                 },
             });
 
@@ -131,6 +131,7 @@ export default function CloseAccountForm() {
             const message = error instanceof Error ? error.message : "Failed to close accounts";
             toast.error(message);
         } finally {
+            refetch()
             setLoading(false);
         }
     };
@@ -141,7 +142,7 @@ export default function CloseAccountForm() {
 
             <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
                 <p className="text-sm text-green-800">
-                    ⚡ <strong>Gasless:</strong> No SOL needed! You receive 90% of reclaimed rent, we take 10%.
+                    ⚡ Solana Blockchain keeps your SOL! We give it back to you!
                 </p>
             </div>
 
@@ -151,10 +152,11 @@ export default function CloseAccountForm() {
                         {tokensLoading ? (
                             <div className="text-center">Loading accounts...</div>
                         ) : zeroBalanceAccounts.length === 0 ? (
-                            <div className="text-center text-gray-600">No zero-balance accounts found.</div>
+                            <div className="text-center text-gray-600">
+                                No zero-balance accounts found. Try connecting a different wallet or switching clusters.
+                            </div>
                         ) : (
                             <div className="space-y-2">
-                                <h3 className="text-lg font-semibold">Zero-Balance Accounts</h3>
                                 <label className="flex items-center gap-2 p-2 border rounded-lg bg-gray-50">
                                     <input
                                         type="checkbox"
@@ -163,11 +165,11 @@ export default function CloseAccountForm() {
                                     />
                                     <span className="font-medium">Select All ({zeroBalanceAccounts.length} accounts)</span>
                                 </label>
-                                <div className="max-h-[300px] overflow-y-auto space-y-2 custom-scroll">
+                                <div className="max-h-[240px] overflow-y-auto space-y-2 custom-scroll">
                                     {zeroBalanceAccounts.map((token) => (
                                         <label
                                             key={token.address}
-                                            className="flex items-center gap-2 p-2 border rounded-lg hover:bg-gray-100"
+                                            className="flex items-center gap-4 p-2 border rounded-lg hover:bg-gray-100"
                                         >
                                             <input
                                                 type="checkbox"
@@ -200,14 +202,16 @@ export default function CloseAccountForm() {
 
                         <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                             <p className="text-sm text-blue-800">
-                                💰 <strong>Estimated Reclaimed Rent:</strong>{" "}
+                                💰 <strong>Estimated Reclaimed Rent ({selectedAccounts.length} accounts):</strong>{" "}
                                 {selectedAccounts.length === 0 ? (
                                     "Select accounts to estimate"
+                                ) : estimatedRent.userRent === 0 ? (
+                                    "No rent will be reclaimed from selected accounts."
                                 ) : (
-                                    <>
-                                        You receive: {(estimatedRent.user / 1_000_000_000).toFixed(9)} SOL<br />
-                                        System fee (10%): {(estimatedRent.system / 1_000_000_000).toFixed(9)} SOL
-                                    </>
+                                    <div className="mt-1">
+                                        You will receive: <strong className="text-green-600">+{(estimatedRent.userRent / 1_000_000_000).toFixed(9)} SOL</strong> <br />
+                                        Fees: {(estimatedRent.systemRent / 1_000_000_000).toFixed(9)} SOL
+                                    </div>
                                 )}
                             </p>
                         </div>
@@ -215,7 +219,7 @@ export default function CloseAccountForm() {
 
                     <Button
                         type="submit"
-                        className="w-full font-semibold py-2 rounded-lg"
+                        className="w-full font-semibold py-2 rounded-lg cursor-pointer"
                         variant="default"
                         disabled={loading || !publicKey || selectedAccounts.length === 0}
                     >

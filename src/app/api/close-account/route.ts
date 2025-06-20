@@ -1,4 +1,3 @@
-// api/close-account/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { PublicKey, Transaction, SystemProgram } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress, createCloseAccountInstruction } from "@solana/spl-token";
@@ -13,12 +12,10 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Missing user public key" }, { status: 400 });
         }
 
-
         const userPubkey = new PublicKey(userPublicKey);
-        const systemPubkey = adminKeypair.publicKey; // Địa chỉ ví hệ thống nhận 10%
+        const systemPubkey = adminKeypair.publicKey; // 
 
         if (estimateOnly) {
-            // Ước tính phí rent
             let totalRent = 0;
             for (const tokenMint of tokenAccounts) {
                 const tokenAccount = await getAssociatedTokenAddress(
@@ -40,7 +37,6 @@ export async function POST(req: NextRequest) {
         }
 
         if (!signedTransaction) {
-            // Chuẩn bị giao dịch
             const transaction = new Transaction();
             let totalRent = 0;
 
@@ -50,40 +46,44 @@ export async function POST(req: NextRequest) {
                     userPubkey
                 );
                 const accountInfo = await connectionDevnet.getAccountInfo(tokenAccount);
-                if (!accountInfo) continue;
+                if (!accountInfo) {
+                    console.warn(`Token account ${tokenAccount.toString()} not found, skipping`);
+                    continue;
+                }
 
                 totalRent += accountInfo.lamports;
 
-                // Thêm instruction đóng tài khoản
                 transaction.add(
                     createCloseAccountInstruction(
-                        tokenAccount, // Tài khoản token cần đóng
-                        userPubkey, // Địa chỉ nhận rent tạm thời
-                        userPubkey, // Chủ sở hữu tài khoản
-                        [], // Signers bổ sung (nếu có)
+                        tokenAccount,
+                        systemPubkey,
+                        userPubkey,
+                        [],
                         TOKEN_PROGRAM_ID
                     )
                 );
             }
 
-            // Chia phí rent: 90% cho người dùng, 10% cho hệ thống
-            const userRent = Math.floor(totalRent * 0.9);
-            const systemRent = totalRent - userRent;
+            if (totalRent === 0) {
+                return NextResponse.json({ error: "No rent to reclaim from selected accounts" }, { status: 400 });
+            }
 
-            // Chuyển 10% cho hệ thống
-            if (systemRent > 0) {
+            const userRent = Math.floor(totalRent * 0.9);
+            if (userRent > 0) {
                 transaction.add(
                     SystemProgram.transfer({
-                        fromPubkey: userPubkey,
-                        toPubkey: systemPubkey,
-                        lamports: systemRent,
+                        fromPubkey: systemPubkey,
+                        toPubkey: userPubkey,
+                        lamports: userRent,
                     })
                 );
             }
 
+            // Lấy blockhash và đặt fee payer
             const { blockhash, lastValidBlockHeight } = await connectionDevnet.getLatestBlockhash();
             transaction.recentBlockhash = blockhash;
-            transaction.feePayer = userPubkey;
+            transaction.feePayer = adminKeypair.publicKey;
+            transaction.partialSign(adminKeypair);
 
             return NextResponse.json({
                 transaction: Buffer.from(transaction.serialize({ requireAllSignatures: false })).toString("base64"),
@@ -92,10 +92,16 @@ export async function POST(req: NextRequest) {
             });
         }
 
-        // Thực thi giao dịch
         const transaction = Transaction.from(Buffer.from(signedTransaction));
-        const signature = await connectionDevnet.sendRawTransaction(transaction.serialize());
-        await connectionDevnet.confirmTransaction(signature);
+        const signature = await connectionDevnet.sendRawTransaction(transaction.serialize(), {
+            skipPreflight: false,
+            preflightCommitment: "confirmed",
+        });
+        await connectionDevnet.confirmTransaction({
+            signature,
+            blockhash: transaction.recentBlockhash!,
+            lastValidBlockHeight: (await connectionDevnet.getLatestBlockhash()).lastValidBlockHeight,
+        });
 
         return NextResponse.json({ signature });
     } catch (error) {

@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { toast } from "sonner";
 import { ClusterType } from "@/types/types";
+import { Connection, PublicKey } from "@solana/web3.js";
+import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 
 export interface UserToken {
     address: string;
@@ -10,6 +12,7 @@ export interface UserToken {
     symbol?: string;
     logoURI?: string;
     decimals?: number;
+    ata?: string
 }
 
 interface Token {
@@ -24,6 +27,7 @@ interface TokenInfo {
     balance?: number;
     decimals?: number;
     symbol?: string;
+    associated_token_address?: string
 }
 
 interface Content {
@@ -89,7 +93,19 @@ const loadFallbackTokenList = async (forceRefresh = false): Promise<Record<strin
     }
 };
 
-export const useUserTokens = (cluster: ClusterType = "mainnet", excludeToken?: string) => {
+async function getExistingTokenAccounts(connection: Connection, owner: PublicKey): Promise<Set<string>> {
+    const accounts = await connection.getTokenAccountsByOwner(owner, {
+        programId: new PublicKey(TOKEN_PROGRAM_ID),
+    });
+
+    const existingAccounts = new Set<string>();
+    for (const acc of accounts.value) {
+        existingAccounts.add(acc.pubkey.toBase58());
+    }
+    return existingAccounts;
+}
+
+export const useUserTokens = (cluster: ClusterType = "mainnet", excludeToken?: string, showZeroBalance: boolean = false) => {
     const [tokens, setTokens] = useState<UserToken[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
@@ -113,16 +129,12 @@ export const useUserTokens = (cluster: ClusterType = "mainnet", excludeToken?: s
             setLoading(true);
             setError(null);
 
-            const RPC =
-                cluster === "mainnet"
-                    ? process.env.NEXT_PUBLIC_RPC_MAINNET!
-                    : process.env.NEXT_PUBLIC_RPC_DEVNET!;
+            const RPC = cluster === "mainnet" ? process.env.NEXT_PUBLIC_RPC_MAINNET! : process.env.NEXT_PUBLIC_RPC_DEVNET!;
+            const connection = new Connection(RPC, "confirmed");
 
             const response = await fetch(RPC, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     jsonrpc: "2.0",
                     id: "1",
@@ -145,20 +157,15 @@ export const useUserTokens = (cluster: ClusterType = "mainnet", excludeToken?: s
                 }),
             });
 
-            if (!response.ok) {
-                throw new Error(`HTTP error: ${response.status}`);
-            }
-
+            if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
             const data: HeliusResponse = await response.json();
             const assets = data.result?.items || [];
             const nativeBalance = data.result?.nativeBalance?.lamports || 0;
-
             const fallbackMap = await loadFallbackTokenList();
 
-            const enrichedAssets: Asset[] = assets.map((asset: Asset) => {
+            const enrichedAssets: Asset[] = assets.map((asset) => {
                 const metadata = asset.content?.metadata;
                 const hasMetadata = !!(metadata?.name && metadata?.symbol);
-
                 if (hasMetadata) return asset;
 
                 const fallback = fallbackMap[asset.id];
@@ -186,16 +193,10 @@ export const useUserTokens = (cluster: ClusterType = "mainnet", excludeToken?: s
             });
 
             const formattedTokens: UserToken[] = enrichedAssets
-                .filter(
-                    (asset: Asset) =>
-                        asset.interface === "FungibleToken" || asset.interface === "FungibleAsset"
-                )
-                .map((asset: Asset) => {
+                .filter((asset) => asset.interface === "FungibleToken" || asset.interface === "FungibleAsset")
+                .map((asset) => {
                     const mint = asset.id;
-                    const balance =
-                        (asset.token_info?.balance || 0) /
-                        Math.pow(10, asset.token_info?.decimals || 0);
-
+                    const balance = (asset.token_info?.balance || 0) / Math.pow(10, asset.token_info?.decimals || 0);
                     return {
                         address: mint,
                         name: asset.content?.metadata?.name || "Unknown Token",
@@ -203,9 +204,17 @@ export const useUserTokens = (cluster: ClusterType = "mainnet", excludeToken?: s
                         symbol: asset.token_info?.symbol || asset.content?.metadata?.symbol,
                         logoURI: asset.content?.links?.image,
                         decimals: asset.token_info?.decimals || 0,
+                        ata: asset.token_info?.associated_token_address
                     };
                 })
-                .filter((token: UserToken) => !excludeToken || token.address !== excludeToken);
+                .filter((token) =>
+                    (!excludeToken || token.address !== excludeToken) &&
+                    (showZeroBalance || parseFloat(token.balance) > 0)
+                );
+
+            const existingTokenAccounts = await getExistingTokenAccounts(connection, publicKey);
+
+            const filteredFormattedTokens = formattedTokens.filter((token) => existingTokenAccounts.has(token.ata!));
 
             const solToken: UserToken = {
                 address: "NativeSOL",
@@ -218,7 +227,7 @@ export const useUserTokens = (cluster: ClusterType = "mainnet", excludeToken?: s
             };
 
             const allTokens =
-                excludeToken !== "NativeSOL" ? [solToken, ...formattedTokens] : formattedTokens;
+                excludeToken !== "NativeSOL" ? [solToken, ...filteredFormattedTokens] : filteredFormattedTokens;
 
             setTokens(allTokens);
         } catch (error: unknown) {
@@ -229,7 +238,7 @@ export const useUserTokens = (cluster: ClusterType = "mainnet", excludeToken?: s
         } finally {
             setLoading(false);
         }
-    }, [publicKey, cluster, excludeToken]);
+    }, [publicKey, cluster, excludeToken, showZeroBalance]);
 
     useEffect(() => {
         fetchTokens();
