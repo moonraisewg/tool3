@@ -13,7 +13,6 @@ import {
 } from "@/service/solana/connection";
 import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 
-const ADMIN_PUBLIC_KEY = process.env.ADMIN_PUBLIC_KEY || "";
 
 export async function POST(request: Request) {
   try {
@@ -27,7 +26,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const adminPublicKey = new PublicKey(ADMIN_PUBLIC_KEY);
+    const adminPublicKey = adminKeypair.publicKey;
     const userPublicKey = new PublicKey(walletPublicKey);
 
     const rawTx =

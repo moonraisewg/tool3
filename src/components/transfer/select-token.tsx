@@ -1,40 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import TokenSearchModal from "./select-token-modal";
-import { useWallet } from "@solana/wallet-adapter-react";
 import { toast } from "sonner";
 import Image from "next/image";
 import { ChevronDown, Loader, Wallet } from "@nsmr/pixelart-react";
-
-export interface UserToken {
-  address: string;
-  name: string;
-  balance: string;
-  symbol?: string;
-  logoURI?: string;
-  decimals?: number;
-}
-
-interface TokenInfo {
-  balance: number;
-  decimals: number;
-  symbol?: string;
-}
-
-interface Content {
-  metadata: { name?: string; symbol?: string };
-  links?: { image?: string };
-}
-
-interface Asset {
-  interface: "FungibleToken" | "FungibleAsset";
-  id: string;
-  content: Content;
-  token_info: TokenInfo;
-}
+import { useUserTokens, UserToken } from "@/hooks/useUserTokens";
 
 interface SelectTokenProps {
   selectedToken: UserToken | null;
@@ -42,10 +15,10 @@ interface SelectTokenProps {
   onAmountChange: (amount: string) => void;
   title?: string;
   disabled?: boolean;
-  externalAmount?: string;
+  amount: string;
   amountLoading?: boolean;
   excludeToken?: string;
-  cluster?: string
+  cluster?: string;
 }
 
 const SelectToken: React.FC<SelectTokenProps> = ({
@@ -54,115 +27,37 @@ const SelectToken: React.FC<SelectTokenProps> = ({
   onAmountChange,
   title,
   disabled,
-  externalAmount,
+  amount,
   amountLoading = false,
   excludeToken,
-  cluster = "mainnet"
+  cluster = "mainnet",
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [tokens, setTokens] = useState<UserToken[]>([]);
-  const [amount, setAmount] = useState<string>("");
-  const [loading, setLoading] = useState<boolean>(false);
-  const { publicKey } = useWallet();
+  const { tokens, loading } = useUserTokens(cluster, excludeToken);
 
   useEffect(() => {
-    if (externalAmount !== undefined) {
-      setAmount(externalAmount);
+    if (tokens.length > 0 && !selectedToken) {
+      setSelectedToken(tokens[0]);
     }
-  }, [externalAmount]);
+  }, [tokens, selectedToken, setSelectedToken]);
 
   const handleTokenSelect = (token: UserToken) => {
     setSelectedToken(token);
     setIsModalOpen(false);
-    setAmount("")
     onAmountChange("");
   };
-
-  const fetchAllTokens = useCallback(async () => {
-    if (!publicKey) {
-      setTokens([]);
-      setSelectedToken(null);
-      setAmount("");
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const response = await fetch("/api/user-tokens", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ publicKey: publicKey.toString(), cluster }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const assets = data.result?.items || [];
-      const nativeBalance = data.result?.nativeBalance?.lamports || 0;
-
-      const formattedTokens: UserToken[] = assets
-        .filter((asset: Asset) => asset.interface === "FungibleToken" || asset.interface === "FungibleAsset")
-        .filter((asset: Asset) => parseFloat(((asset.token_info?.balance ||0)/Math.pow(10,asset.token_info?.decimals||0)).toString())>0)
-        .map((asset: Asset) => {
-          const mint = asset.id;
-          const balance = (asset.token_info?.balance || 0) / Math.pow(10, asset.token_info?.decimals || 0);
-          return {
-            address: mint,
-            name: asset.content?.metadata?.name || "Unknown Token",
-            balance: balance.toString(),
-            symbol: asset.token_info?.symbol || asset.content?.metadata?.symbol,
-            logoURI: asset.content?.links?.image,
-            decimals: asset.token_info?.decimals || 0,
-          };
-        })
-        .filter((token: UserToken) => !excludeToken || token.address !== excludeToken);
-
-      const solToken: UserToken = {
-        address: "NativeSOL",
-        name: "Solana",
-        symbol: "SOL",
-        balance: (nativeBalance / 1_000_000_000).toString(),
-        logoURI:
-          "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png",
-        decimals: 9,
-      };
-
-      const allTokens = excludeToken !== "NativeSOL" ? [solToken, ...formattedTokens] : formattedTokens;
-      setTokens(allTokens);
-
-      if (allTokens.length > 0 && !selectedToken) {
-        setSelectedToken(allTokens[0]);
-      }
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        console.error("Error fetching tokens:", error);
-        toast.error(error.message);
-      } else {
-        console.error("Unknown error fetching tokens:", error);
-        toast.error("Failed to fetch tokens. Please try again.");
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [publicKey, setSelectedToken, selectedToken, excludeToken, cluster]);
 
   const setHalf = () => {
     if (selectedToken) {
       const halfBalance = (
         parseFloat(selectedToken.balance) / 2
       ).toFixed(selectedToken.decimals || 2);
-      setAmount(halfBalance);
       onAmountChange(halfBalance);
     }
   };
 
   const setMax = () => {
     if (selectedToken) {
-      setAmount(selectedToken.balance);
       onAmountChange(selectedToken.balance);
     }
   };
@@ -171,7 +66,6 @@ const SelectToken: React.FC<SelectTokenProps> = ({
     if (disabled) return;
 
     if (value === "") {
-      setAmount("");
       onAmountChange("");
       return;
     }
@@ -186,13 +80,8 @@ const SelectToken: React.FC<SelectTokenProps> = ({
       );
       return;
     }
-    setAmount(value);
     onAmountChange(value);
   };
-
-  useEffect(() => {
-    fetchAllTokens();
-  }, [publicKey, fetchAllTokens]);
 
   return (
     <div className="bg-white border-gear-gray p-3 flex flex-col min-h-[120px] justify-between pt-[18px]">
@@ -235,7 +124,9 @@ const SelectToken: React.FC<SelectTokenProps> = ({
         <button
           type="button"
           onClick={() => setIsModalOpen(true)}
-          className={`flex items-center gap-2 text-gray-700 hover:text-purple-900 border-gear-gray px-2 py-1 ml-2 ${!selectedToken || loading ? "cursor-not-allowed" : "cursor-pointer"
+          className={`flex items-center gap-2 text-gray-700 hover:text-purple-900 border-gear-gray px-2 py-1 ml-2 ${!selectedToken || loading
+            ? "cursor-not-allowed"
+            : "cursor-pointer"
             }`}
           disabled={!selectedToken || loading}
         >
@@ -249,7 +140,9 @@ const SelectToken: React.FC<SelectTokenProps> = ({
                 className="rounded-full object-cover"
               />
               <div className="mt-[2px]">
-                {title === "You Pay" ? `${selectedToken.symbol} Mainnet` : selectedToken.symbol}
+                {title === "You Pay"
+                  ? `${selectedToken.symbol} Mainnet`
+                  : selectedToken.symbol}
               </div>
             </div>
           ) : (

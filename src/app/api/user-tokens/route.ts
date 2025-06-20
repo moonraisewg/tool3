@@ -110,9 +110,9 @@ export async function POST(req: NextRequest) {
 
     let RPC
     if (cluster === "mainnet") {
-      RPC = process.env.RPC_MAINNET!;
+      RPC = process.env.NEXT_PUBLIC_RPC_MAINNET!;
     } else {
-      RPC = process.env.RPC_DEVNET!;
+      RPC = process.env.NEXT_PUBLIC_RPC_DEVNET!;
     }
 
     const response = await fetch(

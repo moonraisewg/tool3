@@ -22,9 +22,9 @@ import {
   connectionDevnet,
   connectionMainnet,
 } from "@/service/solana/connection";
-const ADMIN_PUBLIC_KEY = process.env.ADMIN_PUBLIC_KEY!;
 
-const PAYMENT_WALLET = new PublicKey(ADMIN_PUBLIC_KEY);
+
+const PAYMENT_WALLET = adminKeypair.publicKey;
 const PAYMENT_AMOUNT_LAMPORTS = 0.001 * LAMPORTS_PER_SOL;
 
 const SOL_MINT = "So11111111111111111111111111111111111111112";

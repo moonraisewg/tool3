@@ -7,8 +7,8 @@ import {
 } from "@solana/spl-token";
 import { NextResponse } from "next/server";
 import { connectionMainnet } from "@/service/solana/connection";
+import { adminKeypair } from "@/config";
 
-const ADMIN_PUBLIC_KEY = process.env.ADMIN_PUBLIC_KEY || "";
 
 function isValidPublicKey(key: string): boolean {
     try {
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
             );
         }
 
-        if (!isValidPublicKey(walletPublicKey) || !isValidPublicKey(tokenMint) || !isValidPublicKey(ADMIN_PUBLIC_KEY)) {
+        if (!isValidPublicKey(walletPublicKey) || !isValidPublicKey(tokenMint)) {
             return NextResponse.json(
                 { error: "Invalid public key(s)" },
                 { status: 400 }
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
         }
 
         const userPublicKey = new PublicKey(walletPublicKey);
-        const adminPublicKey = new PublicKey(ADMIN_PUBLIC_KEY);
+        const adminPublicKey = adminKeypair.publicKey;
         let mintPublicKey: PublicKey;
         const isNativeSOL = tokenMint === "NativeSOL";
 

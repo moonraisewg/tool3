@@ -6,8 +6,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
-import { UserToken } from "./select-token";
+
 import Image from "next/image";
+import { UserToken } from "@/hooks/useUserTokens";
 
 interface TokenSearchModalProps {
     open: boolean;
@@ -73,7 +74,7 @@ export default function TokenSearchModal({ open, onOpenChange, onTokenSelect, to
                                         <Image
                                             src={token.logoURI}
                                             alt={token.name}
-                                            className="rounded-full"
+                                            className="!w-10 !h-10 rounded-full object-cover"
                                             width={40}
                                             height={40}
 

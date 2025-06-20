@@ -9,11 +9,11 @@ import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 import { toast } from "sonner";
 import { Check, ExternalLink, Flame, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { UserToken } from "@/components/transfer/select-token";
 import { burnToken, TokenBurnResult } from "@/service/token/token-extensions/tool/burn-token-extension";
 import { Separator } from "@/components/ui/separator";
 import { SelectTokenModal } from "./select-token-modal";
 import React from "react";
+import { UserToken } from "@/hooks/useUserTokens";
 
 const Alert = ({ className, children }: { className?: string, children: React.ReactNode }) => (
   <div className={`p-4 rounded-md ${className}`}>{children}</div>
@@ -31,7 +31,7 @@ export interface BurnFormProps {
   [key: string]: never;
 }
 
-export function BurnForm({}: BurnFormProps) {
+export function BurnForm({ }: BurnFormProps) {
   const wallet = useWallet();
   const { publicKey, connected } = wallet;
   const { connection } = useConnection();
@@ -44,12 +44,12 @@ export function BurnForm({}: BurnFormProps) {
   const [burnSuccess, setBurnSuccess] = useState(false);
   const [burnResult, setBurnResult] = useState<TokenBurnResult | null>(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  
+
   const handleTokenSelect = (token: UserToken) => {
     setSelectedToken(token);
     setIsModalOpen(false);
   };
-  
+
   interface TokenAsset {
     interface: string;
     id: string;
@@ -68,20 +68,20 @@ export function BurnForm({}: BurnFormProps) {
       };
     };
   }
-  
+
   const fetchUserTokens = async () => {
     if (!publicKey) return;
-    
+
     try {
       setIsLoading(true);
       const urlCluster = window.location.href.includes('cluster=devnet') ? 'devnet' : 'mainnet';
-      
+
       const response = await fetch("/api/user-tokens", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           publicKey: publicKey.toString(),
           cluster: urlCluster
         }),
@@ -93,11 +93,11 @@ export function BurnForm({}: BurnFormProps) {
 
       const data = await response.json();
       const assets = data.result?.items || [];
-      
+
       const formattedTokens: UserToken[] = assets
-        .filter((asset: TokenAsset) => 
-          (asset.interface === "FungibleToken" || asset.interface === "FungibleAsset") && 
-          asset.id !== "NativeSOL" && 
+        .filter((asset: TokenAsset) =>
+          (asset.interface === "FungibleToken" || asset.interface === "FungibleAsset") &&
+          asset.id !== "NativeSOL" &&
           parseFloat(((asset.token_info?.balance || 0) / Math.pow(10, asset.token_info?.decimals || 0)).toString()) > 0
         )
         .map((asset: TokenAsset) => {
@@ -112,7 +112,7 @@ export function BurnForm({}: BurnFormProps) {
             decimals: asset.token_info?.decimals || 0,
           };
         });
-      
+
       setTokens(formattedTokens);
     } catch (error) {
       console.error("Error fetching tokens:", error);
@@ -121,46 +121,46 @@ export function BurnForm({}: BurnFormProps) {
       setIsLoading(false);
     }
   };
-  
+
   const openConfirmDialog = () => {
     if (!connected) {
       toast.error("Please connect your wallet first");
       return;
     }
-    
+
     if (!selectedToken) {
       toast.error("Please select a token");
       return;
     }
-    
+
     if (!amount || parseFloat(amount) <= 0) {
       toast.error("Please enter a valid amount");
       return;
     }
-    
+
     const tokenBalance = parseFloat(selectedToken.balance);
     if (parseFloat(amount) > tokenBalance) {
       toast.error(`Insufficient balance. You only have ${tokenBalance} ${selectedToken.symbol}`);
       return;
     }
-    
+
     setShowConfirmDialog(true);
   };
-  
+
   const handleBurn = async () => {
     if (!connected || !selectedToken || !amount) {
       toast.error("Please fill in all required information");
       return;
     }
-    
+
     setShowConfirmDialog(false);
     setBurnInProgress(true);
-    
+
     let toastId: string | number | undefined;
-    
+
     try {
       toastId = toast.loading("Processing burn transaction...");
-      
+
       const result = await burnToken(
         connection,
         wallet,
@@ -170,7 +170,7 @@ export function BurnForm({}: BurnFormProps) {
           decimals: selectedToken.decimals || 0
         },
         {
-          onStart: () => {},
+          onStart: () => { },
           onSuccess: () => {
             toast.dismiss(toastId);
             toast.success("Token burned successfully!");
@@ -182,13 +182,13 @@ export function BurnForm({}: BurnFormProps) {
           onFinish: () => setBurnInProgress(false)
         }
       );
-      
+
       if (result) {
         console.log("Transaction signature:", result.signature);
         toast.dismiss(toastId);
         setBurnResult(result);
         setBurnSuccess(true);
-        
+
         setTimeout(() => {
           fetchUserTokens();
         }, 2000);
@@ -196,33 +196,33 @@ export function BurnForm({}: BurnFormProps) {
     } catch (error: unknown) {
       console.error("Error in burn:", error);
       if (toastId) toast.dismiss(toastId);
-      
+
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       toast.error(`Error: ${errorMessage}`);
       setBurnInProgress(false);
     }
   };
-  
+
   const handleMaxAmount = () => {
     if (selectedToken) {
       setAmount(selectedToken.balance);
     }
   };
-  
+
   const handleCloseBurnDialog = () => {
     setBurnSuccess(false);
     setBurnResult(null);
     setAmount("");
   };
-  
+
   const memoizedFetchUserTokens = React.useCallback(fetchUserTokens, [publicKey]);
-  
+
   useEffect(() => {
     if (publicKey) {
       memoizedFetchUserTokens();
     }
   }, [publicKey, memoizedFetchUserTokens]);
-  
+
   if (burnSuccess && burnResult) {
     return (
       <Card className="max-w-2xl mx-auto">
@@ -240,12 +240,12 @@ export function BurnForm({}: BurnFormProps) {
               <p className="text-sm font-medium text-gray-500">Token</p>
               <p className="text-base font-mono break-all">{burnResult.mintAddress}</p>
             </div>
-            
+
             <div className="p-4 bg-gray-50 rounded-lg">
               <p className="text-sm font-medium text-gray-500">Amount Burned</p>
               <p className="text-base font-mono">{burnResult.amount} {selectedToken?.symbol || ""}</p>
             </div>
-            
+
             <div className="p-4 bg-gray-50 rounded-lg">
               <p className="text-sm font-medium text-gray-500">Transaction</p>
               <p className="text-base font-mono break-all">{burnResult.signature}</p>
@@ -253,17 +253,17 @@ export function BurnForm({}: BurnFormProps) {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button 
+            <Button
               variant="outline"
               onClick={handleCloseBurnDialog}
             >
               Burn More Tokens
             </Button>
-            
-            <Button 
+
+            <Button
               onClick={() => {
                 window.open(
-                  `https://explorer.solana.com/tx/${burnResult.signature}?cluster=devnet`, 
+                  `https://explorer.solana.com/tx/${burnResult.signature}?cluster=devnet`,
                   "_blank"
                 );
               }}
@@ -275,7 +275,7 @@ export function BurnForm({}: BurnFormProps) {
       </Card>
     );
   }
-  
+
   return (
     <Card className="max-w-2xl mx-auto">
       <CardHeader>
@@ -289,8 +289,8 @@ export function BurnForm({}: BurnFormProps) {
             Burning tokens permanently removes them from circulation. This action cannot be undone.
           </AlertDescription>
         </Alert>
-        
-        <form onSubmit={(e) => { e.preventDefault(); openConfirmDialog(); }} className="space-y-6"> 
+
+        <form onSubmit={(e) => { e.preventDefault(); openConfirmDialog(); }} className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="token">Select Token</Label>
             <Button
@@ -317,13 +317,13 @@ export function BurnForm({}: BurnFormProps) {
               </div>
             )}
           </div>
-          
+
           <div className="space-y-2">
             <div className="flex justify-between">
               <Label htmlFor="amount">Amount to Burn</Label>
-              <Button 
-                type="button" 
-                variant="ghost" 
+              <Button
+                type="button"
+                variant="ghost"
                 size="sm"
                 className="h-6 text-xs"
                 onClick={handleMaxAmount}
@@ -340,21 +340,21 @@ export function BurnForm({}: BurnFormProps) {
               disabled={!selectedToken}
             />
           </div>
-          
+
           {selectedToken && amount && (
             <div className="bg-gray-50 p-4 rounded-md">
               <p className="text-sm text-gray-500 mb-1">Balance After Burning</p>
               <p className="font-medium">
-                {amount 
+                {amount
                   ? (parseFloat(selectedToken.balance) - parseFloat(amount || "0")).toLocaleString()
                   : parseFloat(selectedToken.balance).toLocaleString()
                 } {selectedToken.symbol}
               </p>
             </div>
           )}
-          
-          <Button 
-            type="submit" 
+
+          <Button
+            type="submit"
             className="w-full bg-red-600 hover:bg-red-700 text-white"
             disabled={isLoading || !connected || !selectedToken || burnInProgress || !amount}
           >
@@ -372,7 +372,7 @@ export function BurnForm({}: BurnFormProps) {
           </Button>
         </form>
       </CardContent>
-      
+
       <SelectTokenModal
         open={isModalOpen}
         onOpenChange={setIsModalOpen}
@@ -380,7 +380,7 @@ export function BurnForm({}: BurnFormProps) {
         onSelect={handleTokenSelect}
         isLoading={isLoading}
       />
-      
+
       <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
         <DialogContent className="bg-white border-gray-200 text-gray-900 sm:max-w-[425px]">
           <DialogHeader>
@@ -389,7 +389,7 @@ export function BurnForm({}: BurnFormProps) {
               You are about to permanently burn tokens. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
-          
+
           {selectedToken && (
             <div className="space-y-3 py-2">
               <div className="flex justify-between">
@@ -407,15 +407,15 @@ export function BurnForm({}: BurnFormProps) {
               </div>
             </div>
           )}
-          
+
           <DialogFooter className="gap-2">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setShowConfirmDialog(false)}
             >
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={handleBurn}
               className="bg-red-600 hover:bg-red-700"
             >

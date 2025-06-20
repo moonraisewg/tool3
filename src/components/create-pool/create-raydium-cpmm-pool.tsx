@@ -12,7 +12,8 @@ import { useIsMobile } from "@/hooks/use-mobile"
 import { Loader2, Info, ArrowLeft } from "lucide-react"
 import { Transaction } from "@solana/web3.js"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip"
-import SelectToken, { type UserToken } from "../transfer/select-token"
+import SelectToken from "../transfer/select-token"
+import { UserToken } from "@/hooks/useUserTokens"
 
 const formSchema = z.object({
     amountToken1: z.string().refine((val) => !isNaN(Number.parseFloat(val)) && Number.parseFloat(val) > 0, {
@@ -270,12 +271,14 @@ export default function CreateRaydiumCpmmPool() {
                             setSelectedToken={setSelectedToken1}
                             onAmountChange={(v) => form.setValue("amountToken1", v)}
                             cluster="devnet"
+                            amount={form.watch("amountToken1")}
                         />
                         <SelectToken
                             selectedToken={selectedToken2}
                             setSelectedToken={setSelectedToken2}
                             onAmountChange={(v) => form.setValue("amountToken2", v)}
                             cluster="devnet"
+                            amount={form.watch("amountToken2")}
                         />
                         <div className="flex items-center gap-2">
                             <div>Initial price</div>

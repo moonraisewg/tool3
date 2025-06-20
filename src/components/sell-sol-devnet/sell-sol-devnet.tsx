@@ -8,12 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { toast } from "sonner";
 import { useWallet } from "@solana/wallet-adapter-react";
-import SelectToken, { UserToken } from "../transfer/select-token";
+import SelectToken from "../transfer/select-token";
 import ReceiveSolDevnet from "./receive-sol-devnet";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { debounce } from "lodash";
 import { ArrowsVertical } from "@nsmr/pixelart-react";
 import { Transaction } from "@solana/web3.js";
+import { UserToken } from "@/hooks/useUserTokens";
 
 
 const formSchema = z.object({
@@ -216,7 +217,7 @@ export default function SellSolDevnet() {
                                 title="You Pay"
                                 selectedToken={selectedToken}
                                 setSelectedToken={setSelectedToken}
-                                externalAmount={form.watch("amount")}
+                                amount={form.watch("amount")}
                                 onAmountChange={(value) => {
                                     form.setValue("amount", value);
                                     debouncedFetchPrice(value);
@@ -245,7 +246,7 @@ export default function SellSolDevnet() {
                                     form.setValue("amount", value);
                                 }}
                                 disabled={true}
-                                externalAmount={form.watch("amount")}
+                                amount={form.watch("amount")}
                                 amountLoading={priceLoading}
                             />
                         ) : (

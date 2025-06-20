@@ -31,7 +31,7 @@ export async function POST(request: Request) {
       return NextResponse.json(cached.metadata);
     }
 
-    const RPC_DEVNET = process.env.RPC_DEVNET!;;
+    const RPC_DEVNET = process.env.NEXT_PUBLIC_RPC_DEVNET!;;
 
     const response = await fetch(RPC_DEVNET, {
       method: "POST",
