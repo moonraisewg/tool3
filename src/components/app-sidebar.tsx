@@ -188,12 +188,10 @@ export function AppSidebar() {
     <Sidebar className="border-r border-gray-800">
       <SidebarHeader className="border-b border-gray-800 h-[60px]">
         <div className="flex items-center gap-2 px-4 py-2">
-          <Link href={"/?cluster=devnet"} className="text-2xl cursor-pointer">
+          <Link href={network === WalletAdapterNetwork.Devnet ? route.devnet[0].url! : route.mainnet[0].url!} className="text-2xl cursor-pointer">
             TOOL3
           </Link>
-          <Link href={"/?cluster=devnet"} className="text-2xl cursor-pointer">
-            TOOL3
-          </Link>
+
         </div>
       </SidebarHeader>
       <SidebarContent>
@@ -260,7 +258,7 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarRail />
-    </Sidebar>
+    </Sidebar >
   );
 }
 

@@ -17,9 +17,10 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { Transaction } from "@solana/web3.js";
-import SelectToken, { UserToken } from "./select-token";
+import SelectToken from "./select-token";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useWatch } from "react-hook-form";
+import { UserToken } from "@/hooks/useUserTokens";
 
 const formSchema = z.object({
   recipient: z
@@ -230,7 +231,7 @@ export default function TransferForm() {
               onAmountChange={(value) => {
                 form.setValue("amount", value);
               }}
-              externalAmount={form.watch("amount")}
+              amount={form.watch("amount")}
             />
           </div>
 

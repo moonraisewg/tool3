@@ -101,7 +101,7 @@ const TokenExtensionUpdateForm = () => {
                 <p className="text-sm font-medium text-gray-500">Token Account</p>
                 <p className="text-base font-mono break-all">{explorerLinks.tokenAccount?.replace('https://explorer.solana.com/address/', '').replace('?cluster=devnet', '')}</p>
               </div>
-              
+
               <div className="p-4 bg-gray-50 rounded-lg">
                 <p className="text-sm font-medium text-gray-500">Transaction</p>
                 <p className="text-base font-mono break-all">{explorerLinks.transaction?.replace('https://explorer.solana.com/tx/', '').replace('?cluster=devnet', '')}</p>
@@ -109,14 +109,14 @@ const TokenExtensionUpdateForm = () => {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button 
+              <Button
                 variant="outline"
                 onClick={() => window.location.href = '/'}
               >
                 Return to Home
               </Button>
-              
-              <Button 
+
+              <Button
                 onClick={() => {
                   window.open(explorerLinks.tokenAccount || undefined, "_blank");
                 }}
@@ -131,7 +131,8 @@ const TokenExtensionUpdateForm = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8 max-h-[calc(100vh-162px)] overflow-y-auto">
+      <h1 className="text-2xl font-bold px-4 pb-6">Update Token Extensions</h1>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2">
           <Card className="mb-6">
@@ -147,15 +148,15 @@ const TokenExtensionUpdateForm = () => {
                         <FormLabel>Token Mint Address</FormLabel>
                         <div className="flex gap-2">
                           <FormControl>
-                            <Input 
-                              placeholder="Enter token mint address" 
-                              {...field} 
+                            <Input
+                              placeholder="Enter token mint address"
+                              {...field}
                               disabled={addressValidated || isLoading}
                             />
                           </FormControl>
-                          <Button 
-                            type="submit" 
-                            size="icon" 
+                          <Button
+                            type="submit"
+                            size="icon"
                             disabled={addressValidated || isLoading}
                           >
                             {isLoading ? <Spinner size="sm" /> : <Search className="h-4 w-4" />}
@@ -208,8 +209,8 @@ const TokenExtensionUpdateForm = () => {
                         <div key={extId} className="border rounded-lg p-4">
                           <div className="flex justify-between items-center mb-3">
                             <h3 className="font-medium">{extension.name}</h3>
-                            <Button 
-                              variant="ghost" 
+                            <Button
+                              variant="ghost"
                               size="sm"
                               onClick={() => toggleExtension(extId, updatableTokenExtensions)}
                             >
@@ -221,7 +222,7 @@ const TokenExtensionUpdateForm = () => {
                             {extension.options.map(option => {
                               const optionValue = extensionOptions[extId]?.[option.id];
                               const error = validationErrors[extId]?.[option.id];
-                              
+
                               if (option.type === 'text') {
                                 const textOption = option as TextOptionType;
                                 return (
@@ -232,7 +233,7 @@ const TokenExtensionUpdateForm = () => {
                                       </label>
                                       {error && <span className="text-xs text-red-500">{error}</span>}
                                     </div>
-                                    <Input 
+                                    <Input
                                       type="text"
                                       placeholder={textOption.placeholder}
                                       value={optionValue || ''}
@@ -242,7 +243,7 @@ const TokenExtensionUpdateForm = () => {
                                   </div>
                                 );
                               }
-                              
+
                               if (option.type === 'slider') {
                                 const sliderOption = option as SliderOptionType;
                                 return (
@@ -253,7 +254,7 @@ const TokenExtensionUpdateForm = () => {
                                       </label>
                                       {error && <span className="text-xs text-red-500">{error}</span>}
                                     </div>
-                                    <input 
+                                    <input
                                       type="range"
                                       min={sliderOption.min}
                                       max={sliderOption.max}
@@ -265,7 +266,7 @@ const TokenExtensionUpdateForm = () => {
                                   </div>
                                 );
                               }
-                              
+
                               return null;
                             })}
                           </div>
@@ -273,8 +274,8 @@ const TokenExtensionUpdateForm = () => {
                       );
                     })}
 
-                    <Button 
-                      onClick={onUpdateExtensions} 
+                    <Button
+                      onClick={onUpdateExtensions}
                       className="w-full mt-4"
                       disabled={isUpdating}
                     >
@@ -301,7 +302,7 @@ const TokenExtensionUpdateForm = () => {
         {/* Extensions Panel */}
         {addressValidated && (
           <div className="space-y-4">
-            <div className="sticky top-4">
+            <div className="">
               <Card className="mb-4">
                 <CardContent className="pt-6">
                   <h3 className="text-lg font-medium mb-4">Available Extensions</h3>
@@ -311,21 +312,21 @@ const TokenExtensionUpdateForm = () => {
                       const isExpanded = openExtensions[extension.id] || false;
                       const hasError = isSelected && validationErrors[extension.id] && Object.keys(validationErrors[extension.id]).length > 0;
                       const hasOptions = extension.options && extension.options.length > 0;
-                      
+
                       return (
-                        <div 
-                          key={extension.id} 
+                        <div
+                          key={extension.id}
                           className={cn(
                             "border rounded-lg overflow-hidden transition-all duration-200",
-                            isSelected 
-                              ? hasError 
-                                ? "border-red-500 bg-red-50/5" 
+                            isSelected
+                              ? hasError
+                                ? "border-red-500 bg-red-50/5"
                                 : `border-${extension.color} bg-${extension.bgColor}/20`
                               : "border-gray-200 bg-white hover:bg-gray-50",
                             extension.disabled && "opacity-50 cursor-not-allowed"
                           )}
                         >
-                          <div 
+                          <div
                             className={cn(
                               "p-3 cursor-pointer",
                               isSelected && isExpanded && "border-b border-gray-200"
@@ -353,7 +354,7 @@ const TokenExtensionUpdateForm = () => {
                               </div>
                               <div className="flex items-center space-x-2">
                                 {isSelected && hasOptions && (
-                                  <ChevronRight 
+                                  <ChevronRight
                                     className={cn(
                                       "w-4 h-4 text-gray-500 transition-transform",
                                       isExpanded && "transform rotate-90"

@@ -179,10 +179,10 @@ export const TokenCreationForm = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8 md:max-h-none md:overflow-visible max-h-[calc(100vh-162px)] overflow-y-auto">
       <h1 className="text-2xl font-bold mb-4">Create Token</h1>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2">
+        <div className="md:col-span-2 md:max-h-[calc(100vh-162px)] overflow-y-auto pb-4">
           <Card>
             <CardContent className="pt-6">
               <Form {...form}>
@@ -365,7 +365,7 @@ export const TokenCreationForm = () => {
             <Card className="mb-4">
               <CardContent className="pt-6">
                 <h3 className="text-lg font-medium mb-4">Token Extensions</h3>
-                <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-2">
+                <div className="space-y-3 max-h-[min(624px,_calc(100vh-280px))] overflow-y-auto pr-2">
                   {tokenExtensions.map((extension) => {
                     const isSelected = selectedExtensions.includes(extension.id);
                     const isExpanded = openExtensions[extension.id] || false;

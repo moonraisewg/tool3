@@ -12,7 +12,8 @@ import { useIsMobile } from "@/hooks/use-mobile"
 import { Loader2, Info, ArrowLeft } from "lucide-react"
 import { Transaction } from "@solana/web3.js"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip"
-import SelectToken, { type UserToken } from "../transfer/select-token"
+import SelectToken from "../transfer/select-token"
+import { UserToken } from "@/hooks/useUserTokens"
 
 const SOL_MINT = "So11111111111111111111111111111111111111112"
 
@@ -132,7 +133,6 @@ export default function CreateMeteoraDammPool() {
             if (!signTransaction) throw new Error("Wallet does not support signing")
             if (!selectedToken1 || !selectedToken2) throw new Error("Please select both tokens")
             if (!selectedToken1.decimals || !selectedToken2.decimals) throw new Error("Invalid token decimals")
-            console.log(selectedToken1);
 
             const mintAAddress = selectedToken1.address === "NativeSOL" ? SOL_MINT : selectedToken1.address
             const mintBAddress = selectedToken2.address === "NativeSOL" ? SOL_MINT : selectedToken2.address
@@ -257,14 +257,14 @@ export default function CreateMeteoraDammPool() {
                             setSelectedToken={setSelectedToken1}
                             onAmountChange={(v) => form.setValue("amountToken1", v)}
                             cluster="devnet"
-                            externalAmount={form.watch("amountToken1")}
+                            amount={form.watch("amountToken1")}
                         />
                         <SelectToken
                             selectedToken={selectedToken2}
                             setSelectedToken={setSelectedToken2}
                             onAmountChange={(v) => form.setValue("amountToken2", v)}
                             cluster="devnet"
-                            externalAmount={form.watch("amountToken2")}
+                            amount={form.watch("amountToken2")}
                         />
                         <div className="flex items-center gap-2">
                             <div>Initial price</div>

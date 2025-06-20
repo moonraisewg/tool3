@@ -8,11 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { toast } from "sonner";
 import { useWallet } from "@solana/wallet-adapter-react";
-import SelectToken, { UserToken } from "../transfer/select-token";
+import SelectToken from "../transfer/select-token";
 import ReceiveSolMainnet from "./receive-sol";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { debounce } from "lodash";
 import { Transaction } from "@solana/web3.js";
+import { UserToken } from "@/hooks/useUserTokens";
 
 const formSchema = z.object({
   amount: z.string(),
@@ -157,7 +158,6 @@ export default function SwapSolForm() {
       if (!response.ok) {
         throw new Error(data.error || "Failed to prepare swap transaction");
       }
-      console.log("data", data);
 
       const swapTx = Transaction.from(Buffer.from(data.transaction, "base64"));
       const signedTx = await signTransaction(swapTx);
@@ -235,7 +235,7 @@ export default function SwapSolForm() {
               title="You Pay"
               selectedToken={selectedToken}
               setSelectedToken={setSelectedToken}
-              externalAmount={form.watch("amount")}
+              amount={form.watch("amount")}
               onAmountChange={(value) => {
                 form.setValue("amount", value);
                 debouncedFetchQuote(value, true);

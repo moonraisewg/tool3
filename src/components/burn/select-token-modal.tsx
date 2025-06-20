@@ -5,8 +5,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
-import { UserToken } from "@/components/transfer/select-token";
 import Image from "next/image";
+import { UserToken } from "@/hooks/useUserTokens";
 
 interface SelectTokenModalProps {
   open: boolean;
@@ -24,19 +24,19 @@ export function SelectTokenModal({
   isLoading = false,
 }: SelectTokenModalProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  
+
   const filteredTokens = tokens.filter(
     (token) =>
       token?.symbol?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       token.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       token.address.toLowerCase().includes(searchQuery.toLowerCase()),
   );
-  
+
   const shortenAddress = (address: string) => {
     if (address.length <= 10) return address;
     return `${address.slice(0, 5)}...${address.slice(-5)}`;
   };
-  
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-white border-gray-200 text-gray-900 sm:max-w-[500px] shadow-lg !p-0">
