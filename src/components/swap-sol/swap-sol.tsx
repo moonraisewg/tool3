@@ -141,7 +141,6 @@ export default function SwapSolForm() {
       const swapData = {
         walletPublicKey: publicKey.toString(),
         inputTokenMint: selectedToken.address,
-        outputTokenMint: "So11111111111111111111111111111111111111112",
         inputAmount: tokenAmount,
       };
 
@@ -211,8 +210,9 @@ export default function SwapSolForm() {
 
   return (
     <div
-      className={`md:p-2 max-w-[550px] mx-auto my-2 ${!isMobile && "border-gear"
-        }`}
+      className={`md:p-2 max-w-[550px] mx-auto my-2 ${
+        !isMobile && "border-gear"
+      }`}
     >
       <h1 className="text-2xl font-bold text-gray-900 mb-8 text-center">
         Gasless Swap to SOL
