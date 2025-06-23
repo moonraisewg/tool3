@@ -47,6 +47,11 @@ export default function CloseAccountForm() {
         }
     };
 
+    const shortenAddress = (address: string) => {
+        if (address.length <= 10) return address;
+        return `${address.slice(0, 5)}...${address.slice(-5)}`;
+    };
+
     useEffect(() => {
         const fetchRent = async () => {
             if (selectedAccounts.length === 0 || !publicKey) {
@@ -157,19 +162,19 @@ export default function CloseAccountForm() {
                             </div>
                         ) : (
                             <div className="space-y-2">
-                                <label className="flex items-center gap-2 p-2 border rounded-lg bg-gray-50">
+                                <label className="flex items-center gap-2 p-2 border rounded-lg bg-gray-50 cursor-pointer px-4">
                                     <input
                                         type="checkbox"
                                         checked={selectedAccounts.length === zeroBalanceAccounts.length}
                                         onChange={(e) => handleSelectAll(e.target.checked)}
                                     />
-                                    <span className="font-medium">Select All ({zeroBalanceAccounts.length} accounts)</span>
+                                    <span className="font-medium ml-2">Select All ({zeroBalanceAccounts.length} accounts)</span>
                                 </label>
                                 <div className="max-h-[240px] overflow-y-auto space-y-2 custom-scroll">
                                     {zeroBalanceAccounts.map((token) => (
                                         <label
                                             key={token.address}
-                                            className="flex items-center gap-4 p-2 border rounded-lg hover:bg-gray-100"
+                                            className="flex items-center gap-4 p-2 border rounded-lg hover:bg-gray-100 cursor-pointer px-4"
                                         >
                                             <input
                                                 type="checkbox"
@@ -184,15 +189,18 @@ export default function CloseAccountForm() {
                                                     }
                                                 }}
                                             />
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-4">
                                                 <Image
                                                     src={token.logoURI || "/image/none-icon.webp"}
                                                     alt={token.name}
-                                                    width={24}
-                                                    height={24}
+                                                    width={28}
+                                                    height={28}
                                                     className="rounded-full object-cover"
                                                 />
-                                                <span>{token.symbol || "UNKNOWN"} ({token.name})</span>
+                                                <div>
+                                                    <div>{token.symbol || "UNKNOWN"} ({token.name})</div>
+                                                    <div className="text-sm text-gray-400">{shortenAddress(token.address)}</div>
+                                                </div>
                                             </div>
                                         </label>
                                     ))}

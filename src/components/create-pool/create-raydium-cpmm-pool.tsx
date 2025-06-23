@@ -156,7 +156,7 @@ export default function CreateRaydiumCpmmPool() {
 
             setLoadingMessage("Please switch your wallet to Devnet for token transfer...")
             toast.info("Please switch your wallet to Devnet to continue.")
-            await new Promise((resolve) => setTimeout(resolve, 5000))
+            await new Promise((resolve) => setTimeout(resolve, 8000))
 
             setLoadingMessage("Requesting token transfer transaction...")
             let res = await fetch("/api/create-pool-raydium", {
