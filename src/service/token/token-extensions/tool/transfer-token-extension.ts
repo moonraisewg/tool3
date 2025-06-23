@@ -2,12 +2,11 @@ import { Connection, PublicKey, Transaction } from "@solana/web3.js";
 import { WalletContextState } from "@solana/wallet-adapter-react";
 import { toast } from "sonner";
 import { 
-  TOKEN_PROGRAM_ID,
-  TOKEN_2022_PROGRAM_ID,
+ 
   createTransferCheckedInstruction
 } from "@solana/spl-token";
 
-
+import { getTokenProgram } from "@/lib/helper";
 import { Token } from "solana-token-extension-boost";
 
 export interface TokenTransferParams {
@@ -373,24 +372,9 @@ export const transferTokenToMultipleRecipients = async (
   }
 };
 
-  export async function determineTokenProgram(
-    connection: Connection,
-    mintAddress: PublicKey
-  ): Promise<PublicKey> {
-    try {
-      const accountInfo = await connection.getAccountInfo(mintAddress);
-      
-      if (!accountInfo) {
-        throw new Error("Token mint does not exist");
-      }
-      
-      if (accountInfo.owner.equals(TOKEN_2022_PROGRAM_ID)) {
-        return TOKEN_2022_PROGRAM_ID;
-      }
-      
-      return TOKEN_PROGRAM_ID;
-    } catch (error) {
-      console.error("Error determining token program:", error);
-      return TOKEN_PROGRAM_ID;
-    }
-  }
+export async function determineTokenProgram(
+  connection: Connection,
+  mintAddress: PublicKey
+): Promise<PublicKey> {
+  return getTokenProgram(mintAddress, connection);
+}

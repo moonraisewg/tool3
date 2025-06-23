@@ -109,12 +109,14 @@ export const TokenCreationForm = () => {
   }, [form, setTokenData]);
 
   const handleOpenExtensions = useCallback(() => {
-    const newOpenState = { ...openExtensions };
-    selectedExtensions.forEach(extId => {
-      newOpenState[extId] = true;
+    setOpenExtensions(prevState => {
+      const newOpenState = { ...prevState };
+      selectedExtensions.forEach(extId => {
+        newOpenState[extId] = true;
+      });
+      return newOpenState;
     });
-    setOpenExtensions(newOpenState);
-  }, [selectedExtensions, openExtensions]);
+  }, [selectedExtensions]);
 
   useEffect(() => {
     initializeTokenData();

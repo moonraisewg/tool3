@@ -1,4 +1,4 @@
-import { PublicKey } from "@solana/web3.js";
+import { PublicKey, Connection } from "@solana/web3.js";
 import {
   findVaultPda,
   findVaultTokenPda,
@@ -108,20 +108,27 @@ export const checkVaultExists = async (
   }
 };
 
-export async function getTokenProgram(mint: PublicKey): Promise<PublicKey> {
-  const mintAccountInfo = await connectionMainnet.getAccountInfo(mint);
+export async function getTokenProgram(mint: PublicKey, connection?: Connection): Promise<PublicKey> {
+  try {
+    // Sử dụng connection được truyền vào nếu có, nếu không thì dùng connectionMainnet
+    const conn = connection || connectionMainnet;
+    const mintAccountInfo = await conn.getAccountInfo(mint);
 
-  if (!mintAccountInfo) {
-    throw new Error("Mint account not found");
-  }
+    if (!mintAccountInfo) {
+      console.warn(`Mint account not found: ${mint.toString()}`);
+      return TOKEN_PROGRAM_ID; // Fallback to TOKEN_PROGRAM_ID
+    }
 
-  if (mintAccountInfo.owner.equals(TOKEN_PROGRAM_ID)) {
-    return TOKEN_PROGRAM_ID;
-  } else if (mintAccountInfo.owner.equals(TOKEN_2022_PROGRAM_ID)) {
-    return TOKEN_2022_PROGRAM_ID;
-  } else {
-    throw new Error(
-      `Unknown token program: ${mintAccountInfo.owner.toString()}`
-    );
+    if (mintAccountInfo.owner.equals(TOKEN_PROGRAM_ID)) {
+      return TOKEN_PROGRAM_ID;
+    } else if (mintAccountInfo.owner.equals(TOKEN_2022_PROGRAM_ID)) {
+      return TOKEN_2022_PROGRAM_ID;
+    } else {
+      console.warn(`Unknown token program: ${mintAccountInfo.owner.toString()}`);
+      return TOKEN_PROGRAM_ID; // Fallback to TOKEN_PROGRAM_ID
+    }
+  } catch (error) {
+    console.error("Error in getTokenProgram:", error);
+    return TOKEN_PROGRAM_ID; // Fallback to TOKEN_PROGRAM_ID
   }
 }
