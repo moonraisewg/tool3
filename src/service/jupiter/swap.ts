@@ -27,6 +27,7 @@ export interface QuoteResponse {
 export interface SwapInstructionsRequest {
   userPublicKey: string;
   quoteResponse: QuoteResponse;
+  wrapAndUnwrapSol?: boolean;
   prioritizationFeeLamports?: {
     priorityLevelWithMaxLamports: {
       maxLamports: number;

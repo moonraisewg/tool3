@@ -33,6 +33,7 @@ function MultiTokenSelector({
   const { tokens, loading } = useUserTokens(cluster, excludeToken);
   const [searchTerm, setSearchTerm] = useState("");
   const [, setPriceLoading] = useState<Record<string, boolean>>({});
+  const [didAutoSelect, setDidAutoSelect] = useState(false);
 
   const filteredTokens = tokens.filter(
     (token) =>
@@ -108,7 +109,7 @@ function MultiTokenSelector({
   };
 
   useEffect(() => {
-    if (!disabled && tokens.length > 0 && selectedTokens.length === 0) {
+    if (!disabled && tokens.length > 0 && !didAutoSelect) {
       const autoSelectAll = async () => {
         const updated = await Promise.all(
           tokens.map(async (token) => {
@@ -117,6 +118,7 @@ function MultiTokenSelector({
           })
         );
         onTokensChange(updated);
+        setDidAutoSelect(true);
       };
       autoSelectAll();
     }

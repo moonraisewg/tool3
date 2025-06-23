@@ -341,12 +341,6 @@ async function processTokenToSolSwap(
     createInstructionFromJupiter(swapInstructionsResponse.swapInstruction)
   );
 
-  if (swapInstructionsResponse.cleanupInstruction) {
-    instructions.push(
-      createInstructionFromJupiter(swapInstructionsResponse.cleanupInstruction)
-    );
-  }
-
   const expectedSolOutput = parseFloat(quote.outAmount) / LAMPORTS_PER_SOL;
   const actualInputAmount =
     inputAmountInLamports / Math.pow(10, inputMintInfo.decimals);

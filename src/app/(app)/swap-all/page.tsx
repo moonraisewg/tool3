@@ -2,9 +2,8 @@ import SwapAllToken from "@/components/swap-sol/swap-all-token-form";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Swap All Tokens to SOL Without Holding SOL",
-  description:
-    "Easily swap all your tokens to SOL without needing SOL in your wallet first. Fast, secure token swaps designed for seamless Web3 user experience.",
+  title: "Swap All Tokens to SOL",
+  description: "",
 };
 export default function SwapAll() {
   return (

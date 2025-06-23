@@ -127,6 +127,7 @@ async function prepareSwapTransaction(
   const swapInstructionsResponse = await getJupiterSwapInstructions({
     userPublicKey: body.walletPublicKey,
     quoteResponse: quote,
+    wrapAndUnwrapSol: true,
     prioritizationFeeLamports: {
       priorityLevelWithMaxLamports: {
         maxLamports: 1000000,

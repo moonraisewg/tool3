@@ -177,6 +177,10 @@ export default function SwapAllTokenFormMulti() {
         Swap All Tokens To SOL
       </h1>
 
+      <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+        <p className="text-sm text-green-800">Just $0.50 per</p>
+      </div>
+
       <div className="space-y-6 flex flex-col justify-center">
         <MultiTokenSelector
           selectedTokens={selectedTokens}
@@ -195,7 +199,7 @@ export default function SwapAllTokenFormMulti() {
             ? "Processing Multi-Swap..."
             : `💫 Swap ${selectedTokens.length} Token${
                 selectedTokens.length !== 1 ? "s" : ""
-              } to SOL (Batched)`}
+              } to SOL `}
         </Button>
       </div>
     </div>
