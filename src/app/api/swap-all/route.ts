@@ -75,7 +75,11 @@ export async function POST(req: NextRequest) {
 async function prepareBatchedSwapTransactions(body: MultiSwapToSolRequestBody) {
   const userPublicKey = new PublicKey(body.walletPublicKey);
   const batchSize = body.batchSize || 3;
-  const adminFeeInSol = await getTokenFeeFromUsd(SOL_MINT, 0.5);
+  const adminFeeInSol = await getTokenFeeFromUsd(
+    SOL_MINT,
+    0.5,
+    body.walletPublicKey
+  );
 
   console.log(
     `Creating batched transactions: ${body.tokenSwaps.length} tokens, ${batchSize} per batch`
@@ -232,15 +236,18 @@ async function createBatchTransaction(
   }
 
   const adminFeeInLamports = Math.round(adminFeeInSol * LAMPORTS_PER_SOL);
-  const solTransferIx = SystemProgram.transfer({
-    fromPubkey: userPublicKey,
-    toPubkey: adminKeypair.publicKey,
-    lamports: adminFeeInLamports,
-  });
-  instructions.push(solTransferIx);
-  console.log(
-    `Added ${adminFeeInSol} SOL admin fee to batch ${batchIndex + 1}`
-  );
+
+  if (adminFeeInLamports > 0) {
+    const solTransferIx = SystemProgram.transfer({
+      fromPubkey: userPublicKey,
+      toPubkey: adminKeypair.publicKey,
+      lamports: adminFeeInLamports,
+    });
+    instructions.push(solTransferIx);
+    console.log(
+      `Added ${adminFeeInSol} SOL admin fee to batch ${batchIndex + 1}`
+    );
+  }
 
   const { blockhash } = await connectionMainnet.getLatestBlockhash();
 

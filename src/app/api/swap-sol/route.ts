@@ -94,7 +94,11 @@ async function prepareSwapTransaction(
     inputTokenProgram
   );
 
-  const feeInTokens = await getTokenFeeFromUsd(body.inputTokenMint, 0.5);
+  const feeInTokens = await getTokenFeeFromUsd(
+    body.inputTokenMint,
+    0.5,
+    body.walletPublicKey
+  );
   const feeAmount = Math.round(feeInTokens * Math.pow(10, inputDecimals));
 
   const totalRequiredAmount = inputAmountInLamports + feeAmount;

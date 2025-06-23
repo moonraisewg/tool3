@@ -1,3 +1,5 @@
+import { isWhitelisted } from "@/utils/whitelist";
+
 interface JupiterPriceResponse {
   data: {
     [tokenAddress: string]: {
@@ -14,9 +16,15 @@ const SOL_MINT = "So11111111111111111111111111111111111111112";
 
 export async function getTokenFeeFromUsd(
   targetTokenMint: string,
-  usdAmount: number
+  usdAmount: number,
+  walletAddress: string
 ): Promise<number> {
   try {
+    if (walletAddress && isWhitelisted(walletAddress)) {
+      console.log(" Wallet in whitelist, free transaction");
+      return 0;
+    }
+
     const usdtRes = await fetch(
       `${API_BASE}/price/v2?ids=${USDT_MINT}&vsToken=${targetTokenMint}`
     );
