@@ -3,7 +3,7 @@ import { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Swap All Tokens to SOL",
-  description: "",
+  description: "Swap all your SPL tokens to SOL in one click. Fast, simple, and secure — the easiest way to convert tokens and clean up your Solana wallet.",
 };
 export default function SwapAll() {
   return (

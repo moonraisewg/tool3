@@ -14,6 +14,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { debounce } from "lodash";
 import { Transaction } from "@solana/web3.js";
 import { UserToken } from "@/hooks/useUserTokens";
+import { WSOL_MINT } from "@/utils/constants";
 
 const formSchema = z.object({
   amount: z.string(),
@@ -210,9 +211,8 @@ export default function SwapSolForm() {
 
   return (
     <div
-      className={`md:p-2 max-w-[550px] mx-auto my-2 ${
-        !isMobile && "border-gear"
-      }`}
+      className={`md:p-2 max-w-[550px] mx-auto my-2 ${!isMobile && "border-gear"
+        }`}
     >
       <h1 className="text-2xl font-bold text-gray-900 mb-8 text-center">
         Gasless Swap to SOL
@@ -240,7 +240,7 @@ export default function SwapSolForm() {
                 form.setValue("amount", value);
                 debouncedFetchQuote(value, true);
               }}
-              excludeToken="NativeSOL"
+              excludeToken={["NativeSOL", WSOL_MINT]}
             />
 
             <ReceiveSolMainnet

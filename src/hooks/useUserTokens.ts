@@ -88,7 +88,7 @@ const loadFallbackTokenList = async (forceRefresh = false): Promise<Record<strin
     }
 };
 
-export const useUserTokens = (cluster: string = "mainnet", excludeToken?: string) => {
+export const useUserTokens = (cluster: string = "mainnet", excludeToken?: string[]) => {
     const [tokens, setTokens] = useState<UserToken[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
@@ -213,7 +213,7 @@ export const useUserTokens = (cluster: string = "mainnet", excludeToken?: string
                         decimals: asset.token_info?.decimals || 0,
                     };
                 })
-                .filter((token: UserToken) => !excludeToken || token.address !== excludeToken);
+                .filter((token: UserToken) => !excludeToken || !excludeToken.includes(token.address))
 
             const solToken: UserToken = {
                 address: "NativeSOL",
@@ -226,7 +226,7 @@ export const useUserTokens = (cluster: string = "mainnet", excludeToken?: string
             };
 
             const allTokens =
-                excludeToken !== "NativeSOL" ? [solToken, ...formattedTokens] : formattedTokens;
+                !excludeToken || !excludeToken.includes("NativeSOL") ? [solToken, ...formattedTokens] : formattedTokens;
 
             setTokens(allTokens);
         } catch (error: unknown) {

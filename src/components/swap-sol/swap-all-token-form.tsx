@@ -10,6 +10,7 @@ import { VersionedTransaction } from "@solana/web3.js";
 import type { UserToken } from "@/hooks/useUserTokens";
 import { connectionMainnet } from "@/service/solana/connection";
 import { BatchTransaction } from "@/types/types";
+import { WSOL_MINT } from "@/utils/constants";
 
 interface SelectedTokenData {
   token: UserToken;
@@ -138,15 +139,13 @@ export default function SwapAllTokenFormMulti() {
       );
 
       toast.success(
-        `🎉 Successfully swapped ${selectedTokens.length} token${
-          selectedTokens.length !== 1 ? "s" : ""
+        `🎉 Successfully swapped ${selectedTokens.length} token${selectedTokens.length !== 1 ? "s" : ""
         } to SOL!`,
         {
-          description: `Completed in ${signatures.length} transaction${
-            signatures.length !== 1 ? "s" : ""
-          }. Estimated SOL: ${data.breakdown?.totalExpectedSolOutput?.toFixed(
-            6
-          )} SOL`,
+          description: `Completed in ${signatures.length} transaction${signatures.length !== 1 ? "s" : ""
+            }. Estimated SOL: ${data.breakdown?.totalExpectedSolOutput?.toFixed(
+              6
+            )} SOL`,
           action: {
             label: "View Last Transaction",
             onClick: () => {
@@ -169,37 +168,35 @@ export default function SwapAllTokenFormMulti() {
 
   return (
     <div
-      className={`md:p-2 max-w-[550px] mx-auto my-2 ${
-        !isMobile && "border-gear"
-      }`}
+      className={`md:p-2 max-w-[550px] mx-auto my-2 ${!isMobile && "border-gear"
+        }`}
     >
       <h1 className="text-2xl font-bold text-gray-900 mb-8 text-center">
         Swap All Tokens To SOL
       </h1>
 
       <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-        <p className="text-sm text-green-800">Just $0.50 per</p>
+        <p className="text-sm text-green-800">Just $0.50 per swap transaction</p>
       </div>
 
       <div className="space-y-6 flex flex-col justify-center">
         <MultiTokenSelector
           selectedTokens={selectedTokens}
           onTokensChange={setSelectedTokens}
-          excludeToken="NativeSOL"
+          excludeToken={["NativeSOL", WSOL_MINT]}
           disabled={loading}
         />
 
         <Button
           onClick={handleSwap}
-          className="w-full text-white font-semibold py-2 rounded-lg transition-colors duration-200 cursor-pointer mt-4"
+          className="w-full text-white font-semibold py-2 rounded-lg transition-colors duration-200 cursor-pointer"
           variant="default"
           disabled={loading || selectedTokens.length === 0}
         >
           {loading
             ? "Processing Multi-Swap..."
-            : `💫 Swap ${selectedTokens.length} Token${
-                selectedTokens.length !== 1 ? "s" : ""
-              } to SOL `}
+            : `💫 Swap ${selectedTokens.length} Token${selectedTokens.length !== 1 ? "s" : ""
+            } to SOL `}
         </Button>
       </div>
     </div>

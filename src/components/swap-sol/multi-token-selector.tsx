@@ -18,7 +18,7 @@ interface SelectedTokenData {
 interface MultiTokenSelectorProps {
   selectedTokens: SelectedTokenData[];
   onTokensChange: (tokens: SelectedTokenData[]) => void;
-  excludeToken?: string;
+  excludeToken?: string[];
   cluster?: string;
   disabled?: boolean;
 }
@@ -139,7 +139,7 @@ function MultiTokenSelector({
 
   return (
     <Card>
-      <CardContent className="p-4">
+      <CardContent className="px-4">
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold">Select Tokens to Swap</h3>
@@ -181,7 +181,7 @@ function MultiTokenSelector({
             />
           </div>
 
-          <ScrollArea className="h-[310px] w-full">
+          <ScrollArea className="h-[250px] w-full">
             <div className="space-y-2">
               {filteredTokens.map((token) => {
                 const isSelected = isTokenSelected(token.address);
@@ -189,11 +189,10 @@ function MultiTokenSelector({
                 return (
                   <div
                     key={token.address}
-                    className={`border rounded-lg p-3 transition-colors ${
-                      isSelected
-                        ? "bg-blue-50 border-blue-200"
-                        : "bg-white border-gray-200"
-                    }`}
+                    className={`border rounded-lg p-3 transition-colors ${isSelected
+                      ? "bg-blue-50 border-blue-200"
+                      : "bg-white border-gray-200"
+                      }`}
                   >
                     <div className="flex items-center space-x-3">
                       <Checkbox
