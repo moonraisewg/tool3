@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { ChevronRight, Check, X, Search, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -132,12 +132,13 @@ const TokenExtensionUpdateForm = () => {
 
   return (
     <div className="container mx-auto px-4 py-8 max-h-[calc(100vh-162px)] overflow-y-auto">
-      <h1 className="text-2xl font-bold px-4 pb-6">Update Token Extensions</h1>
+     
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2">
           <Card className="mb-6">
+            <CardTitle className="text-center">Update Token Extensions</CardTitle>
             <CardContent className="pt-6">
-              <h2 className="text-xl font-medium mb-4">Token Information</h2>
+              <h2 className="text-xl font-medium mb-4 text-center">Token Information</h2>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmitMintAddress)} className="space-y-4">
                   <FormField
