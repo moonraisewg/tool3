@@ -9,7 +9,7 @@ import { Form } from "@/components/ui/form"
 import { toast } from "sonner"
 import { useWallet } from "@solana/wallet-adapter-react"
 import { useIsMobile } from "@/hooks/use-mobile"
-import { Loader2, Info, ArrowLeft } from "lucide-react"
+import { Loader2, Info } from "lucide-react"
 import { Transaction } from "@solana/web3.js"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip"
 import SelectToken from "../transfer/select-token"
@@ -36,10 +36,6 @@ export default function CreateRaydiumCpmmPool() {
         resolver: zodResolver(formSchema),
         defaultValues: { amountToken1: "", amountToken2: "" },
     })
-
-    const handleBack = () => {
-        window.history.back()
-    }
 
     const toLamports = useCallback((amountStr: string, decimals: number): string => {
         const amount = Number.parseFloat(amountStr)
@@ -255,11 +251,6 @@ export default function CreateRaydiumCpmmPool() {
     return (
         <div className={`md:p-2 max-w-[550px] mx-auto my-2 ${!isMobile ? "border-gear" : ""}`}>
             <div className="mb-6">
-                <Button variant="ghost" onClick={handleBack} className="mb-4 text-gray-600 hover:text-gray-900 cursor-pointer">
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Back to Pool Selection
-                </Button>
-
                 <h1 className="text-2xl font-bold text-gray-900 mb-6 text-center">Create Pool with Raydium CPMM (Devnet)</h1>
             </div>
 

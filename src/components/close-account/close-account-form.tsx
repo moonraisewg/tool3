@@ -23,7 +23,7 @@ export default function CloseAccountForm() {
     const [loading, setLoading] = useState(false);
     const [estimatedRent, setEstimatedRent] = useState({ userRent: 0, systemRent: 0 });
     const { publicKey, signTransaction } = useWallet();
-    const { tokens, loading: tokensLoading, refetch } = useUserTokens("devnet", undefined, true);
+    const { tokens, loading: tokensLoading, refetch } = useUserTokens("mainnet", undefined, true);
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -119,10 +119,10 @@ export default function CloseAccountForm() {
             if (!executeResponse.ok) throw new Error(executeData.error || "Failed to execute transaction");
 
             toast.success("🎉 Accounts closed successfully!", {
-                description: `Closed ${values.selectedAccounts.length} accounts. You received ${(estimatedRent.userRent / 1_000_000_000).toFixed(9)} SOL from the system wallet.`,
+                description: `Closed ${values.selectedAccounts.length} accounts. You received ${(estimatedRent.userRent / 1_000_000_000).toFixed(9)} SOL.`,
                 action: {
                     label: "View Transaction",
-                    onClick: () => window.open(`https://solscan.io/tx/${executeData.signature}?cluster=devnet`, "_blank"),
+                    onClick: () => window.open(`https://solscan.io/tx/${executeData.signature}`, "_blank"),
                 },
             });
 
@@ -205,8 +205,6 @@ export default function CloseAccountForm() {
                                 💰 <strong>Estimated Reclaimed Rent ({selectedAccounts.length} accounts):</strong>{" "}
                                 {selectedAccounts.length === 0 ? (
                                     "Select accounts to estimate"
-                                ) : estimatedRent.userRent === 0 ? (
-                                    "No rent will be reclaimed from selected accounts."
                                 ) : (
                                     <div className="mt-1">
                                         You will receive: <strong className="text-green-600">+{(estimatedRent.userRent / 1_000_000_000).toFixed(9)} SOL</strong> <br />

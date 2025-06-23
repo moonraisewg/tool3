@@ -1,19 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PublicKey, Transaction, SystemProgram } from "@solana/web3.js";
-import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress, createCloseAccountInstruction } from "@solana/spl-token";
-import { connectionDevnet } from "@/service/solana/connection";
+import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress, createCloseAccountInstruction, getAccount } from "@solana/spl-token";
+import { connectionMainnet } from "@/service/solana/connection";
 import { adminKeypair } from "@/config";
+
+interface CloseAccountRequest {
+    userPublicKey: string;
+    tokenAccounts: string[];
+    signedTransaction?: string;
+    estimateOnly?: boolean;
+}
 
 export async function POST(req: NextRequest) {
     try {
-        const { userPublicKey, tokenAccounts, signedTransaction, estimateOnly } = await req.json();
+        const { userPublicKey, tokenAccounts, signedTransaction, estimateOnly }: CloseAccountRequest = await req.json();
 
         if (!userPublicKey) {
             return NextResponse.json({ error: "Missing user public key" }, { status: 400 });
         }
 
         const userPubkey = new PublicKey(userPublicKey);
-        const systemPubkey = adminKeypair.publicKey; // 
+        const systemPubkey = adminKeypair.publicKey;
 
         if (estimateOnly) {
             let totalRent = 0;
@@ -22,7 +29,7 @@ export async function POST(req: NextRequest) {
                     new PublicKey(tokenMint),
                     userPubkey
                 );
-                const accountInfo = await connectionDevnet.getAccountInfo(tokenAccount);
+                const accountInfo = await connectionMainnet.getAccountInfo(tokenAccount);
                 if (accountInfo) {
                     totalRent += accountInfo.lamports;
                 }
@@ -45,10 +52,18 @@ export async function POST(req: NextRequest) {
                     new PublicKey(tokenMint),
                     userPubkey
                 );
-                const accountInfo = await connectionDevnet.getAccountInfo(tokenAccount);
+                const accountInfo = await connectionMainnet.getAccountInfo(tokenAccount);
                 if (!accountInfo) {
                     console.warn(`Token account ${tokenAccount.toString()} not found, skipping`);
                     continue;
+                }
+
+                const tokenAccountInfo = await getAccount(connectionMainnet, tokenAccount);
+                if (tokenAccountInfo.isFrozen) {
+                    return NextResponse.json(
+                        { error: `Token account ${tokenAccount.toString()} is frozen and cannot be closed` },
+                        { status: 400 }
+                    );
                 }
 
                 totalRent += accountInfo.lamports;
@@ -79,8 +94,7 @@ export async function POST(req: NextRequest) {
                 );
             }
 
-            // Lấy blockhash và đặt fee payer
-            const { blockhash, lastValidBlockHeight } = await connectionDevnet.getLatestBlockhash();
+            const { blockhash, lastValidBlockHeight } = await connectionMainnet.getLatestBlockhash();
             transaction.recentBlockhash = blockhash;
             transaction.feePayer = adminKeypair.publicKey;
             transaction.partialSign(adminKeypair);
@@ -93,14 +107,14 @@ export async function POST(req: NextRequest) {
         }
 
         const transaction = Transaction.from(Buffer.from(signedTransaction));
-        const signature = await connectionDevnet.sendRawTransaction(transaction.serialize(), {
+        const signature = await connectionMainnet.sendRawTransaction(transaction.serialize(), {
             skipPreflight: false,
             preflightCommitment: "confirmed",
         });
-        await connectionDevnet.confirmTransaction({
+        await connectionMainnet.confirmTransaction({
             signature,
             blockhash: transaction.recentBlockhash!,
-            lastValidBlockHeight: (await connectionDevnet.getLatestBlockhash()).lastValidBlockHeight,
+            lastValidBlockHeight: (await connectionMainnet.getLatestBlockhash()).lastValidBlockHeight,
         });
 
         return NextResponse.json({ signature });

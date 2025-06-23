@@ -26,8 +26,9 @@ import {
   ArrowUp,
   Coin,
   AddBox,
-  Wallet,
   ChevronDown,
+  Trash,
+  ArrowsHorizontal
 } from "@nsmr/pixelart-react";
 import { useState } from "react";
 
@@ -52,7 +53,7 @@ export const route = {
   mainnet: [
     {
       title: "Transfer",
-      icon: Reload,
+      icon: ArrowsHorizontal,
       url: "/transfer-spl-token",
     },
     {
@@ -94,26 +95,25 @@ export const route = {
     },
     {
       title: "Swap SOL mainnet",
-      icon: Wallet,
+      icon: Reload,
       url: "/swap-sol",
     },
     {
       title: "Create liquidity pool",
       icon: AddBox,
-      url: "/create-pool",
+      submenu: [
+        {
+          title: "Raydium CPMM",
+          url: "/create-pool/raydium-cpmm",
+        },
+        {
+          title: "Meteora DAMM V2",
+          url: "/create-pool/meteora-damm",
+        },
+      ],
     },
     {
-      title: "Create Raydium CPMM Pool",
-      url: "/create-pool/raydium-cpmm",
-      hidden: true
-    },
-    {
-      title: "Create Meteora DAMM Pool",
-      url: "/create-pool/meteora-damm",
-      hidden: true
-    },
-    {
-      icon: Coin,
+      icon: Trash,
       title: "Close account",
       url: "/close-account",
     },
