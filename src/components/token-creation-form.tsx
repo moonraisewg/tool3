@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Info, Upload, ChevronRight, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -122,7 +122,7 @@ export const TokenCreationForm = () => {
 
   useEffect(() => {
     handleOpenExtensions();
-  }, []);
+  }, [handleOpenExtensions]);
 
   useEffect(() => {
     const subscription = form.watch((value) => {
@@ -180,10 +180,9 @@ export const TokenCreationForm = () => {
 
   return (
     <div className="container mx-auto px-4 py-8 md:max-h-none md:overflow-visible max-h-[calc(100vh-162px)] overflow-y-auto">
-      <h1 className="text-2xl font-bold mb-4">Create Token</h1>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2 md:max-h-[calc(100vh-162px)] overflow-y-auto pb-4">
-          <Card>
+          <Card> <CardTitle className="text-center">Create Token</CardTitle>
             <CardContent className="pt-6">
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
