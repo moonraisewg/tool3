@@ -17,7 +17,7 @@ interface SelectTokenProps {
   disabled?: boolean;
   amount: string;
   amountLoading?: boolean;
-  excludeToken?: string;
+  excludeToken?: string[];
   cluster?: string;
   onTokensLoaded?: (tokens: UserToken[]) => void;
 }
@@ -40,19 +40,19 @@ const SelectToken: React.FC<SelectTokenProps> = ({
 
   useEffect(() => {
     if (tokens.length > 0 && !selectedToken && !userHasSelected) {
-      const solToken = tokens.find(token => 
-        token.symbol === "SOL" || 
-        token.address === "11111111111111111111111111111111" || 
+      const solToken = tokens.find(token =>
+        token.symbol === "SOL" ||
+        token.address === "11111111111111111111111111111111" ||
         token.address === "NativeSOL"
       );
-      
+
       if (solToken) {
         setSelectedToken(solToken);
       } else {
         setSelectedToken(tokens[0]);
       }
     }
-    
+
     if (tokens.length > 0 && onTokensLoaded) {
       onTokensLoaded(tokens);
     }

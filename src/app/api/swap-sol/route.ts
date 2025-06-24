@@ -1,9 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  PublicKey,
-  Transaction,
-  TransactionInstruction,
-} from "@solana/web3.js";
+import { PublicKey, Transaction } from "@solana/web3.js";
 import {
   getAssociatedTokenAddress,
   getMint,
@@ -16,7 +12,7 @@ import { getTokenProgram } from "@/lib/helper";
 import {
   getJupiterQuote,
   getJupiterSwapInstructions,
-  type JupiterInstruction,
+  createInstructionFromJupiter,
 } from "@/service/jupiter/swap";
 import { adminKeypair } from "@/config";
 import { getTokenFeeFromUsd } from "@/service/jupiter/calculate-fee";
@@ -24,24 +20,9 @@ import { getTokenFeeFromUsd } from "@/service/jupiter/calculate-fee";
 interface SwapRequestBody {
   walletPublicKey: string;
   inputTokenMint: string;
-  outputTokenMint: string;
   inputAmount: number;
   slippageBps?: number;
   signedTransaction?: number[];
-}
-
-function createInstructionFromJupiter(
-  jupiterInstruction: JupiterInstruction
-): TransactionInstruction {
-  return new TransactionInstruction({
-    programId: new PublicKey(jupiterInstruction.programId),
-    keys: jupiterInstruction.accounts.map((account) => ({
-      pubkey: new PublicKey(account.pubkey),
-      isSigner: account.isSigner,
-      isWritable: account.isWritable,
-    })),
-    data: Buffer.from(jupiterInstruction.data, "base64"),
-  });
 }
 
 export async function POST(req: NextRequest) {
@@ -71,7 +52,9 @@ async function prepareSwapTransaction(
 ) {
   const userPublicKey = new PublicKey(body.walletPublicKey);
   const inputTokenMint = new PublicKey(body.inputTokenMint);
-  const outputTokenMint = new PublicKey(body.outputTokenMint);
+  const outputTokenMint = new PublicKey(
+    "So11111111111111111111111111111111111111112"
+  );
 
   const inputMintInfo = await getMint(connectionMainnet, inputTokenMint);
   const inputDecimals = inputMintInfo.decimals;
@@ -86,7 +69,7 @@ async function prepareSwapTransaction(
 
   const quote = await getJupiterQuote(
     body.inputTokenMint,
-    body.outputTokenMint,
+    "So11111111111111111111111111111111111111112",
     inputAmountInLamports
   );
 
@@ -111,7 +94,11 @@ async function prepareSwapTransaction(
     inputTokenProgram
   );
 
-  const feeInTokens = await getTokenFeeFromUsd(body.inputTokenMint, 0.5);
+  const feeInTokens = await getTokenFeeFromUsd(
+    body.inputTokenMint,
+    0.5,
+    body.walletPublicKey
+  );
   const feeAmount = Math.round(feeInTokens * Math.pow(10, inputDecimals));
 
   const totalRequiredAmount = inputAmountInLamports + feeAmount;
@@ -144,6 +131,7 @@ async function prepareSwapTransaction(
   const swapInstructionsResponse = await getJupiterSwapInstructions({
     userPublicKey: body.walletPublicKey,
     quoteResponse: quote,
+    wrapAndUnwrapSol: true,
     prioritizationFeeLamports: {
       priorityLevelWithMaxLamports: {
         maxLamports: 1000000,
@@ -215,8 +203,7 @@ async function prepareSwapTransaction(
   );
   transaction.add(swapIx);
 
-  const { blockhash, lastValidBlockHeight } =
-    await connectionMainnet.getLatestBlockhash();
+  const { blockhash } = await connectionMainnet.getLatestBlockhash();
   transaction.recentBlockhash = blockhash;
   transaction.feePayer = adminKeypair.publicKey;
   transaction.partialSign(adminKeypair);
@@ -228,16 +215,6 @@ async function prepareSwapTransaction(
   return NextResponse.json({
     success: true,
     transaction: serializedTransaction,
-    blockhash,
-    lastValidBlockHeight,
-    quote,
-    breakdown: {
-      inputAmount: body.inputAmount,
-      expectedOutputAmount:
-        parseFloat(quote.outAmount) / Math.pow(10, outputMintInfo.decimals),
-      feeAmount: feeAmount / Math.pow(10, inputDecimals),
-      totalRequired: totalRequiredAmount / Math.pow(10, inputDecimals),
-    },
   });
 }
 
@@ -275,7 +252,6 @@ async function executeSignedSwapTransaction(body: SwapRequestBody) {
     return NextResponse.json({
       success: true,
       signature: signature,
-      message: "Gasless swap completed successfully",
     });
   } catch (error) {
     return NextResponse.json(

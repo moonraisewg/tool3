@@ -14,6 +14,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { debounce } from "lodash";
 import { Transaction } from "@solana/web3.js";
 import { UserToken } from "@/hooks/useUserTokens";
+import { WSOL_MINT } from "@/utils/constants";
 
 const formSchema = z.object({
   amount: z.string(),
@@ -141,7 +142,6 @@ export default function SwapSolForm() {
       const swapData = {
         walletPublicKey: publicKey.toString(),
         inputTokenMint: selectedToken.address,
-        outputTokenMint: "So11111111111111111111111111111111111111112",
         inputAmount: tokenAmount,
       };
 
@@ -240,7 +240,7 @@ export default function SwapSolForm() {
                 form.setValue("amount", value);
                 debouncedFetchQuote(value, true);
               }}
-              excludeToken="NativeSOL"
+              excludeToken={["NativeSOL", WSOL_MINT]}
             />
 
             <ReceiveSolMainnet
