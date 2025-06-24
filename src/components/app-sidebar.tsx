@@ -22,14 +22,12 @@ import Link from "next/link";
 import {
   Home,
   Lock,
-  Reload,
   ArrowUp,
   Coin,
   AddBox,
   Wallet,
   ChevronDown,
-  ArrowsHorizontal,
-  Repeat,
+  CreditCard,
 } from "@nsmr/pixelart-react";
 import { useState } from "react";
 
@@ -52,11 +50,6 @@ export const route = {
     "/transfer-token",
   ],
   mainnet: [
-    {
-      title: "Gasless Transfer",
-      icon: ArrowsHorizontal,
-      url: "/transfer-spl-token",
-    },
     {
       title: "Buy SOL devnet",
       icon: Wallet,
@@ -89,21 +82,30 @@ export const route = {
       ],
     },
     {
+      title: "Utilities",
+      icon: CreditCard,
+      submenu: [
+        {
+          title: "Swap to SOL ",
+          url: "/swap-sol",
+        },
+        {
+          title: "Swap All Token to SOL ",
+          url: "/swap-all",
+        },
+        {
+          title: "Gasless Transfer",
+          url: "/transfer-spl-token",
+        },
+      ],
+    },
+    {
       title: "Review Token",
       icon: Coin,
       url: "/create/review",
       hidden: true,
     },
-    {
-      title: "Swap SOL mainnet",
-      icon: Reload,
-      url: "/swap-sol",
-    },
-    {
-      title: "Swap All Token SOL ",
-      icon: Repeat,
-      url: "/swap-all",
-    },
+
     {
       title: "Create liquidity pool",
       icon: AddBox,
@@ -235,26 +237,26 @@ export function AppSidebar() {
 
                         {(openSubmenu === item.title ||
                           isSubmenuActive(item.submenu)) && (
-                            <SidebarMenuSub>
-                              {item.submenu.map((subItem) => (
-                                <SidebarMenuSubItem key={subItem.title}>
-                                  <SidebarMenuSubButton
-                                    asChild
-                                    isActive={
-                                      pathname && subItem.url
-                                        ? pathname.split("?")[0] ===
+                          <SidebarMenuSub>
+                            {item.submenu.map((subItem) => (
+                              <SidebarMenuSubItem key={subItem.title}>
+                                <SidebarMenuSubButton
+                                  asChild
+                                  isActive={
+                                    pathname && subItem.url
+                                      ? pathname.split("?")[0] ===
                                         subItem.url.split("?")[0]
-                                        : false
-                                    }
-                                  >
-                                    <Link href={subItem.url || "#"}>
-                                      <span>{subItem.title}</span>
-                                    </Link>
-                                  </SidebarMenuSubButton>
-                                </SidebarMenuSubItem>
-                              ))}
-                            </SidebarMenuSub>
-                          )}
+                                      : false
+                                  }
+                                >
+                                  <Link href={subItem.url || "#"}>
+                                    <span>{subItem.title}</span>
+                                  </Link>
+                                </SidebarMenuSubButton>
+                              </SidebarMenuSubItem>
+                            ))}
+                          </SidebarMenuSub>
+                        )}
                       </>
                     ) : (
                       <SidebarMenuButton
