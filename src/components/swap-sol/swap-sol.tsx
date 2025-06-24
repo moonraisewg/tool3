@@ -14,6 +14,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { debounce } from "lodash";
 import { Transaction } from "@solana/web3.js";
 import { UserToken } from "@/hooks/useUserTokens";
+import { WSOL_MINT } from "@/utils/constants";
+import { getTokenFeeFromUsd } from "@/service/jupiter/calculate-fee";
 
 const formSchema = z.object({
   amount: z.string(),
@@ -27,7 +29,7 @@ export default function SwapSolForm() {
   const [selectedToken, setSelectedToken] = useState<UserToken | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [priceLoading, setPriceLoading] = useState<boolean>(false);
-
+  const [tokenFee, setTokenFee] = useState<number>(0);
   const { publicKey, signTransaction } = useWallet();
 
   const form = useForm<FormSwapSol>({
@@ -37,6 +39,28 @@ export default function SwapSolForm() {
       solAmount: "",
     },
   });
+
+  useEffect(() => {
+    const calculateTokenFee = async () => {
+      if (selectedToken && publicKey) {
+        try {
+          const tokenFeeAmount = await getTokenFeeFromUsd(
+            selectedToken.address,
+            0.5,
+            publicKey.toString()
+          );
+          setTokenFee(tokenFeeAmount);
+        } catch (error) {
+          console.error("Error calculating token fee:", error);
+          setTokenFee(0);
+        }
+      } else {
+        setTokenFee(0);
+      }
+    };
+
+    calculateTokenFee();
+  }, [selectedToken, publicKey]);
 
   const fetchSwapQuote = useCallback(
     async (inputAmount: string, isCalculatingSol: boolean) => {
@@ -141,7 +165,6 @@ export default function SwapSolForm() {
       const swapData = {
         walletPublicKey: publicKey.toString(),
         inputTokenMint: selectedToken.address,
-        outputTokenMint: "So11111111111111111111111111111111111111112",
         inputAmount: tokenAmount,
       };
 
@@ -211,8 +234,9 @@ export default function SwapSolForm() {
 
   return (
     <div
-      className={`md:p-2 max-w-[550px] mx-auto my-2 ${!isMobile && "border-gear"
-        }`}
+      className={`md:p-2 max-w-[550px] mx-auto my-2 ${
+        !isMobile && "border-gear"
+      }`}
     >
       <h1 className="text-2xl font-bold text-gray-900 mb-8 text-center">
         Gasless Swap to SOL
@@ -240,7 +264,8 @@ export default function SwapSolForm() {
                 form.setValue("amount", value);
                 debouncedFetchQuote(value, true);
               }}
-              excludeToken="NativeSOL"
+              excludeToken={["NativeSOL", WSOL_MINT]}
+              tokenFee={tokenFee}
             />
 
             <ReceiveSolMainnet

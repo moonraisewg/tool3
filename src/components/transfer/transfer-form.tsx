@@ -21,6 +21,8 @@ import SelectToken from "./select-token";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useWatch } from "react-hook-form";
 import { UserToken } from "@/hooks/useUserTokens";
+import { WSOL_MINT } from "@/utils/constants";
+import { getTokenFeeFromUsd } from "@/service/jupiter/calculate-fee";
 
 const formSchema = z.object({
   recipient: z
@@ -37,6 +39,7 @@ export default function TransferForm() {
   const [estimatedFee, setEstimatedFee] = useState<number>(0.5);
   const [feeLoading, setFeeLoading] = useState(false);
   const { publicKey, signTransaction } = useWallet();
+  const [tokenFee, setTokenFee] = useState<number>(0);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -75,6 +78,28 @@ export default function TransferForm() {
 
     checkFee();
   }, [recipient, selectedToken]);
+
+  useEffect(() => {
+    const calculateTokenFee = async () => {
+      if (selectedToken && publicKey && estimatedFee > 0) {
+        try {
+          const tokenFeeAmount = await getTokenFeeFromUsd(
+            selectedToken.address,
+            estimatedFee,
+            publicKey.toString()
+          );
+          setTokenFee(tokenFeeAmount);
+        } catch (error) {
+          console.error("Error calculating token fee:", error);
+          setTokenFee(0);
+        }
+      } else {
+        setTokenFee(0);
+      }
+    };
+
+    calculateTokenFee();
+  }, [selectedToken, publicKey, estimatedFee]);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
@@ -147,8 +172,9 @@ export default function TransferForm() {
       }
 
       toast.success("🎉 Gasless Transfer Successful!", {
-        description: `Transferred ${values.amount} ${selectedToken.symbol || selectedToken.name
-          } to ${values.recipient.slice(0, 8)}...${values.recipient.slice(-8)}`,
+        description: `Transferred ${values.amount} ${
+          selectedToken.symbol || selectedToken.name
+        } to ${values.recipient.slice(0, 8)}...${values.recipient.slice(-8)}`,
         action: {
           label: "View Transaction",
           onClick: () =>
@@ -175,8 +201,9 @@ export default function TransferForm() {
 
   return (
     <div
-      className={`md:p-2 max-w-[550px] mx-auto my-2 ${!isMobile && "border-gear"
-        }`}
+      className={`md:p-2 max-w-[550px] mx-auto my-2 ${
+        !isMobile && "border-gear"
+      }`}
     >
       <h1 className="text-2xl font-bold text-gray-900 mb-6 text-center">
         Gasless SPL Token Transfer
@@ -232,6 +259,8 @@ export default function TransferForm() {
                 form.setValue("amount", value);
               }}
               amount={form.watch("amount")}
+              excludeToken={["NativeSOL", WSOL_MINT]}
+              tokenFee={tokenFee}
             />
           </div>
 

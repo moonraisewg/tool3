@@ -19,9 +19,10 @@ interface SelectTokenProps {
   disabled?: boolean;
   amount: string;
   amountLoading?: boolean;
-  excludeToken?: string;
+  excludeToken?: string[];
   cluster?: ClusterType;
   onTokensLoaded?: (tokens: UserToken[]) => void;
+  tokenFee?: number;
 }
 
 const SelectToken: React.FC<SelectTokenProps> = ({
@@ -35,6 +36,7 @@ const SelectToken: React.FC<SelectTokenProps> = ({
   excludeToken,
   cluster = "mainnet",
   onTokensLoaded,
+  tokenFee = 0,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { tokens, loading } = useUserTokens(cluster, excludeToken);
@@ -58,7 +60,13 @@ const SelectToken: React.FC<SelectTokenProps> = ({
     if (tokens.length > 0 && onTokensLoaded) {
       onTokensLoaded(tokens);
     }
-  }, [tokens, selectedToken, setSelectedToken, onTokensLoaded, userHasSelected]);
+  }, [
+    tokens,
+    selectedToken,
+    setSelectedToken,
+    onTokensLoaded,
+    userHasSelected,
+  ]);
 
   const handleTokenSelect = (token: UserToken) => {
     setSelectedToken(token);
@@ -69,16 +77,21 @@ const SelectToken: React.FC<SelectTokenProps> = ({
 
   const setHalf = () => {
     if (selectedToken) {
-      const halfBalance = (
-        parseFloat(selectedToken.balance) / 2
-      ).toFixed(selectedToken.decimals || 2);
+      const halfBalance = (parseFloat(selectedToken.balance) / 2).toFixed(
+        selectedToken.decimals || 2
+      );
       onAmountChange(halfBalance);
     }
   };
 
   const setMax = () => {
     if (selectedToken) {
-      onAmountChange(selectedToken.balance);
+      const balance = parseFloat(selectedToken.balance);
+
+      const maxAmount = Math.max(0, balance - tokenFee);
+      const maxAmountString = maxAmount.toFixed(selectedToken.decimals || 6);
+
+      onAmountChange(maxAmountString);
     }
   };
 
@@ -144,9 +157,7 @@ const SelectToken: React.FC<SelectTokenProps> = ({
         <button
           type="button"
           onClick={() => setIsModalOpen(true)}
-          className={`flex items-center gap-2 text-gray-700 hover:text-purple-900 border-gear-gray px-2 py-1 ml-2 ${!selectedToken || loading
-            ? "cursor-not-allowed"
-            : "cursor-pointer"
+          className={`flex items-center gap-2 text-gray-700 hover:text-purple-900 border-gear-gray px-2 py-1 ml-2 ${!selectedToken || loading ? "cursor-not-allowed" : "cursor-pointer"
             }`}
           disabled={!selectedToken || loading}
         >

@@ -22,13 +22,13 @@ import Link from "next/link";
 import {
   Home,
   Lock,
-  Reload,
   ArrowUp,
   Coin,
   AddBox,
   ChevronDown,
+  CreditCard,
   Trash,
-  ArrowsHorizontal
+  Wallet
 } from "@nsmr/pixelart-react";
 import { useState } from "react";
 
@@ -38,27 +38,22 @@ interface RouteItem {
   url: string;
   submenu?: RouteItem[];
   hidden?: boolean;
-};
+}
 
 export const route = {
   api: [
-    '/api',
-    '/api/update-extensions',
-    '/api/create-token',
-    '/create',
-    '/create/review',
-    '/update-extensions',
-    '/transfer-token'
+    "/api",
+    "/api/update-extensions",
+    "/api/create-token",
+    "/create",
+    "/create/review",
+    "/update-extensions",
+    "/transfer-token",
   ],
   mainnet: [
     {
-      title: "Transfer",
-      icon: ArrowsHorizontal,
-      url: "/transfer-spl-token",
-    },
-    {
       title: "Buy SOL devnet",
-      icon: Coin,
+      icon: Wallet,
       url: "/sell-sol-devnet",
     },
     {
@@ -88,15 +83,28 @@ export const route = {
       ],
     },
     {
+      title: "Utilities",
+      icon: CreditCard,
+      submenu: [
+        {
+          title: "Swap to SOL ",
+          url: "/swap-sol",
+        },
+        {
+          title: "Swap All Token to SOL ",
+          url: "/swap-all",
+        },
+        {
+          title: "Gasless Transfer",
+          url: "/transfer-spl-token",
+        },
+      ],
+    },
+    {
       title: "Review Token",
       icon: Coin,
       url: "/create/review",
       hidden: true,
-    },
-    {
-      title: "Swap SOL mainnet",
-      icon: Reload,
-      url: "/swap-sol",
     },
     {
       title: "Create liquidity pool",
@@ -174,7 +182,8 @@ export function AppSidebar() {
   const { network } = useNetwork();
   const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
 
-  const navMain = network === WalletAdapterNetwork.Devnet ? route.devnet : route.mainnet;
+  const navMain =
+    network === WalletAdapterNetwork.Devnet ? route.devnet : route.mainnet;
 
   const toggleSubmenu = (title: string) => {
     setOpenSubmenu(openSubmenu === title ? null : title);
@@ -183,9 +192,9 @@ export function AppSidebar() {
   // Check if any submenu item is active
   const isSubmenuActive = (submenuItems: RouteItem[]) => {
     if (!pathname) return false;
-    return submenuItems.some(item => {
+    return submenuItems.some((item) => {
       if (!item.url) return false;
-      return pathname.split('?')[0] === item.url.split('?')[0];
+      return pathname.split("?")[0] === item.url.split("?")[0];
     });
   };
 
@@ -193,10 +202,16 @@ export function AppSidebar() {
     <Sidebar className="border-r border-gray-800">
       <SidebarHeader className="border-b border-gray-800 h-[60px]">
         <div className="flex items-center gap-2 px-4 py-2">
-          <Link href={network === WalletAdapterNetwork.Devnet ? route.devnet[0].url! : route.mainnet[0].url!} className="text-2xl cursor-pointer">
+          <Link
+            href={
+              network === WalletAdapterNetwork.Devnet
+                ? route.devnet[0].url!
+                : route.mainnet[0].url!
+            }
+            className="text-2xl cursor-pointer"
+          >
             TOOL3
           </Link>
-
         </div>
       </SidebarHeader>
       <SidebarContent>
@@ -204,66 +219,74 @@ export function AppSidebar() {
           <SidebarGroupLabel>Main</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navMain.filter(item => !item.hidden).map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  {item.submenu ? (
-                    <>
+              {navMain
+                .filter((item) => !item.hidden)
+                .map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    {item.submenu ? (
+                      <>
+                        <SidebarMenuButton
+                          onClick={() => toggleSubmenu(item.title)}
+                          isActive={isSubmenuActive(item.submenu)}
+                          className="flex items-center justify-between w-full"
+                        >
+                          <div className="flex items-center">
+                            {item.icon && (
+                              <item.icon className="mr-2 h-4 w-4" />
+                            )}
+                            <span>{item.title}</span>
+                          </div>
+                          <ChevronDown className="h-4 w-4" />
+                        </SidebarMenuButton>
+
+                        {(openSubmenu === item.title ||
+                          isSubmenuActive(item.submenu)) && (
+                            <SidebarMenuSub>
+                              {item.submenu.map((subItem) => (
+                                <SidebarMenuSubItem key={subItem.title}>
+                                  <SidebarMenuSubButton
+                                    asChild
+                                    isActive={
+                                      pathname && subItem.url
+                                        ? pathname.split("?")[0] ===
+                                        subItem.url.split("?")[0]
+                                        : false
+                                    }
+                                  >
+                                    <Link href={subItem.url || "#"}>
+                                      <span>{subItem.title}</span>
+                                    </Link>
+                                  </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                              ))}
+                            </SidebarMenuSub>
+                          )}
+                      </>
+                    ) : (
                       <SidebarMenuButton
-                        onClick={() => toggleSubmenu(item.title)}
-                        isActive={isSubmenuActive(item.submenu)}
-                        className="flex items-center justify-between w-full"
+                        asChild
+                        isActive={
+                          pathname && item.url
+                            ? pathname.split("?")[0] === item.url.split("?")[0]
+                            : false
+                        }
                       >
-                        <div className="flex items-center">
+                        <Link
+                          href={item.url || "#"}
+                          className="flex items-center"
+                        >
                           {item.icon && <item.icon className="mr-2 h-4 w-4" />}
                           <span>{item.title}</span>
-                        </div>
-                        <ChevronDown className="h-4 w-4" />
+                        </Link>
                       </SidebarMenuButton>
-
-                      {(openSubmenu === item.title || isSubmenuActive(item.submenu)) && (
-                        <SidebarMenuSub>
-                          {item.submenu.map((subItem) => (
-                            <SidebarMenuSubItem key={subItem.title}>
-                              <SidebarMenuSubButton
-                                asChild
-                                isActive={
-                                  pathname && subItem.url
-                                    ? pathname.split("?")[0] === subItem.url.split("?")[0]
-                                    : false
-                                }
-                              >
-                                <Link href={subItem.url || "#"}>
-                                  <span>{subItem.title}</span>
-                                </Link>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                          ))}
-                        </SidebarMenuSub>
-                      )}
-                    </>
-                  ) : (
-                    <SidebarMenuButton
-                      asChild
-                      isActive={
-                        pathname && item.url
-                          ? pathname.split("?")[0] === item.url.split("?")[0]
-                          : false
-                      }
-                    >
-                      <Link href={item.url || "#"} className="flex items-center">
-                        {item.icon && <item.icon className="mr-2 h-4 w-4" />}
-                        <span>{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  )}
-                </SidebarMenuItem>
-              ))}
+                    )}
+                  </SidebarMenuItem>
+                ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
       <SidebarRail />
-    </Sidebar >
+    </Sidebar>
   );
 }
-

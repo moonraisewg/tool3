@@ -1,3 +1,4 @@
+import { PublicKey, TransactionInstruction } from "@solana/web3.js";
 export interface QuoteResponse {
   inputMint: string;
   inAmount: string;
@@ -26,6 +27,7 @@ export interface QuoteResponse {
 export interface SwapInstructionsRequest {
   userPublicKey: string;
   quoteResponse: QuoteResponse;
+  wrapAndUnwrapSol?: boolean;
   prioritizationFeeLamports?: {
     priorityLevelWithMaxLamports: {
       maxLamports: number;
@@ -142,4 +144,18 @@ export async function getJupiterSwapInstructions(
     console.error("Jupiter swap instructions error:", error);
     throw new Error("Failed to get Jupiter swap instructions");
   }
+}
+
+export function createInstructionFromJupiter(
+  jupiterInstruction: JupiterInstruction
+): TransactionInstruction {
+  return new TransactionInstruction({
+    programId: new PublicKey(jupiterInstruction.programId),
+    keys: jupiterInstruction.accounts.map((account) => ({
+      pubkey: new PublicKey(account.pubkey),
+      isSigner: account.isSigner,
+      isWritable: account.isWritable,
+    })),
+    data: Buffer.from(jupiterInstruction.data, "base64"),
+  });
 }

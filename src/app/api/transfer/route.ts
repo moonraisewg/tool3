@@ -75,7 +75,11 @@ async function prepareTransaction(
     body.tokenMint
   );
 
-  const feeInTokens = await getTokenFeeFromUsd(body.tokenMint, feeUsdt);
+  const feeInTokens = await getTokenFeeFromUsd(
+    body.tokenMint,
+    feeUsdt,
+    body.walletPublicKey
+  );
   const feeAmount = Math.round(feeInTokens * Math.pow(10, decimals));
 
   const netAmount = Math.round(

@@ -106,7 +106,7 @@ async function getExistingTokenAccounts(connection: Connection, owner: PublicKey
     return existingAccounts;
 }
 
-export const useUserTokens = (cluster: ClusterType = "mainnet", excludeToken?: string, showZeroBalance: boolean = false) => {
+export const useUserTokens = (cluster: ClusterType = "mainnet", excludeToken?: string[], showZeroBalance: boolean = false) => {
     const [tokens, setTokens] = useState<UserToken[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
@@ -207,11 +207,8 @@ export const useUserTokens = (cluster: ClusterType = "mainnet", excludeToken?: s
                         decimals: asset.token_info?.decimals || 0,
                         ata: asset.token_info?.associated_token_address
                     };
-                })
-                .filter((token) =>
-                    (!excludeToken || token.address !== excludeToken) &&
-                    (showZeroBalance || parseFloat(token.balance) > 0)
-                );
+                }).filter((token: UserToken) => !excludeToken || !excludeToken.includes(token.address) &&
+                    (showZeroBalance || parseFloat(token.balance) > 0))
 
             const existingTokenAccounts = await getExistingTokenAccounts(connection, publicKey);
 
@@ -228,7 +225,7 @@ export const useUserTokens = (cluster: ClusterType = "mainnet", excludeToken?: s
             };
 
             const allTokens =
-                excludeToken !== NATIVE_SOL ? [solToken, ...filteredFormattedTokens] : filteredFormattedTokens;
+                !excludeToken || !excludeToken.includes(NATIVE_SOL) ? [solToken, ...filteredFormattedTokens] : filteredFormattedTokens;
 
             setTokens(allTokens);
         } catch (error: unknown) {
