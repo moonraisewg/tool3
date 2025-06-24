@@ -9,7 +9,7 @@ import { Form } from "@/components/ui/form"
 import { toast } from "sonner"
 import { useWallet } from "@solana/wallet-adapter-react"
 import { useIsMobile } from "@/hooks/use-mobile"
-import { Loader2, Info } from "lucide-react"
+import { Loader2, Info, ChevronRight } from "lucide-react"
 import { Transaction } from "@solana/web3.js"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip"
 import SelectToken from "../transfer/select-token"
@@ -31,6 +31,9 @@ export default function CreateRaydiumCpmmPool() {
     const [selectedToken2, setSelectedToken2] = useState<UserToken | null>(null)
     const [loading, setLoading] = useState(false)
     const [loadingMessage, setLoadingMessage] = useState("")
+    const [currentStep, setCurrentStep] = useState(1)
+    const [paymentTxId, setPaymentTxId] = useState("")
+    const [tokenTransferTxId, setTokenTransferTxId] = useState("")
     const { publicKey, signTransaction } = useWallet()
 
     const form = useForm<z.infer<typeof formSchema>>({
@@ -131,117 +134,112 @@ export default function CreateRaydiumCpmmPool() {
         return sendTxData.txId
     }
 
-    const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    const handleNext = async () => {
         try {
             setLoading(true)
-            setLoadingMessage("Checking wallet...")
-
-            if (!publicKey) throw new Error("Please connect your wallet")
-            if (!signTransaction) throw new Error("Wallet does not support signing")
-            if (!selectedToken1 || !selectedToken2) throw new Error("Please select both tokens")
-            if (!selectedToken1.decimals || !selectedToken2.decimals) throw new Error("Invalid token decimals")
-            if (selectedToken1.address === selectedToken2.address) {
-                throw new Error("Token A and Token B cannot be the same.")
-            }
-            const mintAAddress = selectedToken1.address
-            const mintBAddress = selectedToken2.address
-            const amountA = toLamports(values.amountToken1, selectedToken1.decimals)
-            const amountB = toLamports(values.amountToken2, selectedToken2.decimals)
-
-            setLoadingMessage("Checking if pool already exists...")
-            const poolExists = await checkPoolExists(mintAAddress, mintBAddress)
-            if (poolExists) {
-                throw new Error("Pool already exists for the selected token pair.")
-            }
-
-            setLoadingMessage("Sending payment on Mainnet...")
-            const paymentTxId = await sendPayment()
-
-            setLoadingMessage("Please switch your wallet to Devnet for token transfer...")
-            toast.info("Please switch your wallet to Devnet to continue.")
-            await new Promise((resolve) => setTimeout(resolve, 8000))
-
-            setLoadingMessage("Requesting token transfer transaction...")
-            let res = await fetch("/api/create-pool-raydium", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    mintAAddress,
-                    mintBAddress,
-                    amountA,
-                    amountB,
-                    userPublicKey: publicKey.toString(),
-                    paymentTxId,
-                }),
-            })
-
-            let data = await res.json()
-            if (!res.ok || !data.success) {
-                throw new Error(data.error || "Failed to get token transfer transaction")
-            }
-
-            if (data?.tokenTransferTx) {
-                setLoadingMessage("Preparing token transfer...")
-                const tokenTransferTxId = await sendTokenTransfer(
-                    data.tokenTransferTx,
-                    data.blockhash,
-                    data.lastValidBlockHeight,
-                )
-
-                setLoadingMessage("Creating pool on server...")
-                res = await fetch("/api/create-pool-raydium", {
+            if (currentStep === 1) {
+                if (!publicKey) throw new Error("Please connect your wallet")
+                if (!selectedToken1 || !selectedToken2) throw new Error("Please select both tokens")
+                if (selectedToken1.address === selectedToken2.address) {
+                    throw new Error("Token A and Token B cannot be the same")
+                }
+                const isValid = await form.trigger()
+                if (!isValid) throw new Error("Please enter valid token amounts")
+                setLoadingMessage("Checking if pool already exists...")
+                const poolExists = await checkPoolExists(selectedToken1.address, selectedToken2.address)
+                if (poolExists) {
+                    throw new Error("Pool already exists for the selected token pair")
+                }
+                setCurrentStep(2)
+            } else if (currentStep === 2) {
+                setLoadingMessage("Sending payment on Mainnet...")
+                const txId = await sendPayment()
+                setPaymentTxId(txId)
+                setCurrentStep(3)
+            } else if (currentStep === 3) {
+                setLoadingMessage("Requesting token transfer transaction...")
+                const values = form.getValues()
+                const amountA = toLamports(values.amountToken1, selectedToken1!.decimals!)
+                const amountB = toLamports(values.amountToken2, selectedToken2!.decimals!)
+                const res = await fetch("/api/create-pool-raydium", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        mintAAddress,
-                        mintBAddress,
+                        mintAAddress: selectedToken1!.address,
+                        mintBAddress: selectedToken2!.address,
                         amountA,
                         amountB,
-                        userPublicKey: publicKey.toString(),
+                        userPublicKey: publicKey!.toString(),
+                        paymentTxId,
+                    }),
+                })
+                const data = await res.json()
+                if (!res.ok || !data.success || !data.tokenTransferTx) {
+                    throw new Error(data.error || "Failed to get token transfer transaction")
+                }
+
+                setLoadingMessage("Preparing token transfer...")
+                const txId = await sendTokenTransfer(data.tokenTransferTx, data.blockhash, data.lastValidBlockHeight)
+                setTokenTransferTxId(txId)
+                setCurrentStep(4)
+            } else if (currentStep === 4) {
+                setLoadingMessage("Creating pool on server...")
+                const values = form.getValues()
+                const amountA = toLamports(values.amountToken1, selectedToken1!.decimals!)
+                const amountB = toLamports(values.amountToken2, selectedToken2!.decimals!)
+                const res = await fetch("/api/create-pool-raydium", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        mintAAddress: selectedToken1!.address,
+                        mintBAddress: selectedToken2!.address,
+                        amountA,
+                        amountB,
+                        userPublicKey: publicKey!.toString(),
                         paymentTxId,
                         tokenTransferTxId,
                     }),
                 })
-
-                data = await res.json()
+                const data = await res.json()
                 if (!res.ok || !data.success) {
                     throw new Error(data.error || "Failed to create pool")
                 }
+
+                toast.success(
+                    <div className="space-y-2">
+                        <p>✅ Pool created successfully!</p>
+                        <p className="text-sm">
+                            Create pool Tx ID:{" "}
+                            <a
+                                href={`https://solscan.io/tx/${data?.poolTxId}?cluster=devnet`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-500 hover:underline"
+                            >
+                                {data?.poolTxId.slice(0, 8)}...{data?.poolTxId.slice(-8)}
+                            </a>
+                        </p>
+                        <p className="text-sm">
+                            Pool ID:{" "}
+                            <a
+                                href={`https://solscan.io/account/${data.poolKeys.poolId}?cluster=devnet`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-500 hover:underline"
+                            >
+                                {data.poolKeys.poolId.slice(0, 8)}...{data.poolKeys.poolId.slice(-8)}
+                            </a>
+                        </p>
+                    </div>,
+                )
+
+                form.reset()
+                setSelectedToken1(null)
+                setSelectedToken2(null)
+                setCurrentStep(1)
             }
-
-            toast.success(
-                <div className="space-y-2">
-                    <p>✅ Pool created successfully!</p>
-                    <p className="text-sm">
-                        Create pool Tx ID:{" "}
-                        <a
-                            href={`https://solscan.io/tx/${data?.poolTxId}?cluster=devnet`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-500 hover:underline"
-                        >
-                            {data?.poolTxId.slice(0, 8)}...{data?.poolTxId.slice(-8)}
-                        </a>
-                    </p>
-                    <p className="text-sm">
-                        Pool ID:{" "}
-                        <a
-                            href={`https://solscan.io/account/${data.poolKeys.poolId}?cluster=devnet`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-500 hover:underline"
-                        >
-                            {data.poolKeys.poolId.slice(0, 8)}...{data.poolKeys.poolId.slice(-8)}
-                        </a>
-                    </p>
-                </div>,
-            )
-
-            form.reset()
-            setSelectedToken1(null)
-            setSelectedToken2(null)
         } catch (error: unknown) {
-            const msg = error instanceof Error ? error.message : "Failed to create pool"
+            const msg = error instanceof Error ? error.message : "An error occurred"
             toast.error(msg)
         } finally {
             setLoading(false)
@@ -249,77 +247,139 @@ export default function CreateRaydiumCpmmPool() {
         }
     }
 
+    // const handleBack = () => {
+    //     if (currentStep > 1) setCurrentStep(currentStep - 1)
+    // }
+
     const price = Number.parseFloat(form.watch("amountToken1")) / Number.parseFloat(form.watch("amountToken2")) || ""
+
+    const steps = [
+        { title: "Choose Tokens", description: "Choose the token pair and specify amounts for your liquidity pool." },
+        { title: "Confirm Payment", description: `Pay ${CREATE_POOL_FEE} SOL on Mainnet to proceed.` },
+        { title: "Token Transfer", description: "Transfer tokens on Devnet to fund the pool." },
+        { title: "Create Pool", description: "Review and finalize the pool creation." },
+    ]
 
     return (
         <div className={`md:p-2 max-w-[550px] mx-auto my-2 ${!isMobile ? "border-gear" : ""}`}>
             <div className="mb-6">
                 <h1 className="text-2xl font-bold text-gray-900 mb-6 text-center">Create Pool with Raydium CPMM (Devnet)</h1>
+                <div className="flex justify-between mb-4">
+                    {steps.map((step, index) => (
+                        <div
+                            key={index}
+                            className={`flex-1 text-center ${currentStep === index + 1 ? "text-blue-500 font-semibold" : "text-gray-500"}`}
+                        >
+                            <div className="text-sm">{step.title}</div>
+                            <div className={`h-1 mt-1 ${currentStep >= index + 1 ? "bg-blue-500" : "bg-gray-200"}`}></div>
+                        </div>
+                    ))}
+                </div>
             </div>
 
             <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                    <div className="space-y-6 px-1">
-                        <SelectToken
-                            selectedToken={selectedToken1}
-                            setSelectedToken={setSelectedToken1}
-                            onAmountChange={(v) => form.setValue("amountToken1", v)}
-                            cluster="devnet"
-                            amount={form.watch("amountToken1")}
-                        />
-                        {form.formState.errors.amountToken1 && (
-                            <p className="text-sm text-red-500 mt-1">
-                                {form.formState.errors.amountToken1.message}
-                            </p>
-                        )}
-                        <SelectToken
-                            selectedToken={selectedToken2}
-                            setSelectedToken={setSelectedToken2}
-                            onAmountChange={(v) => form.setValue("amountToken2", v)}
-                            cluster="devnet"
-                            amount={form.watch("amountToken2")}
-                        />
-                        {form.formState.errors.amountToken2 && (
-                            <p className="text-sm text-red-500 mt-1">
-                                {form.formState.errors.amountToken2.message}
-                            </p>
-                        )}
-                        <div className="flex items-center gap-2">
-                            <div>Initial price</div>
-                            <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Info className="h-4 w-4 text-gray-500 mt-[3px]" />
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p>The initial price is calculated as Token A / Token B.</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
-                        </div>
-                        <div className="border-gear-gray flex items-center justify-between px-2 py-2 text-sm">
-                            <div>{price || "-"}</div>
-                            <p>{`${selectedToken1?.symbol || "?"}/${selectedToken2?.symbol || "?"}`}</p>
-                        </div>
-                        <div className="text-sm text-gray-500">
-                            <p>Pool creation fee: {CREATE_POOL_FEE} SOL (paid on Mainnet)</p>
-                        </div>
-                    </div>
-                    <Button
-                        type="submit"
-                        className="w-full font-semibold py-2 rounded-lg"
-                        variant="default"
-                        disabled={loading || !publicKey || !signTransaction}
-                    >
-                        {loading ? (
+                <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
+                    {currentStep === 1 && (
+                        <div className="space-y-6 px-1">
+                            <SelectToken
+                                selectedToken={selectedToken1}
+                                setSelectedToken={setSelectedToken1}
+                                onAmountChange={(v) => form.setValue("amountToken1", v)}
+                                cluster="devnet"
+                                amount={form.watch("amountToken1")}
+                            />
+                            {form.formState.errors.amountToken1 && (
+                                <p className="text-sm text-red-500 mt-1">
+                                    {form.formState.errors.amountToken1.message}
+                                </p>
+                            )}
+                            <SelectToken
+                                selectedToken={selectedToken2}
+                                setSelectedToken={setSelectedToken2}
+                                onAmountChange={(v) => form.setValue("amountToken2", v)}
+                                cluster="devnet"
+                                amount={form.watch("amountToken2")}
+                            />
+                            {form.formState.errors.amountToken2 && (
+                                <p className="text-sm text-red-500 mt-1">
+                                    {form.formState.errors.amountToken2.message}
+                                </p>
+                            )}
                             <div className="flex items-center gap-2">
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                <span>{loadingMessage}</span>
+                                <div>Initial price</div>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Info className="h-4 w-4 text-gray-500 mt-[3px]" />
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>The initial price is calculated as Token A / Token B.</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
                             </div>
-                        ) : (
-                            "Create Liquidity Pool"
-                        )}
-                    </Button>
+                            <div className="border-gear-gray flex items-center justify-between px-2 py-2 text-sm">
+                                <div>{price || "-"}</div>
+                                <p>{`${selectedToken1?.symbol || "?"}/${selectedToken2?.symbol || "?"}`}</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {currentStep === 2 && (
+                        <div className="space-y-6 px-1">
+                            <div className="text-sm text-gray-500">
+                                <p>Pool creation fee: {CREATE_POOL_FEE} SOL (paid on Mainnet)</p>
+                                <p className="mt-2">Please click Next and confirm the payment to proceed with pool creation.</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {currentStep === 3 && (
+                        <div className="space-y-6 px-1">
+                            <div className="text-sm text-gray-500">
+                                <p>Switch your wallet to Devnet to transfer the tokens for the pool.</p>
+                                <p className="mt-2">After switching, click Next to initiate the token transfer.</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {currentStep === 4 && (
+                        <div className="space-y-6 px-1">
+                            <div className="text-sm">
+                                <p><strong>Token Pair:</strong> {selectedToken1?.symbol} / {selectedToken2?.symbol}</p>
+                                <p><strong>Amount A:</strong> {form.watch("amountToken1")} {selectedToken1?.symbol}</p>
+                                <p><strong>Amount B:</strong> {form.watch("amountToken2")} {selectedToken2?.symbol}</p>
+                                <p><strong>Initial Price:</strong> {price} {selectedToken1?.symbol}/{selectedToken2?.symbol}</p>
+                                <p><strong>Fee:</strong> {CREATE_POOL_FEE} SOL</p>
+                                <p className="mt-2">Review the details and click Create to finalize the pool.</p>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="flex justify-between">
+                        <div></div>
+                        <Button
+                            type="button"
+                            onClick={handleNext}
+                            className="font-semibold py-2 rounded-lg"
+                            variant="default"
+                            disabled={loading || !publicKey || !signTransaction}
+                        >
+                            {loading ? (
+                                <div className="flex items-center gap-2">
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    <span>{loadingMessage}</span>
+                                </div>
+                            ) : currentStep === 4 ? (
+                                "Create Pool"
+                            ) : (
+                                <div className="flex items-center gap-2">
+                                    <span>Next</span>
+                                    <ChevronRight className="h-4 w-4" />
+                                </div>
+                            )}
+                        </Button>
+                    </div>
                 </form>
             </Form>
         </div>
