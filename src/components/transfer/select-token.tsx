@@ -9,6 +9,7 @@ import Image from "next/image";
 import { ChevronDown, Loader, Wallet } from "@nsmr/pixelart-react";
 import { useUserTokens, UserToken } from "@/hooks/useUserTokens";
 import { ClusterType } from "@/types/types";
+import { NATIVE_SOL } from "@/utils/constants";
 
 interface SelectTokenProps {
   selectedToken: UserToken | null;
@@ -44,7 +45,7 @@ const SelectToken: React.FC<SelectTokenProps> = ({
       const solToken = tokens.find(token =>
         token.symbol === "SOL" ||
         token.address === "11111111111111111111111111111111" ||
-        token.address === "NativeSOL"
+        token.address === NATIVE_SOL
       );
 
       if (solToken) {

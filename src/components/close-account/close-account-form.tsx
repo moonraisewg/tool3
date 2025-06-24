@@ -13,6 +13,7 @@ import { Loader2 } from "lucide-react";
 import { Transaction } from "@solana/web3.js";
 import { useUserTokens } from "@/hooks/useUserTokens";
 import Image from "next/image";
+import { NATIVE_SOL } from "@/utils/constants";
 
 const formSchema = z.object({
     selectedAccounts: z.array(z.string()).min(1, "Please select at least one account to close"),
@@ -33,7 +34,7 @@ export default function CloseAccountForm() {
     const selectedAccounts = form.watch("selectedAccounts");
 
     const zeroBalanceAccounts = tokens.filter(
-        (token) => token.address !== "NativeSOL" && parseFloat(token.balance) === 0
+        (token) => token.address !== NATIVE_SOL && parseFloat(token.balance) === 0
     );
 
     const handleSelectAll = (checked: boolean) => {
@@ -209,7 +210,7 @@ export default function CloseAccountForm() {
                         )}
 
                         <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                            <p className="text-sm text-blue-800">
+                            <div className="text-sm text-blue-800">
                                 💰 <strong>Estimated Reclaimed Rent ({selectedAccounts.length} accounts):</strong>{" "}
                                 {selectedAccounts.length === 0 ? (
                                     "Select accounts to estimate"
@@ -219,7 +220,7 @@ export default function CloseAccountForm() {
                                         Fees: {(estimatedRent.systemRent / 1_000_000_000).toFixed(9)} SOL
                                     </div>
                                 )}
-                            </p>
+                            </div>
                         </div>
                     </div>
 

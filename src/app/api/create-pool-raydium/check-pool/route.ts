@@ -5,13 +5,21 @@ import {
     CpmmPoolInfoLayout,
 } from "@raydium-io/raydium-sdk-v2";
 import { connectionDevnet } from "@/service/solana/connection";
+import { WSOL_MINT } from "@/utils/constants";
 
 export async function POST(req: NextRequest) {
     try {
-        const { mintAAddress, mintBAddress } = await req.json();
+        let { mintAAddress, mintBAddress } = await req.json();
 
         if (!mintAAddress || !mintBAddress) {
             return new Response(JSON.stringify({ success: false, error: "Missing token addresses" }), { status: 400 });
+        }
+
+        if (mintAAddress === "NativeSOL") {
+            mintAAddress = WSOL_MINT;
+        }
+        if (mintBAddress === "NativeSOL") {
+            mintBAddress = WSOL_MINT;
         }
 
         const mintA = new PublicKey(mintAAddress);

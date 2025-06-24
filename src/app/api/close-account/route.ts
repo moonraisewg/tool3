@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
 
             const { blockhash, lastValidBlockHeight } = await connectionMainnet.getLatestBlockhash();
             transaction.recentBlockhash = blockhash;
-            transaction.feePayer = adminKeypair.publicKey;
+            transaction.feePayer = userPubkey;
             transaction.partialSign(adminKeypair);
 
             return NextResponse.json({

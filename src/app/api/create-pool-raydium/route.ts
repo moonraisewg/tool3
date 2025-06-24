@@ -22,12 +22,11 @@ import {
   connectionDevnet,
   connectionMainnet,
 } from "@/service/solana/connection";
-
+import { CREATE_POOL_FEE } from "@/utils/constants";
+import { createTokenTransferTx } from "@/utils/solana-token-transfer";
 
 const PAYMENT_WALLET = adminKeypair.publicKey;
-const PAYMENT_AMOUNT_LAMPORTS = 0.001 * LAMPORTS_PER_SOL;
-
-const SOL_MINT = "So11111111111111111111111111111111111111112";
+const PAYMENT_AMOUNT_LAMPORTS = CREATE_POOL_FEE * LAMPORTS_PER_SOL;
 
 function isValidBase58(str: string): boolean {
   return /^[1-9A-HJ-NP-Za-km-z]+$/.test(str);
@@ -70,89 +69,6 @@ async function verifyPaymentTx(
     console.error("Payment verification error:", err);
     return false;
   }
-}
-
-async function createTokenTransferTx(
-  userPublicKey: PublicKey,
-  mintAAddress: string,
-  mintBAddress: string,
-  amountA: string,
-  amountB: string
-): Promise<Transaction> {
-  const tx = new Transaction();
-  const mintAPubkey = new PublicKey(mintAAddress);
-  const mintBPubkey = new PublicKey(mintBAddress);
-
-  const adminAtaA = getAssociatedTokenAddressSync(
-    mintAPubkey,
-    adminKeypair.publicKey
-  );
-  const adminAtaB = getAssociatedTokenAddressSync(
-    mintBPubkey,
-    adminKeypair.publicKey
-  );
-  const userAtaA = getAssociatedTokenAddressSync(mintAPubkey, userPublicKey);
-  const userAtaB = getAssociatedTokenAddressSync(mintBPubkey, userPublicKey);
-
-  const adminAtaAInfo = await connectionDevnet.getAccountInfo(adminAtaA);
-  if (!adminAtaAInfo) {
-    tx.add(
-      createAssociatedTokenAccountInstruction(
-        userPublicKey,
-        adminAtaA,
-        adminKeypair.publicKey,
-        mintAPubkey,
-        TOKEN_PROGRAM_ID
-      )
-    );
-  }
-
-  const adminAtaBInfo = await connectionDevnet.getAccountInfo(adminAtaB);
-  if (!adminAtaBInfo) {
-    tx.add(
-      createAssociatedTokenAccountInstruction(
-        userPublicKey,
-        adminAtaB,
-        adminKeypair.publicKey,
-        mintBPubkey,
-        TOKEN_PROGRAM_ID
-      )
-    );
-  }
-
-  if (mintAAddress === SOL_MINT) {
-    tx.add(
-      SystemProgram.transfer({
-        fromPubkey: userPublicKey,
-        toPubkey: adminKeypair.publicKey,
-        lamports: Number(amountA),
-      })
-    );
-  } else {
-    tx.add(
-      createTransferInstruction(
-        userAtaA,
-        adminAtaA,
-        userPublicKey,
-        Number(amountA),
-        [],
-        TOKEN_PROGRAM_ID
-      )
-    );
-  }
-
-  tx.add(
-    createTransferInstruction(
-      userAtaB,
-      adminAtaB,
-      userPublicKey,
-      Number(amountB),
-      [],
-      TOKEN_PROGRAM_ID
-    )
-  );
-
-  return tx;
 }
 
 async function transferLpToken(
@@ -253,7 +169,6 @@ export async function POST(req: Request) {
     const raydium = await initSdk(connectionDevnet);
 
     if (!paymentTxId) {
-      // Create payment transaction
       const paymentTx = new Transaction().add(
         SystemProgram.transfer({
           fromPubkey: userPubKey,
@@ -313,7 +228,9 @@ export async function POST(req: Request) {
 
     if (!tokenTransferTxId) {
       const tokenTransferTx = await createTokenTransferTx(
+        connectionDevnet,
         userPubKey,
+        adminKeypair,
         mintAAddress,
         mintBAddress,
         amountA,

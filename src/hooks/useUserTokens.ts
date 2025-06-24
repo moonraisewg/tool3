@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { ClusterType } from "@/types/types";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { NATIVE_SOL } from "@/utils/constants";
 
 export interface UserToken {
     address: string;
@@ -217,7 +218,7 @@ export const useUserTokens = (cluster: ClusterType = "mainnet", excludeToken?: s
             const filteredFormattedTokens = formattedTokens.filter((token) => existingTokenAccounts.has(token.ata!));
 
             const solToken: UserToken = {
-                address: "NativeSOL",
+                address: NATIVE_SOL,
                 name: "Solana",
                 symbol: "SOL",
                 balance: (nativeBalance / 1_000_000_000).toString(),
@@ -227,7 +228,7 @@ export const useUserTokens = (cluster: ClusterType = "mainnet", excludeToken?: s
             };
 
             const allTokens =
-                excludeToken !== "NativeSOL" ? [solToken, ...filteredFormattedTokens] : filteredFormattedTokens;
+                excludeToken !== NATIVE_SOL ? [solToken, ...filteredFormattedTokens] : filteredFormattedTokens;
 
             setTokens(allTokens);
         } catch (error: unknown) {

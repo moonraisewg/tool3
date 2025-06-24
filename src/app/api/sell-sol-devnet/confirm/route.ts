@@ -2,6 +2,7 @@ import {
   PublicKey,
   SystemProgram,
   Transaction,
+  TransactionInstruction,
   sendAndConfirmTransaction,
 } from "@solana/web3.js";
 import { NextResponse } from "next/server";
@@ -12,7 +13,8 @@ import {
   connectionDevnet,
 } from "@/service/solana/connection";
 import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from "@solana/spl-token";
-
+import { MEMO_PROGRAM_ID } from "@raydium-io/raydium-sdk-v2";
+import { NATIVE_SOL } from "@/utils/constants";
 
 export async function POST(request: Request) {
   try {
@@ -55,7 +57,7 @@ export async function POST(request: Request) {
 
     let isToAdmin = false;
 
-    if (tokenMint === "NativeSOL") {
+    if (tokenMint === NATIVE_SOL) {
       isToAdmin = transferInstruction.keys.some((key) =>
         key.pubkey.equals(adminPublicKey)
       );
@@ -105,6 +107,14 @@ export async function POST(request: Request) {
         fromPubkey: adminPublicKey,
         toPubkey: userPublicKey,
         lamports: Math.round(solAmount),
+      })
+    );
+
+    solTx.add(
+      new TransactionInstruction({
+        keys: [],
+        programId: MEMO_PROGRAM_ID,
+        data: Buffer.from(`Mainnet Tx: ${txSignature}`),
       })
     );
 

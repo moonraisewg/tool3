@@ -14,8 +14,7 @@ import { Transaction } from "@solana/web3.js"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip"
 import SelectToken from "../transfer/select-token"
 import { UserToken } from "@/hooks/useUserTokens"
-
-const SOL_MINT = "So11111111111111111111111111111111111111112"
+import { CREATE_POOL_FEE } from "@/utils/constants"
 
 const formSchema = z.object({
     amountToken1: z.string().refine((val) => !isNaN(Number.parseFloat(val)) && Number.parseFloat(val) > 0, {
@@ -130,8 +129,12 @@ export default function CreateMeteoraDammPool() {
             if (!selectedToken1 || !selectedToken2) throw new Error("Please select both tokens")
             if (!selectedToken1.decimals || !selectedToken2.decimals) throw new Error("Invalid token decimals")
 
-            const mintAAddress = selectedToken1.address === "NativeSOL" ? SOL_MINT : selectedToken1.address
-            const mintBAddress = selectedToken2.address === "NativeSOL" ? SOL_MINT : selectedToken2.address
+            if (selectedToken1.address === selectedToken2.address) {
+                throw new Error("Token A and Token B cannot be the same.")
+            }
+
+            const mintAAddress = selectedToken1.address
+            const mintBAddress = selectedToken2.address
             const amountA = toLamports(values.amountToken1, selectedToken1.decimals)
             const amountB = toLamports(values.amountToken2, selectedToken2.decimals)
 
@@ -275,8 +278,7 @@ export default function CreateMeteoraDammPool() {
                             <p>{`${selectedToken1?.symbol || "?"}/${selectedToken2?.symbol || "?"}`}</p>
                         </div>
                         <div className="text-sm text-gray-500">
-                            <p>Pool creation fee: 0.001 SOL (paid on Mainnet)</p>
-                            <p>Transaction fee: 0.0025%</p>
+                            <p>Pool creation fee: {CREATE_POOL_FEE} SOL (paid on Mainnet)</p>
                         </div>
                     </div>
                     <Button
