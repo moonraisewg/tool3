@@ -24,9 +24,9 @@ import {
 } from "@/service/solana/connection";
 import { CREATE_POOL_FEE, NATIVE_SOL, WSOL_MINT } from "@/utils/constants";
 import { createTokenTransferTx } from "@/utils/solana-token-transfer";
+import { isWhitelisted } from "@/utils/whitelist";
 
 const PAYMENT_WALLET = adminKeypair.publicKey;
-const PAYMENT_AMOUNT_LAMPORTS = CREATE_POOL_FEE * LAMPORTS_PER_SOL;
 
 export function isValidBase58(str: string): boolean {
   if (str === NATIVE_SOL) return true;
@@ -35,7 +35,8 @@ export function isValidBase58(str: string): boolean {
 
 async function verifyPaymentTx(
   paymentTxId: string,
-  userPublicKey: PublicKey
+  userPublicKey: PublicKey,
+  paymentAmount: number
 ): Promise<boolean> {
   try {
     const tx = await connectionMainnet.getTransaction(paymentTxId, {
@@ -61,7 +62,7 @@ async function verifyPaymentTx(
       transferInstruction.data.slice(4),
       "le"
     ).toNumber();
-    if (lamportsTransferred < PAYMENT_AMOUNT_LAMPORTS) return false;
+    if (lamportsTransferred < paymentAmount) return false;
 
     if (!message.staticAccountKeys[0].equals(userPublicKey)) return false;
 
@@ -166,6 +167,13 @@ export async function POST(req: Request) {
       );
     }
 
+    let PAYMENT_AMOUNT_LAMPORTS = CREATE_POOL_FEE * LAMPORTS_PER_SOL;
+
+    if (userPublicKey && isWhitelisted(userPublicKey)) {
+      console.log("Wallet in whitelist, free transaction");
+      PAYMENT_AMOUNT_LAMPORTS = 0;
+    }
+
     const userPubKey = new PublicKey(userPublicKey);
     const raydium = await initSdk(connectionDevnet);
 
@@ -193,7 +201,7 @@ export async function POST(req: Request) {
     }
 
     // Verify Mainnet payment
-    const paymentValid = await verifyPaymentTx(paymentTxId, userPubKey);
+    const paymentValid = await verifyPaymentTx(paymentTxId, userPubKey, PAYMENT_AMOUNT_LAMPORTS);
     if (!paymentValid) {
       return NextResponse.json(
         { success: false, error: "Invalid or unconfirmed payment transaction" },

@@ -8,11 +8,11 @@ import { CpAmm, MIN_SQRT_PRICE, MAX_SQRT_PRICE, derivePoolAddress } from "@meteo
 import { createTokenTransferTx } from "@/utils/solana-token-transfer";
 import { CONFIG_CREATE_METEORA_ADDRESS, CREATE_POOL_FEE, NATIVE_SOL, WSOL_MINT } from "@/utils/constants";
 import { isValidBase58 } from "../create-pool-raydium/route";
+import { isWhitelisted } from "@/utils/whitelist";
 
-const PAYMENT_AMOUNT_LAMPORTS = CREATE_POOL_FEE * LAMPORTS_PER_SOL;
 
-
-async function verifyPaymentTx(paymentTxId: string, userPublicKey: PublicKey): Promise<boolean> {
+async function verifyPaymentTx(paymentTxId: string, userPublicKey: PublicKey,
+    paymentAmount: number): Promise<boolean> {
     try {
         const tx = await connectionMainnet.getTransaction(paymentTxId, {
             commitment: "confirmed",
@@ -30,7 +30,7 @@ async function verifyPaymentTx(paymentTxId: string, userPublicKey: PublicKey): P
         if (!transferInstruction) return false;
 
         const lamportsTransferred = new BN(transferInstruction.data.slice(4), "le").toNumber();
-        if (lamportsTransferred < PAYMENT_AMOUNT_LAMPORTS) return false;
+        if (lamportsTransferred < paymentAmount) return false;
 
         if (!message.staticAccountKeys[0].equals(userPublicKey)) return false;
 
@@ -59,6 +59,13 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: "Invalid base58 format" }, { status: 400 });
         }
 
+        let PAYMENT_AMOUNT_LAMPORTS = CREATE_POOL_FEE * LAMPORTS_PER_SOL;
+
+        if (userPublicKey && isWhitelisted(userPublicKey)) {
+            console.log("Wallet in whitelist, free transaction");
+            PAYMENT_AMOUNT_LAMPORTS = 0;
+        }
+
         const cpAmm = new CpAmm(connectionDevnet);
         const config = new PublicKey(CONFIG_CREATE_METEORA_ADDRESS);
         const userPubKey = new PublicKey(userPublicKey);
@@ -83,7 +90,7 @@ export async function POST(req: Request) {
             });
         }
 
-        const paymentValid = await verifyPaymentTx(paymentTxId, userPubKey);
+        const paymentValid = await verifyPaymentTx(paymentTxId, userPubKey, PAYMENT_AMOUNT_LAMPORTS);
         if (!paymentValid) {
             return NextResponse.json(
                 { success: false, error: "Invalid or unconfirmed payment transaction" },

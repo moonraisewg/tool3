@@ -343,12 +343,12 @@ export default function CreateRaydiumCpmmPool() {
                     {currentStep === 3 && (
                         <div className="space-y-6 px-1">
                             <div className="text-sm">
-                                <p><strong>Token Pair:</strong> {selectedToken1?.symbol || "UNKNOW"} / {selectedToken2?.symbol || "UNKNOW"}</p>
-                                <p><strong>Amount A:</strong> {form.watch("amountToken1")} {selectedToken1?.symbol}</p>
-                                <p><strong>Amount B:</strong> {form.watch("amountToken2")} {selectedToken2?.symbol}</p>
-                                <p><strong>Initial Price:</strong> {price} {selectedToken1?.symbol || "UNKNOW"}/{selectedToken2?.symbol || "UNKNOW"}</p>
-                                <p><strong>Fee:</strong> {CREATE_POOL_FEE} SOL</p>
-                                <p className="mt-2">Switch your wallet to Devnet, then click Create Pool to transfer tokens and finalize the pool creation.</p>
+                                <p className="mt-1"><strong>Token Pair:</strong> {selectedToken1?.symbol || "UNKNOW"} / {selectedToken2?.symbol || "UNKNOW"}</p>
+                                <p className="mt-1"><strong>Amount A:</strong> {form.watch("amountToken1")} </p>
+                                <p className="mt-1"><strong>Amount B:</strong> {form.watch("amountToken2")} </p>
+                                <p className="mt-1"><strong>Initial Price:</strong> {price} {selectedToken1?.symbol || "UNKNOW"}/{selectedToken2?.symbol || "UNKNOW"}</p>
+                                <p className="mt-1"><strong>Fee:</strong> {CREATE_POOL_FEE} SOL</p>
+                                <div className="mt-2 bg-blue-50 border border-blue-200 rounded-lg p-2">⚡ Switch your wallet to Devnet, then click Create Pool to transfer tokens and finalize the pool creation.</div>
                             </div>
                         </div>
                     )}
@@ -368,7 +368,7 @@ export default function CreateRaydiumCpmmPool() {
                                         {poolResult?.poolTxId.slice(0, 8)}...{poolResult?.poolTxId.slice(-8)}
                                     </a>
                                 </p>
-                                <p>
+                                <p className="mt-2">
                                     Pool ID:{" "}
                                     <a
                                         href={`https://solscan.io/account/${poolResult?.poolKeys.poolId}?cluster=devnet`}
