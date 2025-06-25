@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardHeader,  CardDescription } from "@/components/ui/card";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -309,53 +309,51 @@ export function RecoveryForm({ }: RecoveryFormProps) {
         <h1 className="text-2xl font-bold text-gray-900 mb-6 flex items-center justify-center">
           Recovery Successful!
         </h1>
-        <Card>
-          <CardContent className="pt-6 text-center">
-            <div className="mb-6 flex justify-center">
-              <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
-                <Check className="h-8 w-8 text-green-600" />
-              </div>
+        <div className="text-center">
+          <div className="mb-6 flex justify-center">
+            <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
+              <Check className="h-8 w-8 text-green-600" />
             </div>
-            <p className="text-gray-500 mb-6">Tokens have been successfully recovered using permanent delegate authority</p>
+          </div>
+          <p className="text-gray-500 mb-6">Tokens have been successfully recovered using permanent delegate authority</p>
 
-            <div className="space-y-4 mb-8">
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm font-medium text-gray-500">Token</p>
-                <p className="text-base font-mono break-all">{recoveryResult.mintAddress}</p>
-              </div>
-
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm font-medium text-gray-500">Amount Recovered</p>
-                <p className="text-base font-mono">{recoveryResult.amount} {selectedToken?.symbol || ""}</p>
-              </div>
-
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm font-medium text-gray-500">Transaction</p>
-                <p className="text-base font-mono break-all">{recoveryResult.signature}</p>
-              </div>
+          <div className="space-y-4 mb-8">
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <p className="text-sm font-medium text-gray-500">Token</p>
+              <p className="text-base font-mono break-all">{recoveryResult.mintAddress}</p>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button
-                variant="outline"
-                onClick={handleCloseRecoveryDialog}
-              >
-                Recover More Tokens
-              </Button>
-
-              <Button
-                onClick={() => {
-                  window.open(
-                    `https://explorer.solana.com/tx/${recoveryResult.signature}?cluster=devnet`,
-                    "_blank"
-                  );
-                }}
-              >
-                View on Explorer <ExternalLink className="ml-2 h-4 w-4" />
-              </Button>
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <p className="text-sm font-medium text-gray-500">Amount Recovered</p>
+              <p className="text-base font-mono">{recoveryResult.amount} {selectedToken?.symbol || ""}</p>
             </div>
-          </CardContent>
-        </Card>
+
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <p className="text-sm font-medium text-gray-500">Transaction</p>
+              <p className="text-base font-mono break-all">{recoveryResult.signature}</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Button
+              variant="outline"
+              onClick={handleCloseRecoveryDialog}
+            >
+              Recover More Tokens
+            </Button>
+
+            <Button
+              onClick={() => {
+                window.open(
+                  `https://explorer.solana.com/tx/${recoveryResult.signature}?cluster=devnet`,
+                  "_blank"
+                );
+              }}
+            >
+              View on Explorer <ExternalLink className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -365,138 +363,134 @@ export function RecoveryForm({ }: RecoveryFormProps) {
       <h1 className="text-2xl font-bold text-gray-900 mb-6 flex items-center justify-center">
         Permanent Delegate Recovery
       </h1>
-      <Card>
-        <CardHeader>
-          <CardDescription className="text-center">
-            Recover tokens from other wallets using permanent delegate authority
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Alert className="bg-purple-50 border-purple-200 mb-6">
-            <Info className="h-4 w-4 text-purple-500" />
-            <AlertTitle>About Permanent Delegate Recovery</AlertTitle>
-            <AlertDescription>
-              If you are the permanent delegate for a token, you can use this tool to recover tokens from any wallet.
-              This is useful for retrieving tokens that were sent to the wrong address.
-            </AlertDescription>
-          </Alert>
+      <div>
+        <div className="text-center mb-6">
+          Recover tokens from other wallets using permanent delegate authority
+        </div>
+        <Alert className="bg-purple-50 border-purple-200 mb-6">
+          <Info className="h-4 w-4 text-purple-500" />
+          <AlertTitle>About Permanent Delegate Recovery</AlertTitle>
+          <AlertDescription>
+            If you are the permanent delegate for a token, you can use this tool to recover tokens from any wallet.
+            This is useful for retrieving tokens that were sent to the wrong address.
+          </AlertDescription>
+        </Alert>
 
-          <form onSubmit={(e) => { e.preventDefault(); openConfirmDialog(); }} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="token">Select Token</Label>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full flex justify-between items-center h-10"
-                onClick={() => {
-                  fetchUserTokens();
-                  setIsModalOpen(true);
-                }}
-              >
-                {selectedToken ? (
-                  <span>
-                    {selectedToken.symbol} - {selectedToken.name}
-                  </span>
-                ) : (
-                  <span>Select a token</span>
-                )}
-                <span>▼</span>
-              </Button>
-              {selectedToken && (
-                <div className="text-sm text-gray-500">
-                  Balance: {selectedToken.balance} {selectedToken.symbol}
-                </div>
-              )}
-
-              {/* Verify Button */}
-              <Button
-                variant="outline"
-                className="mt-2"
-                onClick={verifyDelegateStatus}
-                disabled={!selectedToken || verifyLoading}
-              >
-                {verifyLoading ? (
-                  <><RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Verifying...</>
-                ) : (
-                  "Verify Delegate Status"
-                )}
-              </Button>
-
-              {isDelegate === true && (
-                <p className="text-sm text-green-500">✓ You are the permanent delegate for this token</p>
-              )}
-            </div>
-
-            {/* Source Wallet Address */}
-            <div className="space-y-2">
-              <Label htmlFor="source-wallet">Source Wallet Address</Label>
-              <Input
-                id="source-wallet"
-                placeholder="Enter source wallet address"
-                value={sourceWalletAddress}
-                onChange={(e) => setSourceWalletAddress(e.target.value)}
-                disabled={!selectedToken}
-              />
-              <p className="text-xs text-gray-500">
-                The wallet address you want to recover tokens from
-              </p>
-            </div>
-
-            {/* Source Token Account (Calculated) */}
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <Label htmlFor="source-token-account">Token Account (Calculated)</Label>
-                {calculatingSource && (
-                  <RefreshCw className="h-3 w-3 animate-spin text-blue-400" />
-                )}
-              </div>
-              <Input
-                id="source-token-account"
-                value={sourceTokenAccount}
-                disabled
-                className="bg-gray-100 text-gray-500"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="amount">Amount</Label>
-              <Input
-                id="amount"
-                placeholder="0.00"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                disabled={!selectedToken}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="memo">Memo (Optional)</Label>
-              <Input
-                id="memo"
-                placeholder="Add a note to this transaction"
-                value={memo}
-                onChange={(e) => setMemo(e.target.value)}
-                disabled={!selectedToken}
-              />
-            </div>
-
+        <form onSubmit={(e) => { e.preventDefault(); openConfirmDialog(); }} className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="token">Select Token</Label>
             <Button
-              type="submit"
-              className="w-full bg-purple-600 hover:bg-purple-700 text-white"
-              disabled={isLoading || !connected || !selectedToken || recoveryInProgress || !sourceWalletAddress || !amount}
+              type="button"
+              variant="outline"
+              className="w-full flex justify-between items-center h-10"
+              onClick={() => {
+                fetchUserTokens();
+                setIsModalOpen(true);
+              }}
             >
-              {recoveryInProgress ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processing...
-                </>
+              {selectedToken ? (
+                <span>
+                  {selectedToken.symbol} - {selectedToken.name}
+                </span>
               ) : (
-                "Recover Tokens"
+                <span>Select a token</span>
+              )}
+              <span>▼</span>
+            </Button>
+            {selectedToken && (
+              <div className="text-sm text-gray-500">
+                Balance: {selectedToken.balance} {selectedToken.symbol}
+              </div>
+            )}
+
+            {/* Verify Button */}
+            <Button
+              variant="outline"
+              className="mt-2"
+              onClick={verifyDelegateStatus}
+              disabled={!selectedToken || verifyLoading}
+            >
+              {verifyLoading ? (
+                <><RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Verifying...</>
+              ) : (
+                "Verify Delegate Status"
               )}
             </Button>
-          </form>
-        </CardContent>
-      </Card>
+
+            {isDelegate === true && (
+              <p className="text-sm text-green-500">✓ You are the permanent delegate for this token</p>
+            )}
+          </div>
+
+          {/* Source Wallet Address */}
+          <div className="space-y-2">
+            <Label htmlFor="source-wallet">Source Wallet Address</Label>
+            <Input
+              id="source-wallet"
+              placeholder="Enter source wallet address"
+              value={sourceWalletAddress}
+              onChange={(e) => setSourceWalletAddress(e.target.value)}
+              disabled={!selectedToken}
+            />
+            <p className="text-xs text-gray-500">
+              The wallet address you want to recover tokens from
+            </p>
+          </div>
+
+          {/* Source Token Account (Calculated) */}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <Label htmlFor="source-token-account">Token Account (Calculated)</Label>
+              {calculatingSource && (
+                <RefreshCw className="h-3 w-3 animate-spin text-blue-400" />
+              )}
+            </div>
+            <Input
+              id="source-token-account"
+              value={sourceTokenAccount}
+              disabled
+              className="bg-gray-100 text-gray-500"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="amount">Amount</Label>
+            <Input
+              id="amount"
+              placeholder="0.00"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              disabled={!selectedToken}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="memo">Memo (Optional)</Label>
+            <Input
+              id="memo"
+              placeholder="Add a note to this transaction"
+              value={memo}
+              onChange={(e) => setMemo(e.target.value)}
+              disabled={!selectedToken}
+            />
+          </div>
+
+          <Button
+            type="submit"
+            className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+            disabled={isLoading || !connected || !selectedToken || recoveryInProgress || !sourceWalletAddress || !amount}
+          >
+            {recoveryInProgress ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              "Recover Tokens"
+            )}
+          </Button>
+        </form>
+      </div>
 
       <SelectTokenModal
         open={isModalOpen}

@@ -2,6 +2,7 @@
 import { TokenCreationForm } from "@/components/token-creation-form"
 import SuspenseLayout from "@/components/suspense-layout"
 
+
 export default function CreateToken() {
   return (
     <div className="h-full flex md:items-center mt-10 md:mt-0">

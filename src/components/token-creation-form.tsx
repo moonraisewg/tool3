@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Info, Upload, ChevronRight, Check, X } from "lucide-react";
+import { Info, Upload, ChevronRight, Check} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -279,14 +279,24 @@ export const TokenCreationForm = () => {
                         )}
                       </div>
                       <div className="flex-1">
-                        <Input
-                          type="file"
-                          id="token-image"
-                          accept="image/*"
-                          onChange={handleFileChange}
+                        <div className="relative">
+                          <Input
+                            type="file"
+                            id="token-image"
+                            accept="image/*"
+                            onChange={handleFileChange}
                             className="mb-2 focus:border-purple-500 focus:ring-purple-500"
-                          disabled={uploadingImage}
-                        />
+                            disabled={uploadingImage}
+                          />
+                          {uploadingImage && (
+                            <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
+                              <div className="flex items-center space-x-2">
+                                <div className="animate-spin h-4 w-4 border-2 border-purple-600 rounded-full border-t-transparent"></div>
+                                <span className="text-sm text-purple-600">Uploading...</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                         <p className="text-sm text-gray-500">
                           Upload a square image (recommended size: 256x256 pixels)
                         </p>
@@ -429,18 +439,24 @@ export const TokenCreationForm = () => {
                               )}
                               <div className="flex-shrink-0 ml-2">
                                 {isSelected ? (
-                                  <div className="flex items-center">
-                                    <X
-                                      className="w-5 h-5 text-gray-400 hover:text-red-500 mr-1 cursor-pointer"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        toggleExtension(extension.id, tokenExtensions);
-                                      }}
-                                    />
-                                    <Check className="w-5 h-5 text-green-500" />
+                                  <div 
+                                    className="w-5 h-5 border rounded-sm bg-purple-600 flex items-center justify-center cursor-pointer"
+                                    onClick={(e: React.MouseEvent) => {
+                                      e.stopPropagation();
+                                      toggleExtension(extension.id, tokenExtensions);
+                                    }}
+                                  >
+                                    <Check className="w-4 h-4 text-white" />
                                   </div>
                                 ) : (
-                                  <div className="w-5 h-5 border rounded-full"></div>
+                                  <div 
+                                    className="w-5 h-5 border rounded-sm border-gray-300 hover:border-purple-500 cursor-pointer"
+                                    onClick={(e: React.MouseEvent) => {
+                                      e.stopPropagation();
+                                      toggleExtension(extension.id, tokenExtensions);
+                                      toggleExtensionOpen(extension.id);
+                                    }}
+                                  ></div>
                                 )}
                               </div>
                             </div>
