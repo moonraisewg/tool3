@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Info, Upload, ChevronRight, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -22,8 +22,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import React from "react";
 import Image from "next/image";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export const TokenCreationForm = () => {
+  const isMobile = useIsMobile();
   const {
     selectedExtensions,
     uploadingImage,
@@ -111,8 +113,8 @@ export const TokenCreationForm = () => {
   const handleOpenExtensions = useCallback(() => {
     setOpenExtensions(prevState => {
       const newOpenState = { ...prevState };
-      selectedExtensions.forEach(extId => {
-        newOpenState[extId] = true;
+    selectedExtensions.forEach(extId => {
+      newOpenState[extId] = true;
       });
       return newOpenState;
     });
@@ -181,10 +183,14 @@ export const TokenCreationForm = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 md:max-h-none md:overflow-visible max-h-[calc(100vh-162px)] overflow-y-auto">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 md:max-h-[calc(100vh-162px)] overflow-y-auto pb-4">
-          <Card> <CardTitle className="text-center">Create Token</CardTitle>
+    <div className={`md:p-3 max-w-[1000px] mx-auto my-2 ${!isMobile && "border-gear"}`}>
+      <h1 className="text-2xl font-bold text-gray-900 mb-6 flex items-center justify-center">
+        Create Token
+      </h1>
+      <div className="max-h-[calc(100vh-162px)] overflow-y-auto pb-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="md:col-span-2">
+            <Card>
             <CardContent className="pt-6">
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -196,7 +202,7 @@ export const TokenCreationForm = () => {
                         <FormItem>
                           <FormLabel>Token Name</FormLabel>
                           <FormControl>
-                            <Input placeholder="e.g. Moon Token" {...field} />
+                              <Input placeholder="e.g. Moon Token" {...field} className="focus:border-purple-500 focus:ring-purple-500" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -210,7 +216,7 @@ export const TokenCreationForm = () => {
                         <FormItem>
                           <FormLabel>Token Symbol</FormLabel>
                           <FormControl>
-                            <Input placeholder="e.g. MOON" {...field} />
+                              <Input placeholder="e.g. MOON" {...field} className="focus:border-purple-500 focus:ring-purple-500" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -226,7 +232,7 @@ export const TokenCreationForm = () => {
                         <FormItem>
                           <FormLabel>Decimals</FormLabel>
                           <FormControl>
-                            <Input type="number" min="0" max="9" {...field} />
+                              <Input type="number" min="0" max="9" {...field} className="focus:border-purple-500 focus:ring-purple-500" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -240,7 +246,7 @@ export const TokenCreationForm = () => {
                         <FormItem>
                           <FormLabel>Initial Supply</FormLabel>
                           <FormControl>
-                            <Input type="text" placeholder="e.g. 1000000" {...field} />
+                              <Input type="text" placeholder="e.g. 1000000" {...field} className="focus:border-purple-500 focus:ring-purple-500" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -255,7 +261,7 @@ export const TokenCreationForm = () => {
                       <FormItem>
                         <FormLabel>Token Description (Optional)</FormLabel>
                         <FormControl>
-                          <Textarea placeholder="A brief description of your token" {...field} />
+                            <Textarea placeholder="A brief description of your token" {...field} className="focus:border-purple-500 focus:ring-purple-500" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -265,7 +271,7 @@ export const TokenCreationForm = () => {
                   <div className="space-y-2">
                     <FormLabel>Token Image</FormLabel>
                     <div className="flex items-start gap-4">
-                      <div className="w-24 h-24 border rounded-lg flex items-center justify-center overflow-hidden">
+                        <div className="w-24 h-24 border border-gear-gray rounded-lg flex items-center justify-center overflow-hidden">
                         {imagePreview ? (
                           <Image src={imagePreview} alt="Token preview" width={96} height={96} className="w-full h-full object-cover" />
                         ) : (
@@ -278,7 +284,7 @@ export const TokenCreationForm = () => {
                           id="token-image"
                           accept="image/*"
                           onChange={handleFileChange}
-                          className="mb-2"
+                            className="mb-2 focus:border-purple-500 focus:ring-purple-500"
                           disabled={uploadingImage}
                         />
                         <p className="text-sm text-gray-500">
@@ -363,7 +369,7 @@ export const TokenCreationForm = () => {
 
         <div className="space-y-4">
           <div className="sticky top-4">
-            <Card className="mb-4">
+              <Card>
               <CardContent className="pt-6">
                 <h3 className="text-lg font-medium mb-4">Token Extensions</h3>
                 <div className="space-y-3 max-h-[min(624px,_calc(100vh-280px))] overflow-y-auto pr-2">
@@ -596,6 +602,7 @@ export const TokenCreationForm = () => {
                 </div>
               </CardContent>
             </Card>
+            </div>
           </div>
         </div>
       </div>

@@ -372,9 +372,9 @@ export const transferTokenToMultipleRecipients = async (
   }
 };
 
-export async function determineTokenProgram(
-  connection: Connection,
-  mintAddress: PublicKey
-): Promise<PublicKey> {
+  export async function determineTokenProgram(
+    connection: Connection,
+    mintAddress: PublicKey
+  ): Promise<PublicKey> {
   return getTokenProgram(mintAddress, connection);
-}
+  }

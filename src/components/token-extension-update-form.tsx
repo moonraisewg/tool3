@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { ChevronRight, Check, X, Search, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -21,12 +21,14 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Spinner } from "./ui/spinner";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const formSchema = z.object({
   mintAddress: z.string().min(1, { message: "Token mint address is required" }),
 });
 
 const TokenExtensionUpdateForm = () => {
+  const isMobile = useIsMobile();
   const {
     isLoading,
     selectedExtensions,
@@ -85,15 +87,17 @@ const TokenExtensionUpdateForm = () => {
   // Nếu cập nhật thành công, chỉ hiển thị thông báo thành công
   if (updateSuccess && explorerLinks.transaction) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <Card className="max-w-2xl mx-auto">
+      <div className={`md:p-3 max-w-[800px] mx-auto my-2 ${!isMobile && "border-gear"}`}>
+        <h1 className="text-2xl font-bold text-gray-900 mb-6 flex items-center justify-center">
+          Extensions Updated Successfully
+        </h1>
+        <Card>
           <CardContent className="pt-6 text-center">
             <div className="mb-6 flex justify-center">
               <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
                 <Check className="h-8 w-8 text-green-600" />
               </div>
             </div>
-            <h2 className="text-2xl font-bold mb-2">Extensions Updated Successfully!</h2>
             <p className="text-gray-500 mb-6">The extensions have been added to your token account and are now ready to use</p>
 
             <div className="space-y-4 mb-8">
@@ -131,14 +135,15 @@ const TokenExtensionUpdateForm = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-h-[calc(100vh-162px)] overflow-y-auto">
-     
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div className={`md:p-3 max-w-[1000px] mx-auto my-2 ${!isMobile && "border-gear"}`}>
+      <h1 className="text-2xl font-bold text-gray-900 mb-6 flex items-center justify-center">
+        Update Token Extensions
+      </h1>
+      <div className="max-h-[calc(100vh-162px)] overflow-y-auto pb-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div className="md:col-span-2">
-          <Card className="mb-6">
-            <CardTitle className="text-center">Update Token Extensions</CardTitle>
+            <Card>
             <CardContent className="pt-6">
-              <h2 className="text-xl font-medium mb-4 text-center">Token Information</h2>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmitMintAddress)} className="space-y-4">
                   <FormField
@@ -303,11 +308,11 @@ const TokenExtensionUpdateForm = () => {
         {/* Extensions Panel */}
         {addressValidated && (
           <div className="space-y-4">
-            <div className="">
-              <Card className="mb-4">
+              <div className="sticky top-4">
+                <Card>
                 <CardContent className="pt-6">
                   <h3 className="text-lg font-medium mb-4">Available Extensions</h3>
-                  <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-2">
+                    <div className="space-y-3 max-h-[min(624px,_calc(100vh-280px))] overflow-y-auto pr-2">
                     {updatableTokenExtensions.map((extension) => {
                       const isSelected = selectedExtensions.includes(extension.id);
                       const isExpanded = openExtensions[extension.id] || false;
@@ -391,6 +396,7 @@ const TokenExtensionUpdateForm = () => {
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

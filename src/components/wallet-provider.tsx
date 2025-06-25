@@ -23,7 +23,6 @@ export default function WalletProviderComponent({
 }) {
   const { network } = useNetwork();
   
-  // Sử dụng RPC từ env thay vì clusterApiUrl
   const endpoint = useMemo(() => {
     if (network === 'devnet') {
       return process.env.NEXT_PUBLIC_RPC_DEVNET || clusterApiUrl('devnet');
