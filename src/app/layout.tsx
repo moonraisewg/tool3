@@ -8,6 +8,7 @@ import { Toaster } from "sonner";
 import { NetworkProvider } from "@/context/NetworkContext";
 import SuspenseLayout from "@/components/suspense-layout";
 import { GoogleTagManager } from "@next/third-parties/google";
+import Script from "next/script";
 
 export const metadata: Metadata = {
   title: "Tool3 - Powerful All-in-One Token Tool",
@@ -40,6 +41,13 @@ export const metadata: Metadata = {
   },
 };
 
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "Tool3",
+  url: "https://tool3.xyz",
+};
+
 export default function RootLayout({
   children,
 }: {
@@ -49,6 +57,12 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <GoogleTagManager gtmId="GTM-T3L7ZX2F" />
+        <Script
+          id="json-ld"
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          strategy="afterInteractive"
+        />
       </head>
       <body className="flex flex-col h-screen">
         <SuspenseLayout>
