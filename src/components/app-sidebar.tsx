@@ -51,10 +51,33 @@ export const route = {
   ],
   mainnet: [
     {
+      title: "Utilities",
+      icon: CreditCard,
+      submenu: [
+        {
+          title: "Swap to SOL ",
+          url: "/swap-sol",
+        },
+        {
+          title: "Swap All Token to SOL ",
+          url: "/swap-all",
+        },
+        {
+          title: "Gasless Transfer",
+          url: "/transfer-spl-token",
+        },
+      ],
+    },
+    {
       title: "Buy SOL devnet",
       icon: Wallet,
       url: "/sell-sol-devnet",
     },
+    // {
+    //   title: "Increase Holders",
+    //   icon: Wallet,
+    //   url: "/increase-holders",
+    // },
     {
       title: "Token",
       icon: Coin,
@@ -78,24 +101,6 @@ export const route = {
         {
           title: "Permanent Delegate",
           url: "/permanent-delegate-recovery",
-        },
-      ],
-    },
-    {
-      title: "Utilities",
-      icon: CreditCard,
-      submenu: [
-        {
-          title: "Swap to SOL ",
-          url: "/swap-sol",
-        },
-        {
-          title: "Swap All Token to SOL ",
-          url: "/swap-all",
-        },
-        {
-          title: "Gasless Transfer",
-          url: "/transfer-spl-token",
         },
       ],
     },
@@ -202,7 +207,7 @@ export function AppSidebar() {
             href={
               network === WalletAdapterNetwork.Devnet
                 ? route.devnet[0].url!
-                : route.mainnet[0].url!
+                : route.mainnet[0].submenu![0].url!
             }
             className="text-2xl cursor-pointer"
           >
