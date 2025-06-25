@@ -9,13 +9,12 @@ import { Form } from "@/components/ui/form"
 import { toast } from "sonner"
 import { useWallet } from "@solana/wallet-adapter-react"
 import { useIsMobile } from "@/hooks/use-mobile"
-import { Loader2, Info, ArrowLeft } from "lucide-react"
+import { Loader2, Info, ChevronRight } from "lucide-react"
 import { Transaction } from "@solana/web3.js"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip"
 import SelectToken from "../transfer/select-token"
 import { UserToken } from "@/hooks/useUserTokens"
-
-const SOL_MINT = "So11111111111111111111111111111111111111112"
+import { CREATE_POOL_FEE } from "@/utils/constants"
 
 const formSchema = z.object({
     amountToken1: z.string().refine((val) => !isNaN(Number.parseFloat(val)) && Number.parseFloat(val) > 0, {
@@ -32,6 +31,9 @@ export default function CreateMeteoraDammPool() {
     const [selectedToken2, setSelectedToken2] = useState<UserToken | null>(null)
     const [loading, setLoading] = useState(false)
     const [loadingMessage, setLoadingMessage] = useState("")
+    const [currentStep, setCurrentStep] = useState(1)
+    const [paymentTxId, setPaymentTxId] = useState("")
+    const [poolResult, setPoolResult] = useState<{ poolTxId: string; poolKeys: { poolId: string } } | null>(null)
     const { publicKey, signTransaction } = useWallet()
 
     const form = useForm<z.infer<typeof formSchema>>({
@@ -39,15 +41,24 @@ export default function CreateMeteoraDammPool() {
         defaultValues: { amountToken1: "", amountToken2: "" },
     })
 
-    const handleBack = () => {
-        window.history.back()
-    }
-
     const toLamports = useCallback((amountStr: string, decimals: number): string => {
         const amount = Number.parseFloat(amountStr)
         if (isNaN(amount) || amount <= 0) throw new Error("Invalid amount")
         return (amount * 10 ** decimals).toString()
     }, [])
+
+    const checkPoolExists = async (mintA: string, mintB: string) => {
+        const res = await fetch("/api/create-pool-meteora-damm/check-pool", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ mintAAddress: mintA, mintBAddress: mintB }),
+        })
+        const data = await res.json()
+        if (!res.ok || !data.success) {
+            throw new Error(data.error || "Failed to check pool")
+        }
+        return data.exists
+    }
 
     const sendPayment = useCallback(async (mintAAddress: string, mintBAddress: string) => {
         if (!publicKey || !signTransaction) {
@@ -124,57 +135,39 @@ export default function CreateMeteoraDammPool() {
         return sendTxData.txId
     }
 
-    const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    const handleNext = async () => {
         try {
             setLoading(true)
-            setLoadingMessage("Checking wallet...")
-
-            if (!publicKey) throw new Error("Please connect your wallet")
-            if (!signTransaction) throw new Error("Wallet does not support signing")
-            if (!selectedToken1 || !selectedToken2) throw new Error("Please select both tokens")
-            if (!selectedToken1.decimals || !selectedToken2.decimals) throw new Error("Invalid token decimals")
-
-            const mintAAddress = selectedToken1.address === "NativeSOL" ? SOL_MINT : selectedToken1.address
-            const mintBAddress = selectedToken2.address === "NativeSOL" ? SOL_MINT : selectedToken2.address
-            const amountA = toLamports(values.amountToken1, selectedToken1.decimals)
-            const amountB = toLamports(values.amountToken2, selectedToken2.decimals)
-
-            setLoadingMessage("Sending payment on Mainnet...")
-            const paymentTxId = await sendPayment(mintAAddress, mintBAddress)
-
-            setLoadingMessage("Please switch your wallet to Devnet for token transfer...")
-            toast.info("Please switch your wallet to Devnet to continue.")
-            await new Promise((resolve) => setTimeout(resolve, 5000))
-
-            setLoadingMessage("Requesting token transfer transaction...")
-            let res = await fetch("/api/create-pool-meteora-damm", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    mintAAddress,
-                    mintBAddress,
-                    amountA,
-                    amountB,
-                    userPublicKey: publicKey.toString(),
-                    paymentTxId,
-                }),
-            })
-
-            let data = await res.json()
-            if (!res.ok || !data.success) {
-                throw new Error(data.error || "Failed to get token transfer transaction")
-            }
-
-            if (data?.tokenTransferTx) {
-                setLoadingMessage("Preparing token transfer...")
-                const tokenTransferTxId = await sendTokenTransfer(
-                    data.tokenTransferTx,
-                    data.blockhash,
-                    data.lastValidBlockHeight,
-                )
-
-                setLoadingMessage("Creating pool on server...")
-                res = await fetch("/api/create-pool-meteora-damm", {
+            if (currentStep === 1) {
+                if (!publicKey) throw new Error("Please connect your wallet")
+                if (!selectedToken1 || !selectedToken2) throw new Error("Please select both tokens")
+                if (selectedToken1.address === selectedToken2.address) {
+                    throw new Error("Token A and Token B cannot be the same")
+                }
+                if (!selectedToken1.decimals || !selectedToken2.decimals) throw new Error("Invalid token decimals")
+                const isValid = await form.trigger()
+                if (!isValid) throw new Error("Please enter valid token amounts")
+                setLoadingMessage("Checking if pool already exists...")
+                const poolExists = await checkPoolExists(selectedToken1.address, selectedToken2.address)
+                if (poolExists) {
+                    throw new Error("Pool already exists for the selected token pair")
+                }
+                setCurrentStep(2)
+            } else if (currentStep === 2) {
+                setLoadingMessage("Sending payment on Mainnet...")
+                const mintAAddress = selectedToken1!.address
+                const mintBAddress = selectedToken2!.address
+                const txId = await sendPayment(mintAAddress, mintBAddress)
+                setPaymentTxId(txId)
+                setCurrentStep(3)
+            } else if (currentStep === 3) {
+                setLoadingMessage("Requesting token transfer transaction...")
+                const values = form.getValues()
+                const amountA = toLamports(values.amountToken1, selectedToken1!.decimals!)
+                const amountB = toLamports(values.amountToken2, selectedToken2!.decimals!)
+                const mintAAddress = selectedToken1!.address
+                const mintBAddress = selectedToken2!.address
+                const resTokenTransfer = await fetch("/api/create-pool-meteora-damm", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -182,55 +175,88 @@ export default function CreateMeteoraDammPool() {
                         mintBAddress,
                         amountA,
                         amountB,
-                        userPublicKey: publicKey.toString(),
+                        userPublicKey: publicKey!.toString(),
+                        paymentTxId,
+                    }),
+                })
+                const dataTokenTransfer = await resTokenTransfer.json()
+                if (!resTokenTransfer.ok || !dataTokenTransfer.success) {
+                    throw new Error(dataTokenTransfer.error || "Failed to get token transfer transaction")
+                }
+
+                let tokenTransferTxId = ""
+                if (dataTokenTransfer?.tokenTransferTx) {
+                    setLoadingMessage("Preparing token transfer...")
+                    tokenTransferTxId = await sendTokenTransfer(
+                        dataTokenTransfer.tokenTransferTx,
+                        dataTokenTransfer.blockhash,
+                        dataTokenTransfer.lastValidBlockHeight
+                    )
+                }
+
+                setLoadingMessage("Creating pool on server...")
+                const resCreatePool = await fetch("/api/create-pool-meteora-damm", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        mintAAddress,
+                        mintBAddress,
+                        amountA,
+                        amountB,
+                        userPublicKey: publicKey!.toString(),
                         paymentTxId,
                         tokenTransferTxId,
                     }),
                 })
-
-                data = await res.json()
-                if (!res.ok || !data.success) {
-                    throw new Error(data.error || "Failed to create pool")
+                const dataCreatePool = await resCreatePool.json()
+                if (!resCreatePool.ok || !dataCreatePool.success) {
+                    throw new Error(dataCreatePool.error || "Failed to create pool")
                 }
+
+                setPoolResult({
+                    poolTxId: dataCreatePool.poolTxId,
+                    poolKeys: dataCreatePool.poolKeys,
+                })
+                toast.success(
+                    <div className="space-y-2">
+                        <p>✅ Pool created successfully!</p>
+                        <p className="text-sm">
+                            Create pool Tx ID:{" "}
+                            <a
+                                href={`https://solscan.io/tx/${dataCreatePool?.poolTxId}?cluster=devnet`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-500 hover:underline"
+                            >
+                                {dataCreatePool?.poolTxId.slice(0, 8)}...{dataCreatePool?.poolTxId.slice(-8)}
+                            </a>
+                        </p>
+                        <p className="text-sm">
+                            Pool ID:{" "}
+                            <a
+                                href={`https://solscan.io/account/${dataCreatePool.poolKeys.poolId}?cluster=devnet`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-500 hover:underline"
+                            >
+                                {dataCreatePool.poolKeys.poolId.slice(0, 8)}...{dataCreatePool.poolKeys.poolId.slice(-8)}
+                            </a>
+                        </p>
+                    </div>,
+                )
+                setCurrentStep(4)
+            } else if (currentStep === 4) {
+                form.reset()
+                setSelectedToken1(null)
+                setSelectedToken2(null)
+                setPaymentTxId("")
+                setPoolResult(null)
+                setCurrentStep(1)
             }
-
-            toast.success(
-                <div className="space-y-2">
-                    <p>✅ Pool created successfully!</p>
-                    <p className="text-sm">
-                        Create pool Tx ID:{" "}
-                        <a
-                            href={`https://solscan.io/tx/${data?.poolTxId}?cluster=devnet`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-500 hover:underline"
-                        >
-                            {data?.poolTxId.slice(0, 8)}...{data?.poolTxId.slice(-8)}
-                        </a>
-                    </p>
-                    <p className="text-sm">
-                        Pool ID:{" "}
-                        <a
-                            href={`https://solscan.io/account/${data.poolKeys.poolId}?cluster=devnet`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-500 hover:underline"
-                        >
-                            {data.poolKeys.poolId.slice(0, 8)}...{data.poolKeys.poolId.slice(-8)}
-                        </a>
-                    </p>
-                </div>,
-            )
-
-
         } catch (error: unknown) {
-            const msg = error instanceof Error ? error.message : "Failed to create pool"
+            const msg = error instanceof Error ? error.message : "An error occurred"
             toast.error(msg)
         } finally {
-
-            form.reset()
-            setSelectedToken1(null)
-            setSelectedToken2(null)
             setLoading(false)
             setLoadingMessage("")
         }
@@ -238,71 +264,160 @@ export default function CreateMeteoraDammPool() {
 
     const price = Number.parseFloat(form.watch("amountToken1")) / Number.parseFloat(form.watch("amountToken2")) || ""
 
+    const steps = [
+        { title: "Choose Tokens", description: "Choose the token pair and specify amounts for your liquidity pool." },
+        { title: "Confirm Payment", description: `Pay ${CREATE_POOL_FEE} SOL on Mainnet to proceed.` },
+        { title: "Create Pool", description: "Transfer tokens and finalize the pool creation on Devnet." },
+        { title: "Result", description: "View the created pool details." },
+    ]
+
+    const getButtonText = () => {
+        if (loading) return loadingMessage
+        if (currentStep === 1) return "Continue"
+        if (currentStep === 2) return "Pay Fee"
+        if (currentStep === 3) return "Create Pool"
+        return "Create Another Pool"
+    }
+
     return (
         <div className={`md:p-2 max-w-[550px] mx-auto my-2 ${!isMobile ? "border-gear" : ""}`}>
             <div className="mb-6">
-                <Button variant="ghost" onClick={handleBack} className="mb-4 text-gray-600 hover:text-gray-900 cursor-pointer">
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Back to Pool Selection
-                </Button>
-
                 <h1 className="text-2xl font-bold text-gray-900 mb-6 text-center">Create Pool with Meteora DAMM (Devnet)</h1>
+                <div className="flex justify-between mb-4">
+                    {steps.map((step, index) => (
+                        <div
+                            key={index}
+                            className={`flex-1 text-center ${currentStep === index + 1 ? "text-blue-500 font-semibold" : "text-gray-500"}`}
+                        >
+                            <div className="text-sm">{step.title}</div>
+                            <div className={`h-1 mt-1 ${currentStep >= index + 1 ? "bg-blue-500" : "bg-gray-200"}`}></div>
+                        </div>
+                    ))}
+                </div>
             </div>
 
             <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                    <div className="space-y-6 px-1">
-                        <SelectToken
-                            selectedToken={selectedToken1}
-                            setSelectedToken={setSelectedToken1}
-                            onAmountChange={(v) => form.setValue("amountToken1", v)}
-                            cluster="devnet"
-                            amount={form.watch("amountToken1")}
-                        />
-                        <SelectToken
-                            selectedToken={selectedToken2}
-                            setSelectedToken={setSelectedToken2}
-                            onAmountChange={(v) => form.setValue("amountToken2", v)}
-                            cluster="devnet"
-                            amount={form.watch("amountToken2")}
-                        />
-                        <div className="flex items-center gap-2">
-                            <div>Initial price</div>
-                            <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Info className="h-4 w-4 text-gray-500 mt-[3px]" />
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p>The initial price is calculated as Token A / Token B.</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
-                        </div>
-                        <div className="border-gear-gray flex items-center justify-between px-2 py-2 text-sm">
-                            <div>{price || "-"}</div>
-                            <p>{`${selectedToken1?.symbol || "?"}/${selectedToken2?.symbol || "?"}`}</p>
-                        </div>
-                        <div className="text-sm text-gray-500">
-                            <p>Pool creation fee: 0.001 SOL (paid on Mainnet)</p>
-                            <p>Transaction fee: 0.0025%</p>
-                        </div>
-                    </div>
-                    <Button
-                        type="submit"
-                        className="w-full font-semibold py-2 rounded-lg"
-                        variant="default"
-                        disabled={loading || !publicKey || !signTransaction}
-                    >
-                        {loading ? (
+                <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
+                    {currentStep === 1 && (
+                        <div className="space-y-6 px-1">
+                            <SelectToken
+                                selectedToken={selectedToken1}
+                                setSelectedToken={setSelectedToken1}
+                                onAmountChange={(v) => form.setValue("amountToken1", v)}
+                                cluster="devnet"
+                                amount={form.watch("amountToken1")}
+                            />
+                            {form.formState.errors.amountToken1 && (
+                                <p className="text-sm text-red-500 mt-1">
+                                    {form.formState.errors.amountToken1.message}
+                                </p>
+                            )}
+                            <SelectToken
+                                selectedToken={selectedToken2}
+                                setSelectedToken={setSelectedToken2}
+                                onAmountChange={(v) => form.setValue("amountToken2", v)}
+                                cluster="devnet"
+                                amount={form.watch("amountToken2")}
+                            />
+                            {form.formState.errors.amountToken2 && (
+                                <p className="text-sm text-red-500 mt-1">
+                                    {form.formState.errors.amountToken2.message}
+                                </p>
+                            )}
                             <div className="flex items-center gap-2">
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                <span>{loadingMessage}</span>
+                                <div>Initial price</div>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Info className="h-4 w-4 text-gray-500 mt-[3px]" />
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>The initial price is calculated as Token A / Token B.</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
                             </div>
-                        ) : (
-                            "Create Liquidity Pool"
-                        )}
-                    </Button>
+                            <div className="border-gear-gray flex items-center justify-between px-2 py-2 text-sm">
+                                <div>{price || "-"}</div>
+                                <p>{`${selectedToken1?.symbol || "UNKNOW"}/${selectedToken2?.symbol || "UNKNOW"}`}</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {currentStep === 2 && (
+                        <div className="space-y-6 px-1">
+                            <div className="text-sm text-gray-500">
+                                <p>Pool creation fee: {CREATE_POOL_FEE} SOL (paid on Mainnet)</p>
+                                <p className="mt-2">Please click Pay Fee and confirm the payment to proceed with pool creation.</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {currentStep === 3 && (
+                        <div className="space-y-6 px-1">
+                            <div className="text-sm">
+                                <p className="mt-1"><strong>Token Pair:</strong> {selectedToken1?.symbol || "UNKNOW"} / {selectedToken2?.symbol || "UNKNOW"}</p>
+                                <p className="mt-1"><strong>Amount A:</strong> {form.watch("amountToken1")}</p>
+                                <p className="mt-1"><strong>Amount B:</strong> {form.watch("amountToken2")}</p>
+                                <p className="mt-1"><strong>Initial Price:</strong> {price} {selectedToken1?.symbol || "UNKNOW"}/{selectedToken2?.symbol || "UNKNOW"}</p>
+                                <p className="mt-1"><strong>Fee:</strong> {CREATE_POOL_FEE} SOL</p>
+                                <div className="mt-2 bg-blue-50 border border-blue-200 rounded-lg p-2">⚡Switch your wallet to Devnet, then click Create Pool to transfer tokens and finalize the pool creation.</div>
+                            </div>
+                        </div>
+                    )}
+
+                    {currentStep === 4 && (
+                        <div className="space-y-6 px-1">
+                            <div className="text-sm text-gray-500">
+                                <p className="text-green-600 font-semibold">✅ Pool created successfully!</p>
+                                <p className="mt-2">
+                                    Create pool Tx ID:{" "}
+                                    <a
+                                        href={`https://solscan.io/tx/${poolResult?.poolTxId}?cluster=devnet`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-500 hover:underline"
+                                    >
+                                        {poolResult?.poolTxId.slice(0, 8)}...{poolResult?.poolTxId.slice(-8)}
+                                    </a>
+                                </p>
+                                <p className="mt-2">
+                                    Pool ID:{" "}
+                                    <a
+                                        href={`https://solscan.io/account/${poolResult?.poolKeys.poolId}?cluster=devnet`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-500 hover:underline"
+                                    >
+                                        {poolResult?.poolKeys.poolId.slice(0, 8)}...{poolResult?.poolKeys.poolId.slice(-8)}
+                                    </a>
+                                </p>
+                                <p className="mt-2">Click Create Another Pool to start a new pool creation process.</p>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="flex justify-center">
+                        <Button
+                            type="button"
+                            onClick={handleNext}
+                            className="font-semibold py-2 rounded-lg cursor-pointer"
+                            variant="default"
+                            disabled={loading || !publicKey || !signTransaction}
+                        >
+                            {loading ? (
+                                <div className="flex items-center gap-2">
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    <span>{loadingMessage}</span>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-2">
+                                    <span>{getButtonText()}</span>
+                                    {currentStep < 4 && <ChevronRight className="h-4 w-4" />}
+                                </div>
+                            )}
+                        </Button>
+                    </div>
                 </form>
             </Form>
         </div>

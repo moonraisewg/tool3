@@ -1,18 +1,18 @@
 import { NextResponse } from "next/server";
 import { PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL, Keypair } from "@solana/web3.js";
-import { TOKEN_PROGRAM_ID, createTransferInstruction, getAssociatedTokenAddressSync, createAssociatedTokenAccountInstruction } from "@solana/spl-token";
+import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { adminKeypair } from "@/config";
 import BN from "bn.js";
 import { connectionDevnet, connectionMainnet } from "@/service/solana/connection";
 import { CpAmm, MIN_SQRT_PRICE, MAX_SQRT_PRICE, derivePoolAddress } from "@meteora-ag/cp-amm-sdk";
-const PAYMENT_AMOUNT_LAMPORTS = 0.001 * LAMPORTS_PER_SOL;
-const SOL_MINT = "So11111111111111111111111111111111111111112";
+import { createTokenTransferTx } from "@/utils/solana-token-transfer";
+import { CONFIG_CREATE_METEORA_ADDRESS, CREATE_POOL_FEE, NATIVE_SOL, WSOL_MINT } from "@/utils/constants";
+import { isValidBase58 } from "../create-pool-raydium/route";
+import { isWhitelisted } from "@/utils/whitelist";
 
-function isValidBase58(str: string): boolean {
-    return /^[1-9A-HJ-NP-Za-km-z]+$/.test(str);
-}
 
-async function verifyPaymentTx(paymentTxId: string, userPublicKey: PublicKey): Promise<boolean> {
+async function verifyPaymentTx(paymentTxId: string, userPublicKey: PublicKey,
+    paymentAmount: number): Promise<boolean> {
     try {
         const tx = await connectionMainnet.getTransaction(paymentTxId, {
             commitment: "confirmed",
@@ -30,7 +30,7 @@ async function verifyPaymentTx(paymentTxId: string, userPublicKey: PublicKey): P
         if (!transferInstruction) return false;
 
         const lamportsTransferred = new BN(transferInstruction.data.slice(4), "le").toNumber();
-        if (lamportsTransferred < PAYMENT_AMOUNT_LAMPORTS) return false;
+        if (lamportsTransferred < paymentAmount) return false;
 
         if (!message.staticAccountKeys[0].equals(userPublicKey)) return false;
 
@@ -40,84 +40,6 @@ async function verifyPaymentTx(paymentTxId: string, userPublicKey: PublicKey): P
         return false;
     }
 }
-
-async function createTokenTransferTx(
-    userPublicKey: PublicKey,
-    mintAAddress: string,
-    mintBAddress: string,
-    amountA: string,
-    amountB: string
-): Promise<Transaction> {
-    const tx = new Transaction();
-    const mintAPubkey = new PublicKey(mintAAddress);
-    const mintBPubkey = new PublicKey(mintBAddress);
-
-    const adminAtaA = getAssociatedTokenAddressSync(mintAPubkey, adminKeypair.publicKey);
-    const adminAtaB = getAssociatedTokenAddressSync(mintBPubkey, adminKeypair.publicKey);
-    const userAtaA = getAssociatedTokenAddressSync(mintAPubkey, userPublicKey);
-    const userAtaB = getAssociatedTokenAddressSync(mintBPubkey, userPublicKey);
-
-    const adminAtaAInfo = await connectionDevnet.getAccountInfo(adminAtaA);
-    if (!adminAtaAInfo) {
-        tx.add(
-            createAssociatedTokenAccountInstruction(
-                userPublicKey,
-                adminAtaA,
-                adminKeypair.publicKey,
-                mintAPubkey,
-                TOKEN_PROGRAM_ID
-            )
-        );
-    }
-
-    const adminAtaBInfo = await connectionDevnet.getAccountInfo(adminAtaB);
-    if (!adminAtaBInfo) {
-        tx.add(
-            createAssociatedTokenAccountInstruction(
-                userPublicKey,
-                adminAtaB,
-                adminKeypair.publicKey,
-                mintBPubkey,
-                TOKEN_PROGRAM_ID
-            )
-        );
-    }
-
-    if (mintAAddress === SOL_MINT) {
-        tx.add(
-            SystemProgram.transfer({
-                fromPubkey: userPublicKey,
-                toPubkey: adminKeypair.publicKey,
-                lamports: Number(amountA),
-            })
-        );
-    } else {
-        tx.add(
-            createTransferInstruction(
-                userAtaA,
-                adminAtaA,
-                userPublicKey,
-                Number(amountA),
-                [],
-                TOKEN_PROGRAM_ID
-            )
-        );
-    }
-
-    tx.add(
-        createTransferInstruction(
-            userAtaB,
-            adminAtaB,
-            userPublicKey,
-            Number(amountB),
-            [],
-            TOKEN_PROGRAM_ID
-        )
-    );
-
-    return tx;
-}
-
 
 export async function POST(req: Request) {
     try {
@@ -136,26 +58,16 @@ export async function POST(req: Request) {
         ) {
             return NextResponse.json({ success: false, error: "Invalid base58 format" }, { status: 400 });
         }
-        const cpAmm = new CpAmm(connectionDevnet);
 
-        const config = new PublicKey("F7xJjVwqvVBoAkYV3TdZesu4ckwzzVQEebaPiZVqT4Ly");
+        let PAYMENT_AMOUNT_LAMPORTS = CREATE_POOL_FEE * LAMPORTS_PER_SOL;
 
-        const derivedPoolId = derivePoolAddress(
-            config,
-            new PublicKey(mintAAddress),
-            new PublicKey(mintBAddress)
-        );
-
-        const poolInfo = await connectionDevnet.getAccountInfo(derivedPoolId);
-
-        if (poolInfo) {
-            return NextResponse.json({
-                success: false,
-                error: "Pool already exists",
-                poolId: derivedPoolId.toBase58(),
-            });
+        if (userPublicKey && isWhitelisted(userPublicKey)) {
+            console.log("Wallet in whitelist, free transaction");
+            PAYMENT_AMOUNT_LAMPORTS = 0;
         }
 
+        const cpAmm = new CpAmm(connectionDevnet);
+        const config = new PublicKey(CONFIG_CREATE_METEORA_ADDRESS);
         const userPubKey = new PublicKey(userPublicKey);
 
         if (!paymentTxId) {
@@ -178,7 +90,7 @@ export async function POST(req: Request) {
             });
         }
 
-        const paymentValid = await verifyPaymentTx(paymentTxId, userPubKey);
+        const paymentValid = await verifyPaymentTx(paymentTxId, userPubKey, PAYMENT_AMOUNT_LAMPORTS);
         if (!paymentValid) {
             return NextResponse.json(
                 { success: false, error: "Invalid or unconfirmed payment transaction" },
@@ -190,17 +102,17 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 });
         }
 
-
         if (!tokenTransferTxId) {
             const tokenTransferTx = await createTokenTransferTx(
+                connectionDevnet,
                 userPubKey,
+                adminKeypair,
                 mintAAddress,
                 mintBAddress,
                 amountA,
                 amountB
             );
-            const { blockhash, lastValidBlockHeight } =
-                await connectionDevnet.getLatestBlockhash("confirmed");
+            const { blockhash, lastValidBlockHeight } = await connectionDevnet.getLatestBlockhash("confirmed");
             tokenTransferTx.recentBlockhash = blockhash;
             tokenTransferTx.feePayer = userPubKey;
 
@@ -231,22 +143,25 @@ export async function POST(req: Request) {
         if (liquidityDelta.lte(new BN(0))) {
             return NextResponse.json({ success: false, error: "Liquidity delta <= 0, cannot create pool" }, { status: 400 });
         }
+
         const positionNftMint = Keypair.generate();
         const activationPoint = new BN(Math.floor(Date.now() / 1000) + 60);
 
+        const tokenAMint = mintAAddress === NATIVE_SOL ? WSOL_MINT : mintAAddress;
+        const tokenBMint = mintBAddress === NATIVE_SOL ? WSOL_MINT : mintBAddress;
 
         const txBuilder = await cpAmm.createPool({
             creator: adminKeypair.publicKey,
             payer: adminKeypair.publicKey,
-            config, // PublicKey của config bạn muốn dùng
+            config,
             positionNft: positionNftMint.publicKey,
-            tokenAMint: new PublicKey(mintAAddress),
-            tokenBMint: new PublicKey(mintBAddress),
+            tokenAMint: new PublicKey(tokenAMint),
+            tokenBMint: new PublicKey(tokenBMint),
             initSqrtPrice,
             liquidityDelta,
             tokenAAmount: tokenAAmountBN,
             tokenBAmount: tokenBAmountBN,
-            activationPoint, // BN hoặc null
+            activationPoint,
             tokenAProgram: TOKEN_PROGRAM_ID,
             tokenBProgram: TOKEN_PROGRAM_ID,
             isLockLiquidity: false,
@@ -272,17 +187,15 @@ export async function POST(req: Request) {
 
         const poolId = derivePoolAddress(
             config,
-            new PublicKey(mintAAddress),
-            new PublicKey(mintBAddress)
+            new PublicKey(tokenAMint),
+            new PublicKey(tokenBMint)
         );
-
 
         return NextResponse.json({
             success: true,
             poolTxId,
             poolKeys: {
                 poolId: poolId.toString(),
-                // positionId: position.toString(),
             }
         });
     } catch (err: unknown) {

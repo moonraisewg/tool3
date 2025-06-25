@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import Image from "next/image";
 import { ChevronDown, Loader, Wallet } from "@nsmr/pixelart-react";
 import { useUserTokens, UserToken } from "@/hooks/useUserTokens";
+import { ClusterType } from "@/types/types";
+import { NATIVE_SOL } from "@/utils/constants";
 
 interface SelectTokenProps {
   selectedToken: UserToken | null;
@@ -18,7 +20,7 @@ interface SelectTokenProps {
   amount: string;
   amountLoading?: boolean;
   excludeToken?: string[];
-  cluster?: string;
+  cluster?: ClusterType;
   onTokensLoaded?: (tokens: UserToken[]) => void;
   tokenFee?: number;
 }
@@ -42,11 +44,10 @@ const SelectToken: React.FC<SelectTokenProps> = ({
 
   useEffect(() => {
     if (tokens.length > 0 && !selectedToken && !userHasSelected) {
-      const solToken = tokens.find(
-        (token) =>
-          token.symbol === "SOL" ||
-          token.address === "11111111111111111111111111111111" ||
-          token.address === "NativeSOL"
+      const solToken = tokens.find(token =>
+        token.symbol === "SOL" ||
+        token.address === "11111111111111111111111111111111" ||
+        token.address === NATIVE_SOL
       );
 
       if (solToken) {
@@ -156,9 +157,8 @@ const SelectToken: React.FC<SelectTokenProps> = ({
         <button
           type="button"
           onClick={() => setIsModalOpen(true)}
-          className={`flex items-center gap-2 text-gray-700 hover:text-purple-900 border-gear-gray px-2 py-1 ml-2 ${
-            !selectedToken || loading ? "cursor-not-allowed" : "cursor-pointer"
-          }`}
+          className={`flex items-center gap-2 text-gray-700 hover:text-purple-900 border-gear-gray px-2 py-1 ml-2 ${!selectedToken || loading ? "cursor-not-allowed" : "cursor-pointer"
+            }`}
           disabled={!selectedToken || loading}
         >
           {selectedToken ? (

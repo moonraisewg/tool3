@@ -15,6 +15,7 @@ import { debounce } from "lodash";
 import { ArrowsVertical } from "@nsmr/pixelart-react";
 import { Transaction } from "@solana/web3.js";
 import { UserToken } from "@/hooks/useUserTokens";
+import { NATIVE_SOL } from "@/utils/constants";
 
 
 const formSchema = z.object({
@@ -53,7 +54,7 @@ export default function SellSolDevnet() {
                 }
 
                 let tokenMint = selectedToken?.address || "";
-                if (selectedToken?.address === "NativeSOL") {
+                if (selectedToken?.address === NATIVE_SOL) {
                     tokenMint = "So11111111111111111111111111111111111111112";
                 }
 

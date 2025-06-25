@@ -13,6 +13,7 @@ import SelectToken from "@/components/transfer/select-token";
 import { transferToken, TokenTransferResult, transferTokenToMultipleRecipients } from "@/service/token/token-extensions/tool/transfer-token-extension";
 import { transferSol, transferSolToMultipleRecipients, } from "@/service/token/token-extensions/tool/transfer-sol";
 import { UserToken } from "@/hooks/useUserTokens";
+import { ClusterType } from "@/types/types";
 
 interface Recipient {
   address: string;
@@ -28,23 +29,23 @@ export default function TransferTokenPage() {
   const [tokenAmount, setTokenAmount] = useState("");
   const [recipients, setRecipients] = useState<Recipient[]>([{ address: "", amount: "" }]);
   const [memo, setMemo] = useState("");
- 
+
   const [transferInProgress, setTransferInProgress] = useState(false);
   const [transferSuccess, setTransferSuccess] = useState(false);
   const [transferResults, setTransferResults] = useState<TokenTransferResult[]>([]);
-  const [cluster, setCluster] = useState("mainnet");
+  const [cluster, setCluster] = useState<ClusterType>("mainnet");
 
   const [isUpdatingFromSelectToken, setIsUpdatingFromSelectToken] = useState(false);
 
   const handleTokensLoaded = (tokens: UserToken[]) => {
     setIsLoading(false);
     if (!selectedToken) {
-      const solToken = tokens.find(token => 
-        token.symbol === "SOL" || 
-        token.address === "11111111111111111111111111111111" || 
+      const solToken = tokens.find(token =>
+        token.symbol === "SOL" ||
+        token.address === "11111111111111111111111111111111" ||
         token.address === "NativeSOL"
       );
-      
+
       if (solToken) {
         setSelectedToken(solToken);
       } else if (tokens.length > 0) {
@@ -92,77 +93,77 @@ export default function TransferTokenPage() {
   const updateRecipient = (index: number, field: keyof Recipient, value: string) => {
     console.log(`Updating recipient ${index}, field: ${field}, value: ${value}`);
     const newRecipients = [...recipients];
-    
+
     if (index >= newRecipients.length) {
       console.error(`Index ${index} out of bounds, max index is ${newRecipients.length - 1}`);
       return;
     }
-    
-    newRecipients[index] = { 
-      ...newRecipients[index], 
-      [field]: value 
+
+    newRecipients[index] = {
+      ...newRecipients[index],
+      [field]: value
     };
-    
+
     console.log(`Updated recipients:`, newRecipients);
     setRecipients(newRecipients);
   };
   const validateTotalAmount = (): boolean => {
     if (!selectedToken) return false;
-    
+
     const totalAmount = recipients.reduce((sum, recipient) => {
       const amount = parseFloat(recipient.amount) || 0;
       return sum + amount;
     }, 0);
-    
+
     const balance = parseFloat(selectedToken.balance);
-    
+
     if (totalAmount > balance) {
       toast.error(`Total amount exceeds your balance (${balance} ${selectedToken.symbol})`);
       return false;
     }
-    
+
     return true;
   };
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!connected) {
       toast.error("Please connect your wallet first");
       return;
     }
-    
+
     if (!selectedToken) {
       toast.error("Please select a token");
       return;
     }
-    
+
     const validRecipients: Recipient[] = [];
     const invalidRecipients: string[] = [];
-    
+
     console.log("Checking recipients:", recipients);
-    
+
     recipients.forEach((recipient, index) => {
       if (!recipient.address && (!recipient.amount || parseFloat(recipient.amount) <= 0)) {
         console.log(`Recipient ${index + 1}: Completely empty, skipping`);
         return;
       }
-      
+
       if (!recipient.address) {
         console.log(`Recipient ${index + 1}: Missing address`);
         invalidRecipients.push(`Recipient ${index + 1}: Missing address`);
         return;
       }
-      
+
       if (!recipient.amount || parseFloat(recipient.amount) <= 0 || isNaN(parseFloat(recipient.amount))) {
         console.log(`Recipient ${index + 1}: Invalid amount "${recipient.amount}"`);
         invalidRecipients.push(`Recipient ${index + 1}: Invalid amount`);
         return;
       }
-      
+
       console.log(`Recipient ${index + 1}: Valid - Address: ${recipient.address}, Amount: ${recipient.amount}`);
       validRecipients.push(recipient);
     });
-    
+
     if (invalidRecipients.length > 0) {
       toast.error(
         <div>
@@ -176,36 +177,36 @@ export default function TransferTokenPage() {
       );
       return;
     }
-    
+
     if (validRecipients.length === 0) {
       toast.error("Please add at least one valid recipient with amount");
       return;
     }
-    
+
     console.log("Valid recipients:", validRecipients);
-    
+
     if (!validateTotalAmount()) {
       return;
     }
-    
+
     let toastId: string | number | undefined;
-    
+
     try {
       setTransferInProgress(true);
-      
+
       toastId = toast.loading("Preparing transfer...");
-      
+
       // Kiểm tra nếu token đang chuyển là SOL
-      const isSOL = selectedToken.symbol === "SOL" || 
-                   selectedToken.address === "NativeSOL" ||
-                   selectedToken.address === "11111111111111111111111111111111";
-      
+      const isSOL = selectedToken.symbol === "SOL" ||
+        selectedToken.address === "NativeSOL" ||
+        selectedToken.address === "11111111111111111111111111111111";
+
       if (isSOL) {
         // Xử lý chuyển SOL
         if (validRecipients.length === 1) {
           // Chuyển SOL cho một người nhận
           const recipient = validRecipients[0];
-          
+
           const result = await transferSol(
             connection,
             wallet,
@@ -215,7 +216,7 @@ export default function TransferTokenPage() {
             },
             {
               memo: memo,
-              onStart: () => {},
+              onStart: () => { },
               onSuccess: () => {
                 toast.dismiss(toastId);
                 toast.success("SOL transfer successful!");
@@ -227,7 +228,7 @@ export default function TransferTokenPage() {
               onFinish: () => setTransferInProgress(false)
             }
           );
-          
+
           if (result) {
             console.log("SOL transaction signature:", result.signature);
             toast.dismiss(toastId);
@@ -240,14 +241,14 @@ export default function TransferTokenPage() {
             recipientAddress: recipient.address,
             amount: recipient.amount
           }));
-          
+
           const results = await transferSolToMultipleRecipients(
             connection,
             wallet,
             transferParams,
             {
               memo: memo,
-              onStart: () => {},
+              onStart: () => { },
               onSuccess: () => {
                 toast.dismiss(toastId);
                 toast.success("SOL transfers successful!");
@@ -259,7 +260,7 @@ export default function TransferTokenPage() {
               onFinish: () => setTransferInProgress(false)
             }
           );
-          
+
           if (results && results.length > 0) {
             console.log("SOL transaction results:", results);
             toast.dismiss(toastId);
@@ -272,7 +273,7 @@ export default function TransferTokenPage() {
         if (validRecipients.length === 1) {
           // Chuyển cho một người nhận
           const recipient = validRecipients[0];
-        
+
           const result = await transferToken(
             connection,
             wallet,
@@ -284,7 +285,7 @@ export default function TransferTokenPage() {
             },
             {
               memo: memo,
-              onStart: () => {},
+              onStart: () => { },
               onSuccess: () => {
                 toast.dismiss(toastId);
                 toast.success("Transfer successful!");
@@ -296,7 +297,7 @@ export default function TransferTokenPage() {
               onFinish: () => setTransferInProgress(false)
             }
           );
-          
+
           if (result) {
             console.log("Transaction signature:", result.signature);
             toast.dismiss(toastId);
@@ -311,14 +312,14 @@ export default function TransferTokenPage() {
             amount: recipient.amount,
             decimals: selectedToken.decimals || 0
           }));
-          
+
           const results = await transferTokenToMultipleRecipients(
             connection,
             wallet,
             transferParams,
             {
               memo: memo,
-              onStart: () => {},
+              onStart: () => { },
               onSuccess: () => {
                 toast.dismiss(toastId);
                 toast.success("Transfers successful!");
@@ -330,7 +331,7 @@ export default function TransferTokenPage() {
               onFinish: () => setTransferInProgress(false)
             }
           );
-          
+
           if (results && results.length > 0) {
             console.log("Transaction results:", results);
             toast.dismiss(toastId);
@@ -342,7 +343,7 @@ export default function TransferTokenPage() {
     } catch (error: unknown) {
       console.error("Error in transfer:", error);
       if (toastId) toast.dismiss(toastId);
-      
+
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       toast.error(`Error: ${errorMessage}`);
       setTransferInProgress(false);
@@ -353,13 +354,13 @@ export default function TransferTokenPage() {
   useEffect(() => {
     // Nếu cập nhật đến từ SelectToken thì bỏ qua
     if (isUpdatingFromSelectToken) return;
-    
+
     // Tính tổng số token từ tất cả recipient
     const totalAmount = recipients.reduce((sum, recipient) => {
       const amount = parseFloat(recipient.amount) || 0;
       return sum + amount;
     }, 0);
-    
+
     // Cập nhật tokenAmount để hiển thị trong SelectToken
     if (!isNaN(totalAmount)) {
       setTokenAmount(totalAmount.toString());
@@ -368,61 +369,61 @@ export default function TransferTokenPage() {
 
   const handleSetMaxForAll = () => {
     if (!selectedToken) return;
-    
+
     const balance = parseFloat(selectedToken.balance);
     const count = recipients.length;
-    
+
     if (count === 0) return;
-    
+
     // Đánh dấu để tránh useEffect tính lại tổng số lượng
     setIsUpdatingFromSelectToken(true);
-    
+
     const amountPerRecipient = (balance / count).toFixed(selectedToken.decimals || 6);
-    
+
     // Cập nhật số lượng cho mỗi recipient
     setRecipients(recipients.map(r => ({
       ...r,
       amount: amountPerRecipient
     })));
-    
+
     // Cập nhật luôn tokenAmount để hiển thị đúng trong SelectToken
     setTokenAmount(balance.toString());
-    
+
     // Reset flag
     setTimeout(() => setIsUpdatingFromSelectToken(false), 0);
   };
 
   const handleMaxAmount = (index: number) => {
     if (!selectedToken) return;
-    
+
     // Đánh dấu để tránh useEffect tính lại tổng số lượng
     setIsUpdatingFromSelectToken(true);
-    
+
     const totalOtherAmount = recipients.reduce((sum, r, i) => {
       if (i === index) return sum;
       return sum + (parseFloat(r.amount) || 0);
     }, 0);
-    
+
     const availableBalance = parseFloat(selectedToken.balance) - totalOtherAmount;
-    
+
     if (availableBalance <= 0) {
       toast.error("No remaining balance available");
       setIsUpdatingFromSelectToken(false);
       return;
     }
-    
+
     const newRecipients = [...recipients];
     newRecipients[index] = {
       ...newRecipients[index],
       amount: availableBalance.toString()
     };
-    
+
     setRecipients(newRecipients);
-    
+
     // Cập nhật tổng số lượng trong SelectToken
     const totalAmount = newRecipients.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
     setTokenAmount(totalAmount.toString());
-    
+
     // Reset flag
     setTimeout(() => setIsUpdatingFromSelectToken(false), 0);
   };
@@ -523,7 +524,7 @@ export default function TransferTokenPage() {
                   cluster={cluster}
                   onTokensLoaded={handleTokensLoaded}
                 />
-                
+
                 {selectedToken && recipients.length > 1 && (
                   <div className="flex justify-end mt-2">
                     <Button
