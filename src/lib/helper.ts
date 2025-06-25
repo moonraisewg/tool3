@@ -110,13 +110,12 @@ export const checkVaultExists = async (
 
 export async function getTokenProgram(mint: PublicKey, connection?: Connection): Promise<PublicKey> {
   try {
-    // Sử dụng connection được truyền vào nếu có, nếu không thì dùng connectionMainnet
     const conn = connection || connectionMainnet;
     const mintAccountInfo = await conn.getAccountInfo(mint);
 
     if (!mintAccountInfo) {
       console.warn(`Mint account not found: ${mint.toString()}`);
-      return TOKEN_PROGRAM_ID; // Fallback to TOKEN_PROGRAM_ID
+      return TOKEN_PROGRAM_ID;
     }
 
     if (mintAccountInfo.owner.equals(TOKEN_PROGRAM_ID)) {
@@ -125,10 +124,10 @@ export async function getTokenProgram(mint: PublicKey, connection?: Connection):
       return TOKEN_2022_PROGRAM_ID;
     } else {
       console.warn(`Unknown token program: ${mintAccountInfo.owner.toString()}`);
-      return TOKEN_PROGRAM_ID; // Fallback to TOKEN_PROGRAM_ID
+      return TOKEN_PROGRAM_ID; 
     }
   } catch (error) {
     console.error("Error in getTokenProgram:", error);
-    return TOKEN_PROGRAM_ID; // Fallback to TOKEN_PROGRAM_ID
+    return TOKEN_PROGRAM_ID; 
   }
 }

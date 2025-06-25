@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { SelectTokenModal } from "./select-token-modal";
 import React from "react";
 import { UserToken } from "@/hooks/useUserTokens";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Alert = ({ className, children }: { className?: string, children: React.ReactNode }) => (
   <div className={`p-4 rounded-md ${className}`}>{children}</div>
@@ -35,6 +36,7 @@ export function BurnForm({ }: BurnFormProps) {
   const wallet = useWallet();
   const { publicKey, connected } = wallet;
   const { connection } = useConnection();
+  const isMobile = useIsMobile();
   const [isLoading, setIsLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedToken, setSelectedToken] = useState<UserToken | null>(null);
@@ -225,14 +227,17 @@ export function BurnForm({ }: BurnFormProps) {
 
   if (burnSuccess && burnResult) {
     return (
-      <Card className="max-w-2xl mx-auto">
+      <div className={`md:p-3 max-w-[550px] mx-auto my-2 ${!isMobile && "border-gear"}`}>
+        <h1 className="text-2xl font-bold text-gray-900 mb-6 flex items-center justify-center">
+          Burn Successful
+        </h1>
+        <Card>
         <CardContent className="pt-6 text-center">
           <div className="mb-6 flex justify-center">
             <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
               <Check className="h-8 w-8 text-green-600" />
             </div>
           </div>
-          <h2 className="text-2xl font-bold mb-2">Burn Successful!</h2>
           <p className="text-gray-500 mb-6">Your tokens have been permanently removed from circulation</p>
 
           <div className="space-y-4 mb-8">
@@ -273,14 +278,16 @@ export function BurnForm({ }: BurnFormProps) {
           </div>
         </CardContent>
       </Card>
+      </div>
     );
   }
 
   return (
-    <Card className="max-w-2xl mx-auto">
-      <CardHeader>
-        <CardTitle className="text-center">Burn Token Extensions</CardTitle>
-      </CardHeader>
+    <div className={`md:p-3 max-w-[550px] mx-auto my-2 ${!isMobile && "border-gear"}`}>
+      <h1 className="text-2xl font-bold text-gray-900 mb-6 flex items-center justify-center">
+        Burn Token Extensions
+      </h1>
+      <Card>
       <CardContent>
         <Alert className="bg-amber-50 border-amber-200 mb-6">
           <Flame className="h-4 w-4 text-amber-500" />
@@ -372,6 +379,7 @@ export function BurnForm({ }: BurnFormProps) {
           </Button>
         </form>
       </CardContent>
+      </Card>
 
       <SelectTokenModal
         open={isModalOpen}
@@ -424,6 +432,6 @@ export function BurnForm({ }: BurnFormProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Card>
+    </div>
   );
 } 
