@@ -6,13 +6,20 @@ import {
     createAssociatedTokenAccountInstruction,
 } from "@solana/spl-token";
 import { NextResponse } from "next/server";
-import { connectionMainnet } from "@/service/solana/connection";
+import { connectionMainnet, connectionDevnet } from "@/service/solana/connection";
 import { adminKeypair } from "@/config";
+import { NATIVE_SOL } from "@/utils/constants";
 
+interface SellSolRequest {
+    walletPublicKey: string;
+    tokenAmount: number;
+    tokenMint: string;
+    solAmount: number;
+}
 
 function isValidPublicKey(key: string): boolean {
     try {
-        if (key === "NativeSOL") return true
+        if (key === NATIVE_SOL) return true;
         new PublicKey(key);
         return true;
     } catch {
@@ -22,14 +29,17 @@ function isValidPublicKey(key: string): boolean {
 
 export async function POST(request: Request) {
     try {
-        const { walletPublicKey, tokenAmount, tokenMint } = await request.json();
+        const { walletPublicKey, tokenAmount, tokenMint, solAmount } = await request.json() as SellSolRequest;
 
         if (
             !walletPublicKey ||
             !tokenMint ||
             tokenAmount === undefined ||
             isNaN(tokenAmount) ||
-            Number(tokenAmount) <= 0
+            Number(tokenAmount) <= 0 ||
+            solAmount === undefined ||
+            isNaN(solAmount) ||
+            Number(solAmount) <= 0
         ) {
             return NextResponse.json(
                 { error: "Missing or invalid input" },
@@ -47,10 +57,21 @@ export async function POST(request: Request) {
         const userPublicKey = new PublicKey(walletPublicKey);
         const adminPublicKey = adminKeypair.publicKey;
         let mintPublicKey: PublicKey;
-        const isNativeSOL = tokenMint === "NativeSOL";
+        const isNativeSOL = tokenMint === NATIVE_SOL;
+
+        const adminBalance = await connectionDevnet.getBalance(adminPublicKey);
+        const requiredLamports = Math.round(solAmount);
+        const minBalanceForRentExemption = 890880;
+        if (adminBalance < requiredLamports + minBalanceForRentExemption) {
+            return NextResponse.json(
+                {
+                    error: "Admin wallet does not have enough SOL on Devnet to complete the transaction",
+                },
+                { status: 400 }
+            );
+        }
 
         const transaction = new Transaction();
-
 
         if (isNativeSOL) {
             transaction.add(

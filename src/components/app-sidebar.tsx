@@ -25,9 +25,10 @@ import {
   ArrowUp,
   Coin,
   AddBox,
-  Wallet,
   ChevronDown,
   CreditCard,
+  Trash,
+  Wallet
 } from "@nsmr/pixelart-react";
 import { useState } from "react";
 
@@ -105,21 +106,24 @@ export const route = {
       url: "/create/review",
       hidden: true,
     },
-
     {
       title: "Create liquidity pool",
       icon: AddBox,
-      url: "/create-pool",
+      submenu: [
+        {
+          title: "Raydium CPMM",
+          url: "/create-pool/raydium-cpmm",
+        },
+        {
+          title: "Meteora DAMM V2",
+          url: "/create-pool/meteora-damm",
+        },
+      ],
     },
     {
-      title: "Create Raydium CPMM Pool",
-      url: "/create-pool/raydium-cpmm",
-      hidden: true,
-    },
-    {
-      title: "Create Meteora DAMM Pool",
-      url: "/create-pool/meteora-damm",
-      hidden: true,
+      icon: Trash,
+      title: "Close account",
+      url: "/close-account",
     },
   ],
   devnet: [
@@ -237,26 +241,26 @@ export function AppSidebar() {
 
                         {(openSubmenu === item.title ||
                           isSubmenuActive(item.submenu)) && (
-                          <SidebarMenuSub>
-                            {item.submenu.map((subItem) => (
-                              <SidebarMenuSubItem key={subItem.title}>
-                                <SidebarMenuSubButton
-                                  asChild
-                                  isActive={
-                                    pathname && subItem.url
-                                      ? pathname.split("?")[0] ===
+                            <SidebarMenuSub>
+                              {item.submenu.map((subItem) => (
+                                <SidebarMenuSubItem key={subItem.title}>
+                                  <SidebarMenuSubButton
+                                    asChild
+                                    isActive={
+                                      pathname && subItem.url
+                                        ? pathname.split("?")[0] ===
                                         subItem.url.split("?")[0]
-                                      : false
-                                  }
-                                >
-                                  <Link href={subItem.url || "#"}>
-                                    <span>{subItem.title}</span>
-                                  </Link>
-                                </SidebarMenuSubButton>
-                              </SidebarMenuSubItem>
-                            ))}
-                          </SidebarMenuSub>
-                        )}
+                                        : false
+                                    }
+                                  >
+                                    <Link href={subItem.url || "#"}>
+                                      <span>{subItem.title}</span>
+                                    </Link>
+                                  </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                              ))}
+                            </SidebarMenuSub>
+                          )}
                       </>
                     ) : (
                       <SidebarMenuButton

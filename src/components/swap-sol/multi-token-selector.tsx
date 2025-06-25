@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import Image from "next/image";
 import { Wallet, Loader } from "lucide-react";
 import { useUserTokens, type UserToken } from "@/hooks/useUserTokens";
+import { ClusterType } from "@/types/types";
 
 interface SelectedTokenData {
   token: UserToken;
@@ -19,7 +20,7 @@ interface MultiTokenSelectorProps {
   selectedTokens: SelectedTokenData[];
   onTokensChange: (tokens: SelectedTokenData[]) => void;
   excludeToken?: string[];
-  cluster?: string;
+  cluster?: ClusterType;
   disabled?: boolean;
 }
 
