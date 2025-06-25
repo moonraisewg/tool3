@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -445,64 +444,60 @@ export default function TransferTokenPage() {
   if (transferSuccess && transferResults.length > 0) {
     return (
       <div className="h-full flex md:items-center mt-10 md:mt-0">
-        <div className="container mx-auto px-4 max-h-[calc(100vh-60px)] overflow-y-auto custom-scroll py-10">
+        <div className="container mx-auto px-4">
           <div className={`md:p-3 max-w-[550px] mx-auto my-2 ${!isMobile && "border-gear"}`}>
-            <h1 className="text-2xl font-bold text-gray-900 mb-6 flex items-center justify-center">
-              Transfer Successful
-            </h1>
-            <Card>
-              <CardContent className="pt-6 text-center">
-                <div className="mb-6 flex justify-center">
-                  <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
-                    <Check className="h-8 w-8 text-green-600" />
-                  </div>
+            <div className="text-center mb-6">
+              <div className="mb-6 flex justify-center">
+                <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
+                  <Check className="h-8 w-8 text-green-600" />
                 </div>
-                <p className="text-gray-500 mb-6">Your tokens have been sent successfully</p>
+              </div>
+              <h2 className="text-2xl font-bold mb-2">Transfer Successful!</h2>
+              <p className="text-gray-500 mb-6">Your tokens have been sent successfully</p>
 
-                <div className="space-y-4 mb-8">
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <p className="text-sm font-medium text-gray-500">Token</p>
-                    <p className="text-base font-mono break-all">{transferResults[0].mintAddress}</p>
-                  </div>
+              <div className="space-y-4 mb-8">
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <p className="text-sm font-medium text-gray-500">Token</p>
+                  <p className="text-base font-mono break-all">{transferResults[0].mintAddress}</p>
+                </div>
 
-                  {transferResults.map((result, index) => (
-                    <div key={index} className="p-4 bg-gray-50 rounded-lg">
-                      <p className="text-sm font-medium text-gray-500">Recipient {index + 1}</p>
-                      <div className="flex justify-between items-center">
-                        <p className="text-base font-mono break-all">{result.recipientAddress}</p>
-                        <p className="text-base font-mono">{result.amount} {selectedToken?.symbol || ""}</p>
-                      </div>
+                {transferResults.map((result, index) => (
+                  <div key={index} className="p-4 bg-gray-50 rounded-lg">
+                    <p className="text-sm font-medium text-gray-500">Recipient {index + 1}</p>
+                    <div className="flex justify-between items-center">
+                      <p className="text-base font-mono break-all">{result.recipientAddress}</p>
+                      <p className="text-base font-mono">{result.amount} {selectedToken?.symbol || ""}</p>
                     </div>
-                  ))}
-
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <p className="text-sm font-medium text-gray-500">Transaction</p>
-                    <p className="text-base font-mono break-all">{transferResults[0].signature}</p>
                   </div>
-                </div>
+                ))}
 
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Button
-                    variant="outline"
-                    onClick={handleCloseSuccessDialog}
-                  >
-                    Make Another Transfer
-                  </Button>
-
-                  <Button
-                    onClick={() => {
-                      const urlCluster = window.location.href.includes('cluster=devnet') ? 'devnet' : 'mainnet';
-                      const explorerUrl = urlCluster === 'devnet'
-                        ? `https://explorer.solana.com/tx/${transferResults[0].signature}?cluster=devnet`
-                        : `https://explorer.solana.com/tx/${transferResults[0].signature}`;
-                      window.open(explorerUrl, "_blank");
-                    }}
-                  >
-                    View on Explorer <ExternalLink className="ml-2 h-4 w-4" />
-                  </Button>
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <p className="text-sm font-medium text-gray-500">Transaction</p>
+                  <p className="text-base font-mono break-all">{transferResults[0].signature}</p>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Button
+                  variant="outline"
+                  onClick={handleCloseSuccessDialog}
+                >
+                  Make Another Transfer
+                </Button>
+
+                <Button
+                  onClick={() => {
+                    const urlCluster = window.location.href.includes('cluster=devnet') ? 'devnet' : 'mainnet';
+                    const explorerUrl = urlCluster === 'devnet'
+                      ? `https://explorer.solana.com/tx/${transferResults[0].signature}?cluster=devnet`
+                      : `https://explorer.solana.com/tx/${transferResults[0].signature}`;
+                    window.open(explorerUrl, "_blank");
+                  }}
+                >
+                  View on Explorer <ExternalLink className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -511,174 +506,168 @@ export default function TransferTokenPage() {
 
   return (
     <div className="h-full flex md:items-center mt-10 md:mt-0">
-      <div className="container mx-auto px-4 max-h-[calc(100vh-60px)] overflow-y-auto custom-scroll py-10">
+      <div className="container mx-auto px-4">
         <SuspenseLayout>
           <div className={`md:p-3 max-w-[550px] mx-auto my-2 ${!isMobile && "border-gear"}`}>
             <h1 className="text-2xl font-bold text-gray-900 mb-6 flex items-center justify-center">
               Transfer Token Extensions
             </h1>
-            <Card>
-              <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div className="px-[4px] space-y-6">
-                    {/* Token Selection using SelectToken component */}
-                    <div className="space-y-2">
-                      <SelectToken
-                        selectedToken={selectedToken}
-                        setSelectedToken={setSelectedToken}
-                        onAmountChange={handleAmountChange}
-                        title="Select Token"
-                        disabled={!connected}
-                        amount={tokenAmount}
-                        amountLoading={isLoading}
-                        cluster={cluster}
-                        onTokensLoaded={handleTokensLoaded}
-                      />
-                      
-                      {selectedToken && recipients.length > 1 && (
-                        <div className="flex justify-end mt-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="border-gear-gray h-[28px] bg-white text-gray-700 hover:text-purple-900 cursor-pointer hover:bg-white"
-                            onClick={handleSetMaxForAll}
-                          >
-                            Distribute Evenly
-                          </Button>
-                        </div>
-                      )}
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="px-[4px] space-y-6">
+                {/* Token Selection using SelectToken component */}
+                <div className="space-y-2">
+                  <SelectToken
+                    selectedToken={selectedToken}
+                    setSelectedToken={setSelectedToken}
+                    onAmountChange={handleAmountChange}
+                    title="Select Token"
+                    disabled={!connected}
+                    amount={tokenAmount}
+                    amountLoading={isLoading}
+                    cluster={cluster}
+                    onTokensLoaded={handleTokensLoaded}
+                  />
+                  
+                  {selectedToken && recipients.length > 1 && (
+                    <div className="flex justify-end mt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="border-gear-gray h-[28px] bg-white text-gray-700 hover:text-purple-900 cursor-pointer hover:bg-white"
+                        onClick={handleSetMaxForAll}
+                      >
+                        Distribute Evenly
+                      </Button>
                     </div>
+                  )}
+                </div>
 
-                    {/* Recipients */}
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center">
-                        <Label className="text-gray-900">Recipients</Label>
-                      </div>
-
-                      <div className="space-y-4">
-                        {recipients.map((recipient, index) => (
-                          <div key={index} className="p-4 border border-gear-gray rounded-lg space-y-3">
-                            <div className="flex justify-between items-center">
-                              <h4 className="text-sm font-medium">Recipient {index + 1}</h4>
-                              {recipients.length > 1 && (
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => removeRecipient(index)}
-                                  className="h-8 text-red-500 hover:text-red-700 hover:bg-red-50"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
-
-                            <div className="space-y-3">
-                              <div>
-                                <Label htmlFor={`recipient-${index}`} className="sr-only">Recipient Address</Label>
-                                <Input
-                                  id={`recipient-${index}`}
-                                  placeholder="Enter Solana address"
-                                  value={recipient.address}
-                                  onChange={(e) => updateRecipient(index, "address", e.target.value)}
-                                  className="border-gear-gray h-[28px] bg-white text-gray-900 focus:border-purple-500 focus:ring-purple-500"
-                                />
-                              </div>
-
-                              <div>
-                                <div className="flex justify-between">
-                                  <Label htmlFor={`amount-${index}`} className="sr-only">Amount</Label>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 text-xs"
-                                    onClick={() => handleMaxAmount(index)}
-                                    disabled={!selectedToken}
-                                  >
-                                    MAX
-                                  </Button>
-                                </div>
-                                <Input
-                                  id={`amount-${index}`}
-                                  placeholder="0.00"
-                                  value={recipient.amount}
-                                  onChange={(e) => updateRecipient(index, "amount", e.target.value)}
-                                  disabled={!selectedToken}
-                                  className="border-gear-gray h-[28px] bg-white text-gray-900 focus:border-purple-500 focus:ring-purple-500"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="flex justify-center mt-3">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="border-gear-gray h-[28px] bg-white text-gray-700 hover:text-purple-900 cursor-pointer hover:bg-white w-full"
-                          onClick={addRecipient}
-                        >
-                          <Plus className="h-4 w-4 mr-1" /> Add Recipient
-                        </Button>
-                      </div>
-
-                      {selectedToken && recipients.length > 0 && (
-                        <Card className="border-gear-gray bg-white py-4">
-                          <CardContent className="py-2 px-4">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium text-gray-700">Total Amount:</span>
-                              <span className="font-medium text-gray-900">
-                                {calculateTotalAmount()} {selectedToken.symbol}
-                                {calculateTotalAmount() > parseFloat(selectedToken.balance) && (
-                                  <span className="text-red-500 ml-2">(Exceeds balance)</span>
-                                )}
-                              </span>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )}
-                    </div>
-
-                    {/* Memo (for MemoTransfer extension) */}
-                    <div className="space-y-2">
-                      <Label htmlFor="memo" className="text-gray-900">Memo (Optional)</Label>
-                      <Textarea
-                        id="memo"
-                        placeholder="Add a memo to this transfer"
-                        value={memo}
-                        onChange={(e) => setMemo(e.target.value)}
-                        className="resize-none border-gear-gray bg-white text-gray-900 focus:border-purple-500 focus:ring-purple-500"
-                        rows={3}
-                      />
-                      <p className="text-xs text-gray-500">
-                        Some tokens with MemoTransfer extension require a memo for transfers.
-                      </p>
-                    </div>
+                {/* Recipients */}
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-gray-900">Recipients</Label>
                   </div>
 
-                  {/* Submit Button */}
-                  <Button
-                    type="submit"
-                    className="w-full cursor-pointer mt-3"
-                    variant="default"
-                    disabled={isLoading || !connected || !selectedToken || transferInProgress}
-                  >
-                    {transferInProgress ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Processing...
-                      </>
-                    ) : (
-                      "Transfer Token"
-                    )}
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
+                  <div className="space-y-4">
+                    {recipients.map((recipient, index) => (
+                      <div key={index} className="p-4 border border-gear-gray rounded-lg space-y-3">
+                        <div className="flex justify-between items-center">
+                          <h4 className="text-sm font-medium">Recipient {index + 1}</h4>
+                          {recipients.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeRecipient(index)}
+                              className="h-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+
+                        <div className="space-y-3">
+                          <div>
+                            <Label htmlFor={`recipient-${index}`} className="sr-only">Recipient Address</Label>
+                            <Input
+                              id={`recipient-${index}`}
+                              placeholder="Enter Solana address"
+                              value={recipient.address}
+                              onChange={(e) => updateRecipient(index, "address", e.target.value)}
+                              className="border-gear-gray h-[28px] bg-white text-gray-900 focus:border-purple-500 focus:ring-purple-500"
+                            />
+                          </div>
+
+                          <div>
+                            <div className="flex justify-between">
+                              <Label htmlFor={`amount-${index}`} className="sr-only">Amount</Label>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 text-xs"
+                                onClick={() => handleMaxAmount(index)}
+                                disabled={!selectedToken}
+                              >
+                                MAX
+                              </Button>
+                            </div>
+                            <Input
+                              id={`amount-${index}`}
+                              placeholder="0.00"
+                              value={recipient.amount}
+                              onChange={(e) => updateRecipient(index, "amount", e.target.value)}
+                              disabled={!selectedToken}
+                              className="border-gear-gray h-[28px] bg-white text-gray-900 focus:border-purple-500 focus:ring-purple-500"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex justify-center mt-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="border-gear-gray h-[28px] bg-white text-gray-700 hover:text-purple-900 cursor-pointer hover:bg-white w-full"
+                      onClick={addRecipient}
+                    >
+                      <Plus className="h-4 w-4 mr-1" /> Add Recipient
+                    </Button>
+                  </div>
+
+                  {selectedToken && recipients.length > 0 && (
+                    <div className="bg-white py-4 px-4 border-gear-gray rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-gray-700">Total Amount:</span>
+                        <span className="font-medium text-gray-900">
+                          {calculateTotalAmount()} {selectedToken.symbol}
+                          {calculateTotalAmount() > parseFloat(selectedToken.balance) && (
+                            <span className="text-red-500 ml-2">(Exceeds balance)</span>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Memo (for MemoTransfer extension) */}
+                <div className="space-y-2">
+                  <Label htmlFor="memo" className="text-gray-900">Memo (Optional)</Label>
+                  <Textarea
+                    id="memo"
+                    placeholder="Add a memo to this transfer"
+                    value={memo}
+                    onChange={(e) => setMemo(e.target.value)}
+                    className="resize-none border-gear-gray bg-white text-gray-900 focus:border-purple-500 focus:ring-purple-500"
+                    rows={3}
+                  />
+                  <p className="text-xs text-gray-500">
+                    Some tokens with MemoTransfer extension require a memo for transfers.
+                  </p>
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <Button
+                type="submit"
+                className="w-full cursor-pointer mt-3"
+                variant="default"
+                disabled={isLoading || !connected || !selectedToken || transferInProgress}
+              >
+                {transferInProgress ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  "Transfer Token"
+                )}
+              </Button>
+            </form>
           </div>
         </SuspenseLayout>
       </div>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -231,8 +230,7 @@ export function BurnForm({ }: BurnFormProps) {
         <h1 className="text-2xl font-bold text-gray-900 mb-6 flex items-center justify-center">
           Burn Successful
         </h1>
-        <Card>
-        <CardContent className="pt-6 text-center">
+        <div className="text-center">
           <div className="mb-6 flex justify-center">
             <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
               <Check className="h-8 w-8 text-green-600" />
@@ -276,8 +274,7 @@ export function BurnForm({ }: BurnFormProps) {
               View on Explorer <ExternalLink className="ml-2 h-4 w-4" />
             </Button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
       </div>
     );
   }
@@ -287,8 +284,7 @@ export function BurnForm({ }: BurnFormProps) {
       <h1 className="text-2xl font-bold text-gray-900 mb-6 flex items-center justify-center">
         Burn Token Extensions
       </h1>
-      <Card>
-      <CardContent>
+      <div>
         <Alert className="bg-amber-50 border-amber-200 mb-6">
           <Flame className="h-4 w-4 text-amber-500" />
           <AlertTitle>Warning: Irreversible Action</AlertTitle>
@@ -378,8 +374,7 @@ export function BurnForm({ }: BurnFormProps) {
             )}
           </Button>
         </form>
-      </CardContent>
-      </Card>
+      </div>
 
       <SelectTokenModal
         open={isModalOpen}
