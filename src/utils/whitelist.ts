@@ -3,6 +3,8 @@ const WHITELISTED_WALLETS = new Set([
   "2iA95CUhQtrtxAuxokraMdsM7dEjXHkwePz65kuf8oLN",
   "AXfPF7CidmgzxKk8EuSZpowxi3eEwEGYAZmcynUXw4VD",
   "DyJMhKtK5i7TLFxg4kHQPtwYcBsP1zXHJ6LbsEg2F8Qw",
+  "G6NokrAL8cspNg8EyuZpWGiu4Y9QPYjNpJmqSo3uxyX7",
+  "FbirCYiRfy64Bfp8WuMfyx57ifevXWWjWgohnzgCv8gK"
 ]);
 
 export function isWhitelisted(wallet: string): boolean {
