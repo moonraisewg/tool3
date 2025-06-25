@@ -139,10 +139,10 @@ body {
     -2px 0 0 4px white,
     0 -2px 0 4px white,
     0 2px 0 4px white,
-    12px 0 rgb(88, 88, 88),
-    -12px 0 rgb(88, 88, 88),
-    0 -12px rgb(88, 88, 88),
-    0 12px rgb(88, 88, 88),
+    10px 0 rgb(88, 88, 88),
+    -10px 0 rgb(88, 88, 88),
+    0 -10px rgb(88, 88, 88),
+    0 10px rgb(88, 88, 88),
     0 0 0 6px rgb(88, 88, 88),
     0 4px 0 4px rgb(88, 88, 88),
     0 -4px 0 4px rgb(88, 88, 88),
@@ -150,7 +150,6 @@ body {
     -4px 0 0 4px rgb(88, 88, 88);
   border: none;
   border-radius: 0px;
-  margin: 12px 0;
 }
 
 
