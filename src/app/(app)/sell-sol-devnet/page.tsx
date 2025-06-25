@@ -4,7 +4,7 @@ import { Metadata } from "next";
 export const metadata: Metadata = {
     title: "Buy SOL on Devnet - Easy and Fast Token Purchase",
     description:
-        "Purchase SOL tokens easily on the Devnet network. Fast, secure, and hassle-free token buying experience designed for developers and testers.",
+        "Purchase SOL tokens easily on the Devnet network. Enjoy a fast, secure, and hassle-free token buying experience specifically designed for developers and testers to streamline their projects.",
 };
 
 export default function WithdrawLP() {
