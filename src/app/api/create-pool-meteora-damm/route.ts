@@ -6,12 +6,11 @@ import BN from "bn.js";
 import { connectionDevnet, connectionMainnet } from "@/service/solana/connection";
 import { CpAmm, MIN_SQRT_PRICE, MAX_SQRT_PRICE, derivePoolAddress } from "@meteora-ag/cp-amm-sdk";
 import { createTokenTransferTx } from "@/utils/solana-token-transfer";
-import { CREATE_POOL_FEE } from "@/utils/constants";
+import { CONFIG_CREATE_METEORA_ADDRESS, CREATE_POOL_FEE, NATIVE_SOL, WSOL_MINT } from "@/utils/constants";
+import { isValidBase58 } from "../create-pool-raydium/route";
+
 const PAYMENT_AMOUNT_LAMPORTS = CREATE_POOL_FEE * LAMPORTS_PER_SOL;
 
-function isValidBase58(str: string): boolean {
-    return /^[1-9A-HJ-NP-Za-km-z]+$/.test(str);
-}
 
 async function verifyPaymentTx(paymentTxId: string, userPublicKey: PublicKey): Promise<boolean> {
     try {
@@ -42,7 +41,6 @@ async function verifyPaymentTx(paymentTxId: string, userPublicKey: PublicKey): P
     }
 }
 
-
 export async function POST(req: Request) {
     try {
         const { mintAAddress, mintBAddress, amountA, amountB, userPublicKey, paymentTxId, tokenTransferTxId } = await req.json();
@@ -60,26 +58,9 @@ export async function POST(req: Request) {
         ) {
             return NextResponse.json({ success: false, error: "Invalid base58 format" }, { status: 400 });
         }
+
         const cpAmm = new CpAmm(connectionDevnet);
-
-        const config = new PublicKey("F7xJjVwqvVBoAkYV3TdZesu4ckwzzVQEebaPiZVqT4Ly");
-
-        const derivedPoolId = derivePoolAddress(
-            config,
-            new PublicKey(mintAAddress),
-            new PublicKey(mintBAddress)
-        );
-
-        const poolInfo = await connectionDevnet.getAccountInfo(derivedPoolId);
-
-        if (poolInfo) {
-            return NextResponse.json({
-                success: false,
-                error: "Pool already exists",
-                poolId: derivedPoolId.toBase58(),
-            });
-        }
-
+        const config = new PublicKey(CONFIG_CREATE_METEORA_ADDRESS);
         const userPubKey = new PublicKey(userPublicKey);
 
         if (!paymentTxId) {
@@ -114,7 +95,6 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 });
         }
 
-
         if (!tokenTransferTxId) {
             const tokenTransferTx = await createTokenTransferTx(
                 connectionDevnet,
@@ -125,8 +105,7 @@ export async function POST(req: Request) {
                 amountA,
                 amountB
             );
-            const { blockhash, lastValidBlockHeight } =
-                await connectionDevnet.getLatestBlockhash("confirmed");
+            const { blockhash, lastValidBlockHeight } = await connectionDevnet.getLatestBlockhash("confirmed");
             tokenTransferTx.recentBlockhash = blockhash;
             tokenTransferTx.feePayer = userPubKey;
 
@@ -157,22 +136,25 @@ export async function POST(req: Request) {
         if (liquidityDelta.lte(new BN(0))) {
             return NextResponse.json({ success: false, error: "Liquidity delta <= 0, cannot create pool" }, { status: 400 });
         }
+
         const positionNftMint = Keypair.generate();
         const activationPoint = new BN(Math.floor(Date.now() / 1000) + 60);
 
+        const tokenAMint = mintAAddress === NATIVE_SOL ? WSOL_MINT : mintAAddress;
+        const tokenBMint = mintBAddress === NATIVE_SOL ? WSOL_MINT : mintBAddress;
 
         const txBuilder = await cpAmm.createPool({
             creator: adminKeypair.publicKey,
             payer: adminKeypair.publicKey,
-            config, // PublicKey của config bạn muốn dùng
+            config,
             positionNft: positionNftMint.publicKey,
-            tokenAMint: new PublicKey(mintAAddress),
-            tokenBMint: new PublicKey(mintBAddress),
+            tokenAMint: new PublicKey(tokenAMint),
+            tokenBMint: new PublicKey(tokenBMint),
             initSqrtPrice,
             liquidityDelta,
             tokenAAmount: tokenAAmountBN,
             tokenBAmount: tokenBAmountBN,
-            activationPoint, // BN hoặc null
+            activationPoint,
             tokenAProgram: TOKEN_PROGRAM_ID,
             tokenBProgram: TOKEN_PROGRAM_ID,
             isLockLiquidity: false,
@@ -198,17 +180,15 @@ export async function POST(req: Request) {
 
         const poolId = derivePoolAddress(
             config,
-            new PublicKey(mintAAddress),
-            new PublicKey(mintBAddress)
+            new PublicKey(tokenAMint),
+            new PublicKey(tokenBMint)
         );
-
 
         return NextResponse.json({
             success: true,
             poolTxId,
             poolKeys: {
                 poolId: poolId.toString(),
-                // positionId: position.toString(),
             }
         });
     } catch (err: unknown) {

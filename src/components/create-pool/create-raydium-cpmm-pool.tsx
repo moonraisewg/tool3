@@ -33,7 +33,7 @@ export default function CreateRaydiumCpmmPool() {
     const [loadingMessage, setLoadingMessage] = useState("")
     const [currentStep, setCurrentStep] = useState(1)
     const [paymentTxId, setPaymentTxId] = useState("")
-    const [tokenTransferTxId, setTokenTransferTxId] = useState("")
+    const [poolResult, setPoolResult] = useState<{ poolTxId: string; poolKeys: { poolId: string } } | null>(null)
     const { publicKey, signTransaction } = useWallet()
 
     const form = useForm<z.infer<typeof formSchema>>({
@@ -161,7 +161,7 @@ export default function CreateRaydiumCpmmPool() {
                 const values = form.getValues()
                 const amountA = toLamports(values.amountToken1, selectedToken1!.decimals!)
                 const amountB = toLamports(values.amountToken2, selectedToken2!.decimals!)
-                const res = await fetch("/api/create-pool-raydium", {
+                const resTokenTransfer = await fetch("/api/create-pool-raydium", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -173,21 +173,16 @@ export default function CreateRaydiumCpmmPool() {
                         paymentTxId,
                     }),
                 })
-                const data = await res.json()
-                if (!res.ok || !data.success || !data.tokenTransferTx) {
-                    throw new Error(data.error || "Failed to get token transfer transaction")
+                const dataTokenTransfer = await resTokenTransfer.json()
+                if (!resTokenTransfer.ok || !dataTokenTransfer.success || !dataTokenTransfer.tokenTransferTx) {
+                    throw new Error(dataTokenTransfer.error || "Failed to get token transfer transaction")
                 }
 
                 setLoadingMessage("Preparing token transfer...")
-                const txId = await sendTokenTransfer(data.tokenTransferTx, data.blockhash, data.lastValidBlockHeight)
-                setTokenTransferTxId(txId)
-                setCurrentStep(4)
-            } else if (currentStep === 4) {
+                const txId = await sendTokenTransfer(dataTokenTransfer.tokenTransferTx, dataTokenTransfer.blockhash, dataTokenTransfer.lastValidBlockHeight)
+
                 setLoadingMessage("Creating pool on server...")
-                const values = form.getValues()
-                const amountA = toLamports(values.amountToken1, selectedToken1!.decimals!)
-                const amountB = toLamports(values.amountToken2, selectedToken2!.decimals!)
-                const res = await fetch("/api/create-pool-raydium", {
+                const resCreatePool = await fetch("/api/create-pool-raydium", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -197,45 +192,52 @@ export default function CreateRaydiumCpmmPool() {
                         amountB,
                         userPublicKey: publicKey!.toString(),
                         paymentTxId,
-                        tokenTransferTxId,
+                        tokenTransferTxId: txId,
                     }),
                 })
-                const data = await res.json()
-                if (!res.ok || !data.success) {
-                    throw new Error(data.error || "Failed to create pool")
+                const dataCreatePool = await resCreatePool.json()
+                if (!resCreatePool.ok || !dataCreatePool.success) {
+                    throw new Error(dataCreatePool.error || "Failed to create pool")
                 }
 
+                setPoolResult({
+                    poolTxId: dataCreatePool.poolTxId,
+                    poolKeys: dataCreatePool.poolKeys,
+                })
                 toast.success(
                     <div className="space-y-2">
                         <p>✅ Pool created successfully!</p>
                         <p className="text-sm">
                             Create pool Tx ID:{" "}
                             <a
-                                href={`https://solscan.io/tx/${data?.poolTxId}?cluster=devnet`}
+                                href={`https://solscan.io/tx/${dataCreatePool?.poolTxId}?cluster=devnet`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-blue-500 hover:underline"
                             >
-                                {data?.poolTxId.slice(0, 8)}...{data?.poolTxId.slice(-8)}
+                                {dataCreatePool?.poolTxId.slice(0, 8)}...{dataCreatePool?.poolTxId.slice(-8)}
                             </a>
                         </p>
                         <p className="text-sm">
                             Pool ID:{" "}
                             <a
-                                href={`https://solscan.io/account/${data.poolKeys.poolId}?cluster=devnet`}
+                                href={`https://solscan.io/account/${dataCreatePool.poolKeys.poolId}?cluster=devnet`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-blue-500 hover:underline"
                             >
-                                {data.poolKeys.poolId.slice(0, 8)}...{data.poolKeys.poolId.slice(-8)}
+                                {dataCreatePool.poolKeys.poolId.slice(0, 8)}...{dataCreatePool.poolKeys.poolId.slice(-8)}
                             </a>
                         </p>
                     </div>,
                 )
-
+                setCurrentStep(4)
+            } else if (currentStep === 4) {
                 form.reset()
                 setSelectedToken1(null)
                 setSelectedToken2(null)
+                setPaymentTxId("")
+                setPoolResult(null)
                 setCurrentStep(1)
             }
         } catch (error: unknown) {
@@ -247,18 +249,22 @@ export default function CreateRaydiumCpmmPool() {
         }
     }
 
-    // const handleBack = () => {
-    //     if (currentStep > 1) setCurrentStep(currentStep - 1)
-    // }
-
     const price = Number.parseFloat(form.watch("amountToken1")) / Number.parseFloat(form.watch("amountToken2")) || ""
 
     const steps = [
         { title: "Choose Tokens", description: "Choose the token pair and specify amounts for your liquidity pool." },
         { title: "Confirm Payment", description: `Pay ${CREATE_POOL_FEE} SOL on Mainnet to proceed.` },
-        { title: "Token Transfer", description: "Transfer tokens on Devnet to fund the pool." },
-        { title: "Create Pool", description: "Review and finalize the pool creation." },
+        { title: "Create Pool", description: "Transfer tokens and finalize the pool creation on Devnet." },
+        { title: "Result", description: "View the created pool details." },
     ]
+
+    const getButtonText = () => {
+        if (loading) return loadingMessage
+        if (currentStep === 1) return "Continue"
+        if (currentStep === 2) return "Pay Fee"
+        if (currentStep === 3) return "Create Pool"
+        return "Create Another Pool"
+    }
 
     return (
         <div className={`md:p-2 max-w-[550px] mx-auto my-2 ${!isMobile ? "border-gear" : ""}`}>
@@ -320,7 +326,7 @@ export default function CreateRaydiumCpmmPool() {
                             </div>
                             <div className="border-gear-gray flex items-center justify-between px-2 py-2 text-sm">
                                 <div>{price || "-"}</div>
-                                <p>{`${selectedToken1?.symbol || "?"}/${selectedToken2?.symbol || "?"}`}</p>
+                                <p>{`${selectedToken1?.symbol || "UNKNOW"}/${selectedToken2?.symbol || "UNKNOW"}`}</p>
                             </div>
                         </div>
                     )}
@@ -329,39 +335,60 @@ export default function CreateRaydiumCpmmPool() {
                         <div className="space-y-6 px-1">
                             <div className="text-sm text-gray-500">
                                 <p>Pool creation fee: {CREATE_POOL_FEE} SOL (paid on Mainnet)</p>
-                                <p className="mt-2">Please click Next and confirm the payment to proceed with pool creation.</p>
+                                <p className="mt-2">Please click Pay Fee and confirm the payment to proceed with pool creation.</p>
                             </div>
                         </div>
                     )}
 
                     {currentStep === 3 && (
                         <div className="space-y-6 px-1">
-                            <div className="text-sm text-gray-500">
-                                <p>Switch your wallet to Devnet to transfer the tokens for the pool.</p>
-                                <p className="mt-2">After switching, click Next to initiate the token transfer.</p>
+                            <div className="text-sm">
+                                <p><strong>Token Pair:</strong> {selectedToken1?.symbol || "UNKNOW"} / {selectedToken2?.symbol || "UNKNOW"}</p>
+                                <p><strong>Amount A:</strong> {form.watch("amountToken1")} {selectedToken1?.symbol}</p>
+                                <p><strong>Amount B:</strong> {form.watch("amountToken2")} {selectedToken2?.symbol}</p>
+                                <p><strong>Initial Price:</strong> {price} {selectedToken1?.symbol || "UNKNOW"}/{selectedToken2?.symbol || "UNKNOW"}</p>
+                                <p><strong>Fee:</strong> {CREATE_POOL_FEE} SOL</p>
+                                <p className="mt-2">Switch your wallet to Devnet, then click Create Pool to transfer tokens and finalize the pool creation.</p>
                             </div>
                         </div>
                     )}
 
                     {currentStep === 4 && (
                         <div className="space-y-6 px-1">
-                            <div className="text-sm">
-                                <p><strong>Token Pair:</strong> {selectedToken1?.symbol} / {selectedToken2?.symbol}</p>
-                                <p><strong>Amount A:</strong> {form.watch("amountToken1")} {selectedToken1?.symbol}</p>
-                                <p><strong>Amount B:</strong> {form.watch("amountToken2")} {selectedToken2?.symbol}</p>
-                                <p><strong>Initial Price:</strong> {price} {selectedToken1?.symbol}/{selectedToken2?.symbol}</p>
-                                <p><strong>Fee:</strong> {CREATE_POOL_FEE} SOL</p>
-                                <p className="mt-2">Review the details and click Create to finalize the pool.</p>
+                            <div className="text-sm text-gray-500">
+                                <p className="text-green-600 font-semibold">✅ Pool created successfully!</p>
+                                <p className="mt-2">
+                                    Create pool Tx ID:{" "}
+                                    <a
+                                        href={`https://solscan.io/tx/${poolResult?.poolTxId}?cluster=devnet`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-500 hover:underline"
+                                    >
+                                        {poolResult?.poolTxId.slice(0, 8)}...{poolResult?.poolTxId.slice(-8)}
+                                    </a>
+                                </p>
+                                <p>
+                                    Pool ID:{" "}
+                                    <a
+                                        href={`https://solscan.io/account/${poolResult?.poolKeys.poolId}?cluster=devnet`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-500 hover:underline"
+                                    >
+                                        {poolResult?.poolKeys.poolId.slice(0, 8)}...{poolResult?.poolKeys.poolId.slice(-8)}
+                                    </a>
+                                </p>
+                                <p className="mt-2">Click Create Another Pool to start a new pool creation process.</p>
                             </div>
                         </div>
                     )}
 
-                    <div className="flex justify-between">
-                        <div></div>
+                    <div className="flex justify-center">
                         <Button
                             type="button"
                             onClick={handleNext}
-                            className="font-semibold py-2 rounded-lg"
+                            className="font-semibold py-2 rounded-lg cursor-pointer"
                             variant="default"
                             disabled={loading || !publicKey || !signTransaction}
                         >
@@ -370,12 +397,10 @@ export default function CreateRaydiumCpmmPool() {
                                     <Loader2 className="h-4 w-4 animate-spin" />
                                     <span>{loadingMessage}</span>
                                 </div>
-                            ) : currentStep === 4 ? (
-                                "Create Pool"
                             ) : (
                                 <div className="flex items-center gap-2">
-                                    <span>Next</span>
-                                    <ChevronRight className="h-4 w-4" />
+                                    <span>{getButtonText()}</span>
+                                    {currentStep < 4 && <ChevronRight className="h-4 w-4" />}
                                 </div>
                             )}
                         </Button>

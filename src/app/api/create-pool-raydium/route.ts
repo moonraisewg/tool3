@@ -22,13 +22,14 @@ import {
   connectionDevnet,
   connectionMainnet,
 } from "@/service/solana/connection";
-import { CREATE_POOL_FEE } from "@/utils/constants";
+import { CREATE_POOL_FEE, NATIVE_SOL, WSOL_MINT } from "@/utils/constants";
 import { createTokenTransferTx } from "@/utils/solana-token-transfer";
 
 const PAYMENT_WALLET = adminKeypair.publicKey;
 const PAYMENT_AMOUNT_LAMPORTS = CREATE_POOL_FEE * LAMPORTS_PER_SOL;
 
-function isValidBase58(str: string): boolean {
+export function isValidBase58(str: string): boolean {
+  if (str === NATIVE_SOL) return true;
   return /^[1-9A-HJ-NP-Za-km-z]+$/.test(str);
 }
 
@@ -207,8 +208,8 @@ export async function POST(req: Request) {
       );
     }
 
-    const mintA = await raydium.token.getTokenInfo(mintAAddress);
-    const mintB = await raydium.token.getTokenInfo(mintBAddress);
+    const mintA = await raydium.token.getTokenInfo(mintAAddress === NATIVE_SOL ? WSOL_MINT : mintAAddress);
+    const mintB = await raydium.token.getTokenInfo(mintBAddress === NATIVE_SOL ? WSOL_MINT : mintBAddress);
     if (!mintA || !mintB || mintA.address === mintB.address) {
       return NextResponse.json(
         { success: false, error: "Invalid token mints" },
