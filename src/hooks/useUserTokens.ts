@@ -6,6 +6,9 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { NATIVE_SOL } from "@/utils/constants";
 
+// Thêm TOKEN_2022_PROGRAM_ID
+const TOKEN_2022_PROGRAM_ID = new PublicKey("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
+
 export interface UserToken {
     address: string;
     name: string;
@@ -13,7 +16,8 @@ export interface UserToken {
     symbol?: string;
     logoURI?: string;
     decimals?: number;
-    ata?: string
+    ata?: string;
+    isToken2022?: boolean; // Thêm trường để phân biệt token 2022
 }
 
 interface Token {
@@ -94,15 +98,28 @@ const loadFallbackTokenList = async (forceRefresh = false): Promise<Record<strin
     }
 };
 
-async function getExistingTokenAccounts(connection: Connection, owner: PublicKey): Promise<Set<string>> {
-    const accounts = await connection.getTokenAccountsByOwner(owner, {
+async function getExistingTokenAccounts(connection: Connection, owner: PublicKey): Promise<Map<string, boolean>> {
+    // Lấy token accounts từ cả hai program ID
+    const splAccounts = await connection.getTokenAccountsByOwner(owner, {
         programId: new PublicKey(TOKEN_PROGRAM_ID),
     });
-
-    const existingAccounts = new Set<string>();
-    for (const acc of accounts.value) {
-        existingAccounts.add(acc.pubkey.toBase58());
+    
+    const token2022Accounts = await connection.getTokenAccountsByOwner(owner, {
+        programId: new PublicKey(TOKEN_2022_PROGRAM_ID),
+    });
+    
+    const existingAccounts = new Map<string, boolean>();
+    
+    // Lưu trữ chuẩn SPL Token accounts
+    for (const acc of splAccounts.value) {
+        existingAccounts.set(acc.pubkey.toBase58(), false); // false = không phải token 2022
     }
+    
+    // Lưu trữ Token 2022 accounts
+    for (const acc of token2022Accounts.value) {
+        existingAccounts.set(acc.pubkey.toBase58(), true); // true = là token 2022
+    }
+    
     return existingAccounts;
 }
 
@@ -211,8 +228,16 @@ export const useUserTokens = (cluster: ClusterType = "mainnet", excludeToken?: s
                     (showZeroBalance || parseFloat(token.balance) > 0))
 
             const existingTokenAccounts = await getExistingTokenAccounts(connection, publicKey);
-
-            const filteredFormattedTokens = formattedTokens.filter((token) => existingTokenAccounts.has(token.ata!));
+            
+            // Lọc và đánh dấu các token 2022
+            const filteredFormattedTokens = formattedTokens.filter((token) => {
+                if (token.ata && existingTokenAccounts.has(token.ata)) {
+                    // Đánh dấu token là token 2022 nếu tài khoản token của nó được quản lý bởi TOKEN_2022_PROGRAM_ID
+                    token.isToken2022 = existingTokenAccounts.get(token.ata);
+                    return true;
+                }
+                return false;
+            });
 
             const solToken: UserToken = {
                 address: NATIVE_SOL,
