@@ -123,7 +123,7 @@ function MultiTokenSelector({
       };
       autoSelectAll();
     }
-  }, [tokens, disabled, selectedTokens.length, onTokensChange]);
+  }, [tokens, disabled, selectedTokens.length, onTokensChange, didAutoSelect, fetchSwapQuote]);
 
   if (loading) {
     return (

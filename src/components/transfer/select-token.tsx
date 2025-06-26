@@ -174,6 +174,7 @@ const SelectToken: React.FC<SelectTokenProps> = ({
                 {title === "You Pay"
                   ? `${selectedToken.symbol} Mainnet`
                   : selectedToken.symbol}
+                {selectedToken.isToken2022 && <span className="ml-1 text-xs text-purple-600 font-semibold">2022</span>}
               </div>
             </div>
           ) : (

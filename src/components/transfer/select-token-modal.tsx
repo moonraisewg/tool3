@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -89,6 +88,11 @@ export default function TokenSearchModal({ open, onOpenChange, onTokenSelect, to
                                 <div>
                                     <div className="flex items-center space-x-2">
                                         <span className="font-medium text-gray-900">{token.symbol || "UNKNOWN"}</span>
+                                        {token.isToken2022 && (
+                                            <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full font-medium">
+                                                Token 2022
+                                            </span>
+                                        )}
                                     </div>
                                     <div className="text-sm text-gray-600">{token.name || "Unknown Token"}</div>
                                     <div className="text-xs text-gray-400">{shortenAddress(token.address)}</div>
