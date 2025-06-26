@@ -1,13 +1,13 @@
 "use client";
 
 import type React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent } from "@/components/ui/card";
 import Image from "next/image";
-import { Wallet, Loader } from "lucide-react";
+import { Wallet } from "lucide-react";
 import { useUserTokens, type UserToken } from "@/hooks/useUserTokens";
 import { ClusterType } from "@/types/types";
 
@@ -31,7 +31,7 @@ function MultiTokenSelector({
   cluster = "mainnet",
   disabled = false,
 }: MultiTokenSelectorProps) {
-  const { tokens, loading } = useUserTokens(cluster, excludeToken);
+  const { tokens } = useUserTokens(cluster, excludeToken);
   const [searchTerm, setSearchTerm] = useState("");
   const [, setPriceLoading] = useState<Record<string, boolean>>({});
   const [didAutoSelect, setDidAutoSelect] = useState(false);
@@ -48,35 +48,38 @@ function MultiTokenSelector({
     );
   };
 
-  const fetchSwapQuote = async (token: UserToken, amount: string) => {
-    if (!amount || Number(amount) === 0) return "0";
+  const fetchSwapQuote = useCallback(
+    async (token: UserToken, amount: string) => {
+      if (!amount || Number(amount) === 0) return "0";
 
-    try {
-      setPriceLoading((prev) => ({ ...prev, [token.address]: true }));
+      try {
+        setPriceLoading((prev) => ({ ...prev, [token.address]: true }));
 
-      const amountValue = Number.parseFloat(amount);
-      if (isNaN(amountValue) || amountValue <= 0) return "0";
+        const amountValue = Number.parseFloat(amount);
+        if (isNaN(amountValue) || amountValue <= 0) return "0";
 
-      const inputAmountInLamports = Math.round(
-        amountValue * Math.pow(10, token.decimals || 0)
-      );
+        const inputAmountInLamports = Math.round(
+          amountValue * Math.pow(10, token.decimals || 0)
+        );
 
-      const response = await fetch(
-        `https://lite-api.jup.ag/swap/v1/quote?inputMint=${token.address}&outputMint=So11111111111111111111111111111111111111112&amount=${inputAmountInLamports}&slippageBps=100&swapMode=ExactIn`
-      );
+        const response = await fetch(
+          `https://lite-api.jup.ag/swap/v1/quote?inputMint=${token.address}&outputMint=So11111111111111111111111111111111111111112&amount=${inputAmountInLamports}&slippageBps=100&swapMode=ExactIn`
+        );
 
-      if (!response.ok) throw new Error("Failed to fetch quote");
+        if (!response.ok) throw new Error("Failed to fetch quote");
 
-      const quote = await response.json();
-      const solAmount = Number.parseFloat(quote.outAmount) / Math.pow(10, 9);
-      return solAmount.toFixed(6);
-    } catch (error) {
-      console.error("Failed to fetch swap quote:", error);
-      return "0";
-    } finally {
-      setPriceLoading((prev) => ({ ...prev, [token.address]: false }));
-    }
-  };
+        const quote = await response.json();
+        const solAmount = Number.parseFloat(quote.outAmount) / Math.pow(10, 9);
+        return solAmount.toFixed(6);
+      } catch (error) {
+        console.error("Failed to fetch swap quote:", error);
+        return "0";
+      } finally {
+        setPriceLoading((prev) => ({ ...prev, [token.address]: false }));
+      }
+    },
+    []
+  );
 
   const handleTokenToggle = async (token: UserToken, checked: boolean) => {
     if (disabled) return;
@@ -123,20 +126,7 @@ function MultiTokenSelector({
       };
       autoSelectAll();
     }
-  }, [tokens, disabled, selectedTokens.length, onTokensChange, didAutoSelect, fetchSwapQuote]);
-
-  if (loading) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-center">
-            <Loader className="h-6 w-6 animate-spin mr-2" />
-            <span>Loading tokens...</span>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  }, [tokens, disabled, didAutoSelect, onTokensChange, fetchSwapQuote]);
 
   return (
     <Card>
@@ -190,10 +180,11 @@ function MultiTokenSelector({
                 return (
                   <div
                     key={token.address}
-                    className={`border rounded-lg p-3 transition-colors ${isSelected
-                      ? "bg-blue-50 border-blue-200"
-                      : "bg-white border-gray-200"
-                      }`}
+                    className={`border rounded-lg p-3 transition-colors ${
+                      isSelected
+                        ? "bg-blue-50 border-blue-200"
+                        : "bg-white border-gray-200"
+                    }`}
                   >
                     <div className="flex items-center space-x-3">
                       <Checkbox
