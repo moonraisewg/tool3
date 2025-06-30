@@ -10,11 +10,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { toast } from "sonner"
 import { useWallet } from "@solana/wallet-adapter-react"
 import { Loader2, Info } from "lucide-react"
-import { Transaction } from "@solana/web3.js"
+import { Transaction, PublicKey, ParsedAccountData } from "@solana/web3.js"
+import { getAssociatedTokenAddress } from "@solana/spl-token"
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import WalletList from "./wallet-list"
 import SelectTokenBundled from "./select-token-bundled"
 import { Token } from "@/types/types"
+import { connectionDevnet } from "@/service/solana/connection"
 
 const formSchema = z.object({
   amount: z.string().refine((val) => !isNaN(Number.parseFloat(val)) && Number.parseFloat(val) >= 0, {
@@ -67,37 +69,79 @@ export default function BundledForm() {
   }, [])
 
   const handleCheckBalance = async () => {
-    if (!publicKey) {
-      toast.error("Please connect your wallet first")
-      return
+    if (walletAddresses.length === 0) {
+      toast.error("Please import at least one wallet");
+      return;
     }
+
     try {
-      setLoading(true)
-      setLoadingMessage("Checking balance...")
-      const response = await fetch("/api/check-balance", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userPublicKey: publicKey.toString() }),
-      })
-      const data = await response.json()
-      if (!response.ok) throw new Error(data.error || "Failed to check balance")
+      setLoading(true);
+      setLoadingMessage("Checking balances...");
 
-      setWalletAddresses((prev) =>
-        prev.map((wallet) =>
-          wallet.address === publicKey.toString()
-            ? { ...wallet, solBalance: data.solBalance, tokenBalance: data.tokenBalance }
-            : wallet,
-        ),
-      )
 
-      toast.success(`Balance checked: ${data.solBalance} SOL, ${data.tokenBalance} ${selectedToken?.symbol || "TOKEN"}`)
+      const allPubKeys: PublicKey[] = [];
+
+      // Tạo danh sách tất cả PublicKey: ví + ATA
+      for (const wallet of walletAddresses) {
+        const pubKey = new PublicKey(wallet.address);
+        allPubKeys.push(pubKey);
+
+        if (selectedToken) {
+          const ata = await getAssociatedTokenAddress(
+            new PublicKey(selectedToken.address), // mint address
+            pubKey                                // owner address
+          );
+          allPubKeys.push(ata);
+        }
+      }
+      const response = await connectionDevnet.getMultipleParsedAccounts(allPubKeys, {
+        commitment: "confirmed",
+      });
+
+      const accountInfos = response.value;
+
+      const updatedWallets = await Promise.all(
+        walletAddresses.map(async (wallet, index) => {
+          const walletIndex = index * 2;
+          const accountInfo = accountInfos[walletIndex];
+          if (!accountInfo) {
+            toast.error(`Failed to fetch balance for ${shortenAddress(wallet.address)}`);
+            return wallet;
+          }
+
+          const solBalance = accountInfo.lamports / 1_000_000_000;
+          let tokenBalance = 0;
+          if (selectedToken) {
+            const ataIndex = walletIndex + 1;
+            const ataAccountInfo = accountInfos[ataIndex];
+
+            if (
+              ataAccountInfo &&
+              "parsed" in ataAccountInfo.data &&
+              (ataAccountInfo.data as ParsedAccountData).program === "spl-token"
+            ) {
+              const parsed = ataAccountInfo.data as ParsedAccountData;
+              tokenBalance = Number(parsed.parsed.info.tokenAmount.uiAmount);
+            }
+          }
+
+          return {
+            ...wallet,
+            solBalance,
+            tokenBalance,
+          };
+        })
+      );
+
+      setWalletAddresses(updatedWallets);
+      toast.success("Balances checked successfully!");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to check balance")
+      toast.error(error instanceof Error ? error.message : "Failed to check balances");
     } finally {
-      setLoading(false)
-      setLoadingMessage("")
+      setLoading(false);
+      setLoadingMessage("");
     }
-  }
+  };
 
   const shortenAddress = (address: string) => {
     if (address.length <= 10) return address
@@ -191,7 +235,6 @@ export default function BundledForm() {
 
   return (
     <div className="max-w-6xl mx-auto p-4 space-y-6 max-h-[calc(100vh-200px)] overflow-y-auto">
-
       <SelectTokenBundled
         selectedToken={selectedToken}
         setSelectedToken={setSelectedToken}

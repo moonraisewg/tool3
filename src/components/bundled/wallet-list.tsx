@@ -93,7 +93,9 @@ export default function WalletList({
       }
 
       if (newWallets.length > 0) {
-        setWalletAddresses((prev) => [...prev, ...newWallets])
+        setWalletAddresses(newWallets)
+        setIsModalOpen(false)
+        // handleCheckBalance()
         toast.success(`${newWallets.length} wallet${newWallets.length > 1 ? "s" : ""} imported successfully!`)
       } else {
         toast.error("No valid wallets were imported")
@@ -103,25 +105,48 @@ export default function WalletList({
     }
   }
 
+  const selectSolBalanceGreaterThanZero = () => {
+    setWalletAddresses((prev) =>
+      prev.map((wallet) => ({
+        ...wallet,
+        selected: wallet.solBalance > 0,
+      })),
+    );
+    toast.success("Selected wallets with SOL balance > 0");
+  };
+
+  const selectTokenBalanceGreaterThanZero = () => {
+    setWalletAddresses((prev) =>
+      prev.map((wallet) => ({
+        ...wallet,
+        selected: wallet.tokenBalance > 0,
+      })),
+    );
+    toast.success("Selected wallets with Token balance > 0");
+  };
+
   const selectedCount = walletAddresses.filter((w) => w.selected).length
 
   return (
     <Card>
       <CardContent className="pt-6">
         <div className="flex flex-wrap gap-2 mb-4">
-          <Button type="button" onClick={() => setIsModalOpen(true)} variant="default" size="sm">
+          <Button className="cursor-pointer" type="button" onClick={() => setIsModalOpen(true)} variant="default" size="sm">
             1. Import Wallet
           </Button>
-          <Button type="button" onClick={handleCheckBalance} variant="outline" size="sm">
+          <Button className="cursor-pointer" type="button" onClick={handleCheckBalance} variant="outline" size="sm">
             2. Check Balance
           </Button>
-          <Button type="button" variant="outline" size="sm" disabled>
+          <Button className="cursor-pointer" type="button" variant="outline" size="sm"
+            onClick={selectSolBalanceGreaterThanZero}>
             Select SOL Balance {">"} 0
           </Button>
-          <Button type="button" variant="outline" size="sm" disabled>
+          <Button className="cursor-pointer" type="button" variant="outline" size="sm"
+            onClick={selectTokenBalanceGreaterThanZero} >
             Select Token Balance {">"} 0
           </Button>
           <Button
+            className="cursor-pointer"
             type="button"
             onClick={invertSelection}
             variant="outline"
@@ -131,6 +156,7 @@ export default function WalletList({
             Invert Selection
           </Button>
           <Button
+            className="cursor-pointer"
             type="button"
             onClick={deleteSelectedWallets}
             variant="destructive"
