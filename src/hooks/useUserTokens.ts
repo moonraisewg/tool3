@@ -32,7 +32,7 @@ interface TokenInfo {
     balance?: number;
     decimals?: number;
     symbol?: string;
-    associated_token_address?: string
+    associated_token_address?: string;
 }
 
 interface Content {
@@ -64,14 +64,17 @@ let fallbackTokenList: {
 } | null = null;
 
 const CACHE_TTL = 24 * 60 * 60 * 1000;
+const CACHE_KEY = "solana_token_list";
 
 const loadFallbackTokenList = async (forceRefresh = false): Promise<Record<string, Token>> => {
-    if (
-        !forceRefresh &&
-        fallbackTokenList &&
-        Date.now() - fallbackTokenList.timestamp < CACHE_TTL
-    ) {
-        return fallbackTokenList.tokens;
+    // Check localStorage cache
+    const cachedData = localStorage.getItem(CACHE_KEY);
+    if (cachedData && !forceRefresh) {
+        const { tokens: cachedTokens, timestamp } = JSON.parse(cachedData);
+        if (Date.now() - timestamp < CACHE_TTL) {
+            fallbackTokenList = { tokens: cachedTokens, timestamp };
+            return cachedTokens;
+        }
     }
 
     try {
@@ -91,15 +94,15 @@ const loadFallbackTokenList = async (forceRefresh = false): Promise<Record<strin
         );
 
         fallbackTokenList = { tokens: tokenMap, timestamp: Date.now() };
+        localStorage.setItem(CACHE_KEY, JSON.stringify(fallbackTokenList));
         return tokenMap;
     } catch (error) {
         console.error("Error loading fallback token list:", error);
-        return {};
+        return fallbackTokenList?.tokens || {};
     }
 };
 
 async function getExistingTokenAccounts(connection: Connection, owner: PublicKey): Promise<Map<string, boolean>> {
-    // Lấy token accounts từ cả hai program ID
     const splAccounts = await connection.getTokenAccountsByOwner(owner, {
         programId: new PublicKey(TOKEN_PROGRAM_ID),
     });
@@ -110,12 +113,10 @@ async function getExistingTokenAccounts(connection: Connection, owner: PublicKey
     
     const existingAccounts = new Map<string, boolean>();
     
-    // Lưu trữ chuẩn SPL Token accounts
     for (const acc of splAccounts.value) {
         existingAccounts.set(acc.pubkey.toBase58(), false); // false = không phải token 2022
     }
     
-    // Lưu trữ Token 2022 accounts
     for (const acc of token2022Accounts.value) {
         existingAccounts.set(acc.pubkey.toBase58(), true); // true = là token 2022
     }
@@ -229,10 +230,8 @@ export const useUserTokens = (cluster: ClusterType = "mainnet", excludeToken?: s
 
             const existingTokenAccounts = await getExistingTokenAccounts(connection, publicKey);
             
-            // Lọc và đánh dấu các token 2022
             const filteredFormattedTokens = formattedTokens.filter((token) => {
                 if (token.ata && existingTokenAccounts.has(token.ata)) {
-                    // Đánh dấu token là token 2022 nếu tài khoản token của nó được quản lý bởi TOKEN_2022_PROGRAM_ID
                     token.isToken2022 = existingTokenAccounts.get(token.ata);
                     return true;
                 }

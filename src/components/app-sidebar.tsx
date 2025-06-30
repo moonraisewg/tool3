@@ -28,7 +28,8 @@ import {
   ChevronDown,
   CreditCard,
   Trash,
-  Wallet
+  Wallet,
+  AddBoxMultiple
 } from "@nsmr/pixelart-react";
 import { useState } from "react";
 
@@ -129,6 +130,11 @@ export const route = {
       icon: Trash,
       title: "Close account",
       url: "/close-account",
+    },
+     {
+      icon: AddBoxMultiple,
+      title: "Bundled Sell/Buy Token",
+      url: "/bundled",
     },
   ],
   devnet: [

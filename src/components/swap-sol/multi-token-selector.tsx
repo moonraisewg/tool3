@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -48,7 +48,7 @@ function MultiTokenSelector({
     );
   };
 
-  const fetchSwapQuote = async (token: UserToken, amount: string) => {
+  const fetchSwapQuote = useCallback(async (token: UserToken, amount: string) => {
     if (!amount || Number(amount) === 0) return "0";
 
     try {
@@ -76,7 +76,7 @@ function MultiTokenSelector({
     } finally {
       setPriceLoading((prev) => ({ ...prev, [token.address]: false }));
     }
-  };
+  }, []);
 
   const handleTokenToggle = async (token: UserToken, checked: boolean) => {
     if (disabled) return;

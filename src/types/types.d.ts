@@ -4,6 +4,7 @@ export interface Token {
   symbol: string;
   logoURI?: string;
   decimals?: number;
+  chainId?: number;
 }
 
 export type ClusterType = "mainnet" | "devnet";
