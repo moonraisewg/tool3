@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 export default function SwapAll() {
   return (
     <div className="h-full flex md:items-center mt-10 md:mt-0">
-      <div className="container mx-auto px-4 auto-scroll">
+      <div className="container mx-auto px-4 max-h-[calc(100vh-100px)] overflow-y-auto py-5">
         <SwapAllToken />
       </div>
     </div>

@@ -505,8 +505,8 @@ export default function TransferTokenPage() {
   }
 
   return (
-    <div className="h-full flex md:items-center mt-10 md:mt-0">
-      <div className="container mx-auto px-4">
+    <div className="h-full flex md:items-center mt-10 md:mt-0 ">
+      <div className="container mx-auto px-4 max-h-[calc(100vh-100px)] overflow-y-auto py-5">
         <SuspenseLayout>
           <div className={`md:p-3 max-w-[550px] mx-auto my-2 ${!isMobile && "border-gear"}`}>
             <h1 className="text-2xl font-bold text-gray-900 mb-6 flex items-center justify-center">
@@ -527,7 +527,6 @@ export default function TransferTokenPage() {
                     cluster={cluster}
                     onTokensLoaded={handleTokensLoaded}
                   />
-                  
                   {selectedToken && recipients.length > 1 && (
                     <div className="flex justify-end mt-2">
                       <Button

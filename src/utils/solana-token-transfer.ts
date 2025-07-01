@@ -37,7 +37,7 @@ export async function createTokenTransferTx(
         const mintAPubkey = new PublicKey(mintAAddress);
         const userAtaA = getAssociatedTokenAddressSync(mintAPubkey, userPublicKey);
         const userAtaAInfo = await connection.getTokenAccountBalance(userAtaA).catch(() => null);
-        if (!userAtaAInfo || Number(userAtaAInfo.value) < amountANum) {
+        if (!userAtaAInfo || Number(userAtaAInfo.value.amount) < amountANum) {
             throw new Error(`Insufficient balance for token A (${mintAAddress})`);
         }
     }

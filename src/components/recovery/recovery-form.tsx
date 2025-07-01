@@ -23,7 +23,6 @@ export interface RecoveryFormProps {
 }
 
 export function RecoveryForm({ }: RecoveryFormProps) {
-  
   const wallet = useWallet();
   const { publicKey, connected } = wallet;
   const { connection } = useConnection();
@@ -189,7 +188,6 @@ export function RecoveryForm({ }: RecoveryFormProps) {
         toast.dismiss(toastId);
         setRecoveryResult(result);
         setRecoverySuccess(true);
-        
         // Reloading will happen automatically through parent components
       }
     } catch (error: unknown) {
@@ -396,7 +394,7 @@ export function RecoveryForm({ }: RecoveryFormProps) {
 
           <Button
             type="submit"
-            className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+            className="w-full bg-purple-600 hover:bg-purple-700 text-white cursor-pointer"
             disabled={isLoading || !connected || !selectedToken || recoveryInProgress || !sourceWalletAddress || !amount}
           >
             {recoveryInProgress ? (

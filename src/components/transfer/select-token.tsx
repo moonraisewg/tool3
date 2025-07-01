@@ -168,7 +168,7 @@ const SelectToken: React.FC<SelectTokenProps> = ({
                 alt={selectedToken?.name || "Token"}
                 width={24}
                 height={24}
-                className="rounded-full object-cover"
+                className="rounded-full object-cover !h-6 !w-6"
               />
               <div className="mt-[2px]">
                 {title === "You Pay"
@@ -193,6 +193,12 @@ const SelectToken: React.FC<SelectTokenProps> = ({
               type="number"
               value={amount}
               onChange={(e) => handleAmountChange(e.target.value)}
+              onWheel={(e) => e.currentTarget.blur()}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                  e.preventDefault();
+                }
+              }}
               className="focus-visible:ring-0 focus-visible:border-none focus-visible:outline-none outline-none ring-0 border-none shadow-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-right md:!text-[32px] !text-[24px] pr-0"
               placeholder="0.00"
               disabled={disabled}
