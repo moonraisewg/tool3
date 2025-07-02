@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import {
   Keypair,
   PublicKey,
@@ -6,10 +6,10 @@ import {
   LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
 import { DynamicBondingCurveClient } from "@meteora-ag/dynamic-bonding-curve-sdk";
-import { connectionDevnet } from "@/service/solana/connection";
+import { connectionMainnet } from "@/service/solana/connection";
 import { adminKeypair } from "@/config";
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { name, symbol, uri, userPublicKey } = body;
@@ -21,12 +21,16 @@ export async function POST(req: Request) {
       );
     }
 
-    const client = new DynamicBondingCurveClient(connectionDevnet, "confirmed");
+    const client = new DynamicBondingCurveClient(
+      connectionMainnet,
+      "confirmed"
+    );
+    const CONFIG_PUBLIC_KEY = process.env.DBC_CONFIG_MAINNET;
+    if (!CONFIG_PUBLIC_KEY)
+      throw new Error("Missing DBC_CONFIG_MAINNET in env");
 
     const payer = new PublicKey(userPublicKey);
-    const config = new PublicKey(
-      "544amtMmn1PubCRB8W9uTiGpE2522ZJSqvMuCWkVMT9q"
-    );
+    const config = new PublicKey(CONFIG_PUBLIC_KEY);
     const baseMint = Keypair.generate();
     const poolCreator = payer;
 
@@ -50,7 +54,7 @@ export async function POST(req: Request) {
 
     transaction.add(transferInstruction);
 
-    const { blockhash } = await connectionDevnet.getLatestBlockhash();
+    const { blockhash } = await connectionMainnet.getLatestBlockhash();
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = payer;
 
@@ -62,11 +66,11 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       transaction: serializedTransaction,
+      baseMint: baseMint.publicKey.toBase58(),
     });
   } catch (error: unknown) {
-    console.error("Create Pool API Error:", error);
     return NextResponse.json(
-      { error: error || "Internal error" },
+      { error: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }
