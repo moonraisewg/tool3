@@ -454,7 +454,7 @@ export default function BundledForm() {
           </Card>
 
           <Card className="bg-green-50 border-green-200">
-            <CardContent className="pt-6">
+            <CardContent className="">
               <p className="text-sm text-green-800">
                 Up to 50 addresses are supported for simultaneous bundle operation. The service fee for each address is
                 0.0000066SOL, and all service fees will be paid by the first address imported.
@@ -464,7 +464,7 @@ export default function BundledForm() {
 
           <Button
             type="submit"
-            className="w-full h-12 text-lg font-semibold hover:bg-green-700"
+            className="w-full h-12 text-lg font-semibold cursor-pointer"
             variant={"default"}
             disabled={loading || !publicKey || !selectedToken || walletAddresses.filter((w) => w.selected).length === 0}
           >

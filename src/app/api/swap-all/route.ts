@@ -109,8 +109,7 @@ async function prepareBatchedSwapTransactions(body: MultiSwapToSolRequestBody) {
     const isLastBatch = batchIndex === tokenBatches.length - 1;
 
     console.log(
-      `Processing batch ${batchIndex + 1}/${tokenBatches.length}: ${
-        batch.length
+      `Processing batch ${batchIndex + 1}/${tokenBatches.length}: ${batch.length
       } tokens`
     );
 
@@ -228,8 +227,7 @@ async function createBatchTransaction(
       batchExpectedSolOutput += swapResult.expectedSolOutput;
     } catch (error) {
       throw new Error(
-        `Failed to process token ${tokenSwap.inputTokenMint} in batch ${
-          batchIndex + 1
+        `Failed to process token ${tokenSwap.inputTokenMint} in batch ${batchIndex + 1
         }: ${error instanceof Error ? error.message : "Unknown error"}`
       );
     }
@@ -264,8 +262,7 @@ async function createBatchTransaction(
   const transactionSize = versionedTransaction.serialize().length;
 
   console.log(
-    `Batch ${batchIndex + 1} created: ${tokenBatch.length} swaps, ${
-      instructions.length
+    `Batch ${batchIndex + 1} created: ${tokenBatch.length} swaps, ${instructions.length
     } instructions, ${transactionSize} bytes`
   );
 
