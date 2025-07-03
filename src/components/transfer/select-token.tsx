@@ -44,10 +44,11 @@ const SelectToken: React.FC<SelectTokenProps> = ({
 
   useEffect(() => {
     if (tokens.length > 0 && !selectedToken && !userHasSelected) {
-      const solToken = tokens.find(token =>
-        token.symbol === "SOL" ||
-        token.address === "11111111111111111111111111111111" ||
-        token.address === NATIVE_SOL
+      const solToken = tokens.find(
+        (token) =>
+          token.symbol === "SOL" ||
+          token.address === "11111111111111111111111111111111" ||
+          token.address === NATIVE_SOL
       );
 
       if (solToken) {
@@ -75,25 +76,36 @@ const SelectToken: React.FC<SelectTokenProps> = ({
     onAmountChange("");
   };
 
-  const setHalf = () => {
-    if (selectedToken) {
-      const halfBalance = (parseFloat(selectedToken.balance) / 2).toFixed(
-        selectedToken.decimals || 2
+  const setAmount = (type: "half" | "max") => {
+    if (!selectedToken) return;
+
+    const balance = parseFloat(selectedToken.balance);
+    const decimals = selectedToken.decimals || 6;
+    const symbol = selectedToken.symbol;
+
+    if (balance < tokenFee) {
+      toast.error(
+        `Insufficient balance to cover fee. Need ${tokenFee.toFixed(
+          6
+        )} ${symbol}, but only have ${balance.toFixed(6)} ${symbol}`
       );
-      onAmountChange(halfBalance);
+      onAmountChange("0");
+      return;
     }
+
+    const availableAmount = Math.max(0, balance - tokenFee);
+    const amount = type === "half" ? availableAmount / 2 : availableAmount;
+    const amountString = amount.toFixed(decimals);
+
+    toast.success(
+      `You can proceed with up to ${amountString} ${symbol} after deducting fee`
+    );
+
+    onAmountChange(amountString);
   };
 
-  const setMax = () => {
-    if (selectedToken) {
-      const balance = parseFloat(selectedToken.balance);
-
-      const maxAmount = Math.max(0, balance - tokenFee);
-      const maxAmountString = maxAmount.toFixed(selectedToken.decimals || 6);
-
-      onAmountChange(maxAmountString);
-    }
-  };
+  const setHalf = () => setAmount("half");
+  const setMax = () => setAmount("max");
 
   const handleAmountChange = (value: string) => {
     if (disabled) return;
@@ -157,8 +169,9 @@ const SelectToken: React.FC<SelectTokenProps> = ({
         <button
           type="button"
           onClick={() => setIsModalOpen(true)}
-          className={`flex items-center gap-2 text-gray-700 hover:text-purple-900 border-gear-gray px-2 py-1 ml-2 ${!selectedToken || loading ? "cursor-not-allowed" : "cursor-pointer"
-            }`}
+          className={`flex items-center gap-2 text-gray-700 hover:text-purple-900 border-gear-gray px-2 py-1 ml-2 ${
+            !selectedToken || loading ? "cursor-not-allowed" : "cursor-pointer"
+          }`}
           disabled={!selectedToken || loading}
         >
           {selectedToken ? (
@@ -174,7 +187,11 @@ const SelectToken: React.FC<SelectTokenProps> = ({
                 {title === "You Pay"
                   ? `${selectedToken.symbol} Mainnet`
                   : selectedToken.symbol}
-                {selectedToken.isToken2022 && <span className="ml-1 text-xs text-purple-600 font-semibold">2022</span>}
+                {selectedToken.isToken2022 && (
+                  <span className="ml-1 text-xs text-purple-600 font-semibold">
+                    2022
+                  </span>
+                )}
               </div>
             </div>
           ) : (

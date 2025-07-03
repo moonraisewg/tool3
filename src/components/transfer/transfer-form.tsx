@@ -172,8 +172,9 @@ export default function TransferForm() {
       }
 
       toast.success("🎉 Gasless Transfer Successful!", {
-        description: `Transferred ${values.amount} ${selectedToken.symbol || selectedToken.name
-          } to ${values.recipient.slice(0, 8)}...${values.recipient.slice(-8)}`,
+        description: `Transferred ${values.amount} ${
+          selectedToken.symbol || selectedToken.name
+        } to ${values.recipient.slice(0, 8)}...${values.recipient.slice(-8)}`,
         action: {
           label: "View Transaction",
           onClick: () =>
@@ -200,8 +201,9 @@ export default function TransferForm() {
 
   return (
     <div
-      className={`md:p-2 max-w-[550px] mx-auto my-2 ${!isMobile && "border-gear"
-        }`}
+      className={`md:p-2 max-w-[550px] mx-auto my-2 ${
+        !isMobile && "border-gear"
+      }`}
     >
       <h1 className="text-2xl font-bold text-gray-900 mb-6 text-center">
         Gasless SPL Token Transfer

@@ -80,12 +80,11 @@ async function prepareTransaction(
     feeUsdt,
     body.walletPublicKey
   );
-  const feeAmount = Math.round(feeInTokens * Math.pow(10, decimals));
-
+  let feeAmount = Math.round(feeInTokens * Math.pow(10, decimals));
   const netAmount = Math.round(
     parseFloat(body.tokenAmount.toString()) * Math.pow(10, decimals)
   );
-  const totalAmount = netAmount + feeAmount;
+  let totalAmount = netAmount + feeAmount;
 
   try {
     const senderAccount = await getAccount(
@@ -95,14 +94,21 @@ async function prepareTransaction(
       tokenProgram
     );
     if (senderAccount.amount < BigInt(totalAmount)) {
-      return NextResponse.json(
-        {
-          error: "Insufficient token balance",
-          required: totalAmount.toString(),
-          available: senderAccount.amount.toString(),
-        },
-        { status: 400 }
+      const reducedFeeAmount = Math.round(
+        feeInTokens * 0.98 * Math.pow(10, decimals)
       );
+      totalAmount = netAmount + reducedFeeAmount;
+
+      if (senderAccount.amount >= BigInt(totalAmount)) {
+        feeAmount = reducedFeeAmount;
+      } else {
+        return NextResponse.json(
+          {
+            error: "Token price has change. Please try again.",
+          },
+          { status: 400 }
+        );
+      }
     }
   } catch {
     return NextResponse.json(
