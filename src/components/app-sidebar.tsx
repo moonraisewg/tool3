@@ -67,6 +67,10 @@ export const route = {
           title: "Swap All Token to SOL ",
           url: "/swap-all",
         },
+        {
+          title: "Create Token",
+          url: "/dbc/token",
+        },
       ],
     },
     {
@@ -79,6 +83,7 @@ export const route = {
     //   icon: Wallet,
     //   url: "/increase-holders",
     // },
+
     {
       title: "Token",
       icon: Coin,
