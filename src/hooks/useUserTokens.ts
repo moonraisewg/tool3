@@ -6,7 +6,7 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { NATIVE_SOL, TOKEN2022 } from "@/utils/constants";
 
-// Thêm TOKEN_2022_PROGRAM_ID
+
 const TOKEN_2022_PROGRAM_ID = new PublicKey("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
 
 export interface UserToken {
@@ -17,8 +17,8 @@ export interface UserToken {
     logoURI?: string;
     decimals?: number;
     ata?: string;
-    isToken2022?: boolean; // Thêm trường để phân biệt token 2022
-}
+    isToken2022?: boolean;
+    }
 
 interface Token {
     address: string;
