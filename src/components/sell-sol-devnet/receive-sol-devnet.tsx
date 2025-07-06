@@ -56,9 +56,11 @@ const ReceiveSolDevnet: React.FC<ReceiveSolDevnetProps> = ({
                                         disabled={!isSwapped}
                                         {...field}
                                         onChange={(e) => {
-                                            field.onChange(e);
+                                            let value = e.target.value;
+                                            if (parseFloat(value) < 0) value = "0";
+                                            field.onChange(value);
                                             if (isSwapped) {
-                                                onAmountChange(e.target.value);
+                                                onAmountChange(value);
                                             }
                                         }}
                                     />

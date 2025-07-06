@@ -266,7 +266,7 @@ export default function TransferForm() {
 
           <Button
             type="submit"
-            className="w-full text-white font-semibold py-2 rounded-lg transition-colors duration-200"
+            className="w-full text-white font-semibold py-2 rounded-lg transition-colors duration-200 cursor-pointer"
             variant="default"
             disabled={loading || !selectedToken || !publicKey}
           >

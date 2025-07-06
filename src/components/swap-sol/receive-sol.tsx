@@ -52,9 +52,11 @@ const ReceiveSolMainnet: React.FC<ReceiveSolMainnetProps> = ({
                     disabled={!allowEdit}
                     {...field}
                     onChange={(e) => {
-                      field.onChange(e);
+                      let value = e.target.value;
+                      if (parseFloat(value) < 0) value = "0";
+                      field.onChange(value);
                       if (allowEdit) {
-                        onAmountChange(e.target.value);
+                        onAmountChange(value);
                       }
                     }}
                   />

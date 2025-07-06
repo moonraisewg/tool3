@@ -14,7 +14,7 @@ import { Transaction } from "@solana/web3.js"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip"
 import SelectToken from "../transfer/select-token"
 import { UserToken } from "@/hooks/useUserTokens"
-import { CREATE_POOL_FEE } from "@/utils/constants"
+import { CREATE_POOL_FEE, TOKEN2022 } from "@/utils/constants"
 
 const formSchema = z.object({
     amountToken1: z.string().refine((val) => !isNaN(Number.parseFloat(val)) && Number.parseFloat(val) > 0, {
@@ -293,6 +293,7 @@ export default function CreateRaydiumCpmmPool() {
                                 onAmountChange={(v) => form.setValue("amountToken1", v)}
                                 cluster="devnet"
                                 amount={form.watch("amountToken1")}
+                                excludeToken={[TOKEN2022]}
                             />
                             {form.formState.errors.amountToken1 && (
                                 <p className="text-sm text-red-500 mt-1">
@@ -305,6 +306,7 @@ export default function CreateRaydiumCpmmPool() {
                                 onAmountChange={(v) => form.setValue("amountToken2", v)}
                                 cluster="devnet"
                                 amount={form.watch("amountToken2")}
+                                excludeToken={[TOKEN2022]}
                             />
                             {form.formState.errors.amountToken2 && (
                                 <p className="text-sm text-red-500 mt-1">

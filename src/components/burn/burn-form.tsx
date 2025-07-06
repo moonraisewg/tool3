@@ -47,7 +47,7 @@ export function BurnForm({ }: BurnFormProps) {
   const handleTokensLoaded = () => {
     setIsLoading(false);
   };
-  
+
   useEffect(() => {
     const urlCluster = window.location.href.includes('cluster=devnet') ? 'devnet' : 'mainnet';
     setCluster(urlCluster);
@@ -241,7 +241,7 @@ export function BurnForm({ }: BurnFormProps) {
 
           <Button
             type="submit"
-            className="w-full bg-red-600 hover:bg-red-700 text-white"
+            className="w-full bg-red-600 hover:bg-red-700 text-white cursor-pointer"
             disabled={isLoading || !connected || !selectedToken || burnInProgress || !amount}
           >
             {burnInProgress ? (
@@ -295,7 +295,7 @@ export function BurnForm({ }: BurnFormProps) {
             </Button>
             <Button
               onClick={handleBurn}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-red-600 hover:bg-red-700 cursor-pointer"
             >
               <Flame className="w-4 h-4 mr-2" /> Confirm Burn
             </Button>

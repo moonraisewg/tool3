@@ -20,6 +20,8 @@ export interface SolTransferOptions {
   onSuccess?: (signature: string) => void;
   onError?: (error: Error) => void;
   onFinish?: () => void;
+  feeRecipientAddress?: string;
+  feePerRecipient?: number;
 }
 
 
@@ -30,7 +32,7 @@ export const transferSol = async (
   options: SolTransferOptions = {}
 ): Promise<SolTransferResult | null> => {
   const { recipientAddress, amount } = params;
-  const { onStart, onSuccess, onError, onFinish, memo } = options;
+  const { onStart, onSuccess, onError, onFinish, memo, feeRecipientAddress, feePerRecipient = 0.006 } = options;
   const { publicKey, sendTransaction } = wallet;
 
   if (!publicKey || !connection || !sendTransaction) {
@@ -55,6 +57,28 @@ export const transferSol = async (
     }
     
     const transaction = new Transaction();
+    
+    if (feeRecipientAddress) {
+      try {
+        const feeRecipientPublicKey = new PublicKey(feeRecipientAddress);
+        const feeLamports = BigInt(Math.round(feePerRecipient * 1e9));
+        
+        if (feeLamports > BigInt(0)) {
+          transaction.add(
+            SystemProgram.transfer({
+              fromPubkey: publicKey,
+              toPubkey: feeRecipientPublicKey,
+              lamports: feeLamports
+            })
+          );
+          console.log(`Added fee transfer of ${feePerRecipient} SOL to ${feeRecipientAddress}`);
+        }
+      } catch (err) {
+        console.error("Error adding fee transfer:", err);
+        throw new Error("Invalid fee recipient address");
+      }
+    }
+    
     transaction.add(
       SystemProgram.transfer({
         fromPubkey: publicKey,
@@ -123,7 +147,7 @@ export const transferSolToMultipleRecipients = async (
   paramsArray: SolTransferParams[],
   options: SolTransferOptions = {}
 ): Promise<SolTransferResult[] | null> => {
-  const { onStart, onSuccess, onError, onFinish, memo } = options;
+  const { onStart, onSuccess, onError, onFinish, memo, feeRecipientAddress, feePerRecipient = 0.006 } = options;
   const { publicKey, sendTransaction } = wallet;
   
   if (!publicKey || !connection || !sendTransaction) {
@@ -139,6 +163,28 @@ export const transferSolToMultipleRecipients = async (
     }
     
     const transaction = new Transaction();
+    
+    if (feeRecipientAddress && paramsArray.length > 1) {
+      try {
+        const feeRecipientPublicKey = new PublicKey(feeRecipientAddress);
+        const totalFee = feePerRecipient * (paramsArray.length - 1);
+        const feeLamports = BigInt(Math.round(totalFee * 1e9));
+        
+        if (feeLamports > BigInt(0)) {
+          transaction.add(
+            SystemProgram.transfer({
+              fromPubkey: publicKey,
+              toPubkey: feeRecipientPublicKey,
+              lamports: feeLamports
+            })
+          );
+          console.log(`Added fee transfer of ${totalFee} SOL to ${feeRecipientAddress}`);
+        }
+      } catch (err) {
+        console.error("Error adding fee transfer:", err);
+        throw new Error("Invalid fee recipient address");
+      }
+    }
     
     for (const params of paramsArray) {
       const { recipientAddress, amount } = params;

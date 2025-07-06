@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { ClusterType } from "@/types/types";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { NATIVE_SOL } from "@/utils/constants";
+import { NATIVE_SOL, TOKEN2022 } from "@/utils/constants";
 
 
 const TOKEN_2022_PROGRAM_ID = new PublicKey("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
@@ -103,23 +103,18 @@ async function getExistingTokenAccounts(connection: Connection, owner: PublicKey
     const splAccounts = await connection.getTokenAccountsByOwner(owner, {
         programId: new PublicKey(TOKEN_PROGRAM_ID),
     });
-    
     const token2022Accounts = await connection.getTokenAccountsByOwner(owner, {
         programId: new PublicKey(TOKEN_2022_PROGRAM_ID),
     });
-    
     const existingAccounts = new Map<string, boolean>();
-    
     // Lưu trữ chuẩn SPL Token accounts
     for (const acc of splAccounts.value) {
         existingAccounts.set(acc.pubkey.toBase58(), false); // false = không phải token 2022
     }
-    
     // Lưu trữ Token 2022 accounts
     for (const acc of token2022Accounts.value) {
         existingAccounts.set(acc.pubkey.toBase58(), true); // true = là token 2022
     }
-    
     return existingAccounts;
 }
 
@@ -228,9 +223,8 @@ export const useUserTokens = (cluster: ClusterType = "mainnet", excludeToken?: s
                     (showZeroBalance || parseFloat(token.balance) > 0))
 
             const existingTokenAccounts = await getExistingTokenAccounts(connection, publicKey);
-            
             // Lọc và đánh dấu các token 2022
-            const filteredFormattedTokens = formattedTokens.filter((token) => {
+            let filteredFormattedTokens = formattedTokens.filter((token) => {
                 if (token.ata && existingTokenAccounts.has(token.ata)) {
                     // Đánh dấu token là token 2022 nếu tài khoản token của nó được quản lý bởi TOKEN_2022_PROGRAM_ID
                     token.isToken2022 = existingTokenAccounts.get(token.ata);
@@ -238,6 +232,10 @@ export const useUserTokens = (cluster: ClusterType = "mainnet", excludeToken?: s
                 }
                 return false;
             });
+
+            if (excludeToken && excludeToken.length === 1 && excludeToken[0] === TOKEN2022) {
+                filteredFormattedTokens = filteredFormattedTokens.filter(token => !token.isToken2022);
+            }
 
             const solToken: UserToken = {
                 address: NATIVE_SOL,

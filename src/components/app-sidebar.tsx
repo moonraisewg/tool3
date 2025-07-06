@@ -28,7 +28,7 @@ import {
   ChevronDown,
   CreditCard,
   Trash,
-  Wallet
+  Wallet,
 } from "@nsmr/pixelart-react";
 import { useState } from "react";
 
@@ -56,6 +56,10 @@ export const route = {
       icon: CreditCard,
       submenu: [
         {
+          title: "Gasless Transfer",
+          url: "/transfer-spl-token",
+        },
+        {
           title: "Swap to SOL ",
           url: "/swap-sol",
         },
@@ -64,8 +68,8 @@ export const route = {
           url: "/swap-all",
         },
         {
-          title: "Gasless Transfer",
-          url: "/transfer-spl-token",
+          title: "Create Token",
+          url: "/dbc/token",
         },
       ],
     },
@@ -79,6 +83,7 @@ export const route = {
     //   icon: Wallet,
     //   url: "/increase-holders",
     // },
+
     {
       title: "Token",
       icon: Coin,
@@ -246,26 +251,26 @@ export function AppSidebar() {
 
                         {(openSubmenu === item.title ||
                           isSubmenuActive(item.submenu)) && (
-                            <SidebarMenuSub>
-                              {item.submenu.map((subItem) => (
-                                <SidebarMenuSubItem key={subItem.title}>
-                                  <SidebarMenuSubButton
-                                    asChild
-                                    isActive={
-                                      pathname && subItem.url
-                                        ? pathname.split("?")[0] ===
+                          <SidebarMenuSub>
+                            {item.submenu.map((subItem) => (
+                              <SidebarMenuSubItem key={subItem.title}>
+                                <SidebarMenuSubButton
+                                  asChild
+                                  isActive={
+                                    pathname && subItem.url
+                                      ? pathname.split("?")[0] ===
                                         subItem.url.split("?")[0]
-                                        : false
-                                    }
-                                  >
-                                    <Link href={subItem.url || "#"}>
-                                      <span>{subItem.title}</span>
-                                    </Link>
-                                  </SidebarMenuSubButton>
-                                </SidebarMenuSubItem>
-                              ))}
-                            </SidebarMenuSub>
-                          )}
+                                      : false
+                                  }
+                                >
+                                  <Link href={subItem.url || "#"}>
+                                    <span>{subItem.title}</span>
+                                  </Link>
+                                </SidebarMenuSubButton>
+                              </SidebarMenuSubItem>
+                            ))}
+                          </SidebarMenuSub>
+                        )}
                       </>
                     ) : (
                       <SidebarMenuButton

@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Check, ExternalLink, Loader2, Plus, Trash2, FileText, X, Upload, Info } from "lucide-react";
+import { Check, ExternalLink, Loader2, Plus, Trash2, FileText, X, Upload } from "lucide-react";
 import SelectToken from "@/components/transfer/select-token";
 import { transferToken, TokenTransferResult, transferTokenToMultipleRecipients } from "@/service/token/token-extensions/tool/transfer-token-extension";
 import { transferSol, transferSolToMultipleRecipients, } from "@/service/token/token-extensions/tool/transfer-sol";
@@ -64,8 +64,6 @@ export default function TransferTokenPage() {
   const [csvDialogOpen, setCsvDialogOpen] = useState(false);
   const [csvText, setCsvText] = useState("");
   const [parsedCsvRecipients, setParsedCsvRecipients] = useState<Recipient[]>([]);
-  // Phí chuyển token
-  const [showFeeInfo, setShowFeeInfo] = useState(false);
 
   const handleTokensLoaded = (tokens: UserToken[]) => {
     setIsLoading(false);
@@ -230,18 +228,6 @@ export default function TransferTokenPage() {
     // Đóng dialog và thông báo
     setCsvDialogOpen(false);
     toast.success(`Imported ${validRecipients.length} recipients from CSV`);
-    
-    // Hiển thị thông báo về phí nếu có nhiều người nhận
-    if (validRecipients.length > 1) {
-      const fee = FEE_PER_RECIPIENT * (validRecipients.length - 1);
-      toast.info(
-        <div>
-          <p><strong>Fee Notice:</strong> Sending to multiple recipients requires a fee.</p>
-          <p>Total fee: {fee.toFixed(6)} SOL ({FEE_PER_RECIPIENT} SOL per recipient after first)</p>
-        </div>,
-        { duration: 6000 }
-      );
-    }
   };
 
   const validateTotalAmount = (): boolean => {
@@ -327,72 +313,6 @@ export default function TransferTokenPage() {
       return;
     }
 
-    // Kiểm tra nếu cần thu phí cho nhiều người nhận
-    const fee = calculateTotalFee();
-    if (fee > 0) {
-      try {
-        // Hiển thị xác nhận phí
-        if (!window.confirm(
-          `Transfer to multiple recipients requires a fee of ${fee.toFixed(6)} SOL. ` +
-          `This fee will be sent to our service address. Do you want to continue?`
-        )) {
-          return;
-        }
-
-        // Kiểm tra xem người dùng có đủ SOL không
-        const solBalance = await connection.getBalance(wallet.publicKey!);
-        const solBalanceInSol = solBalance / 1_000_000_000; // Lamports to SOL
-        
-        if (solBalanceInSol < fee) {
-          toast.error(`Insufficient SOL balance for fee. You need ${fee.toFixed(6)} SOL`);
-          return;
-        }
-
-        // Tiến hành gửi phí trước khi chuyển token
-        const feeToastId = toast.loading(`Sending fee: ${fee.toFixed(6)} SOL...`);
-        
-        try {
-          const feeResult = await transferSol(
-            connection,
-            wallet,
-            {
-              recipientAddress: FEE_RECIPIENT_ADDRESS,
-              amount: fee.toString()
-            },
-            {
-              memo: "Transfer fee",
-              onSuccess: () => {
-                toast.dismiss(feeToastId);
-                toast.success("Fee payment successful");
-              },
-              onError: (err) => {
-                toast.dismiss(feeToastId);
-                toast.error(`Fee payment failed: ${err.message}`);
-                throw new Error("Fee payment failed");
-              }
-            }
-          );
-          
-          if (!feeResult) {
-            toast.dismiss(feeToastId);
-            toast.error("Fee transaction failed");
-            return;
-          }
-          
-          toast.dismiss(feeToastId);
-        } catch (error) {
-          toast.dismiss(feeToastId);
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-          toast.error(`Fee payment error: ${errorMessage}`);
-          return;
-        }
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-        toast.error(`Error checking balance: ${errorMessage}`);
-        return;
-      }
-    }
-
     let toastId: string | number | undefined;
 
     try {
@@ -420,6 +340,8 @@ export default function TransferTokenPage() {
             },
             {
               memo: memo,
+              feeRecipientAddress: FEE_RECIPIENT_ADDRESS,
+              feePerRecipient: FEE_PER_RECIPIENT,
               onStart: () => { },
               onSuccess: () => {
                 toast.dismiss(toastId);
@@ -452,6 +374,8 @@ export default function TransferTokenPage() {
             transferParams,
             {
               memo: memo,
+              feeRecipientAddress: FEE_RECIPIENT_ADDRESS,
+              feePerRecipient: FEE_PER_RECIPIENT,
               onStart: () => { },
               onSuccess: () => {
                 toast.dismiss(toastId);
@@ -489,6 +413,8 @@ export default function TransferTokenPage() {
             },
             {
               memo: memo,
+              feeRecipientAddress: FEE_RECIPIENT_ADDRESS,
+              feePerRecipient: FEE_PER_RECIPIENT,
               onStart: () => { },
               onSuccess: () => {
                 toast.dismiss(toastId);
@@ -523,6 +449,8 @@ export default function TransferTokenPage() {
             transferParams,
             {
               memo: memo,
+              feeRecipientAddress: FEE_RECIPIENT_ADDRESS,
+              feePerRecipient: FEE_PER_RECIPIENT,
               onStart: () => { },
               onSuccess: () => {
                 toast.dismiss(toastId);
@@ -695,35 +623,42 @@ export default function TransferTokenPage() {
     return (
       <div className="h-full flex md:items-center mt-10 md:mt-0">
         <div className="container mx-auto px-4">
-          <div className={`md:p-3 max-w-[550px] mx-auto my-2 ${!isMobile && "border-gear"}`}>
-            <div className="text-center mb-6">
-              <div className="mb-6 flex justify-center">
-                <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
-                  <Check className="h-8 w-8 text-green-600" />
+          <div className={`md:p-6 max-w-[550px] mx-auto my-2 ${!isMobile && "border-gear shadow-sm rounded-xl"}`}>
+            <div className="text-center">
+              <div className="mb-8 flex justify-center">
+                <div className="h-20 w-20 rounded-full bg-green-100 flex items-center justify-center shadow-sm">
+                  <Check className="h-10 w-10 text-green-600" />
                 </div>
               </div>
               <h2 className="text-2xl font-bold mb-2">Transfer Successful!</h2>
-              <p className="text-gray-500 mb-6">Your tokens have been sent successfully</p>
+              <p className="text-gray-500 mb-8">Your tokens have been sent successfully</p>
 
-              <div className="space-y-4 mb-8">
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <p className="text-sm font-medium text-gray-500">Token</p>
-                  <p className="text-base font-mono break-all">{transferResults[0].mintAddress}</p>
-                </div>
-
-                {transferResults.map((result, index) => (
-                  <div key={index} className="p-4 bg-gray-50 rounded-lg">
-                    <p className="text-sm font-medium text-gray-500">Recipient {index + 1}</p>
-                    <div className="flex justify-between items-center">
-                      <p className="text-base font-mono break-all">{result.recipientAddress}</p>
-                      <p className="text-base font-mono">{result.amount} {selectedToken?.symbol || ""}</p>
+              <div className="space-y-5 mb-10">
+                <div className="bg-gray-50 rounded-xl overflow-hidden border border-gray-100 shadow-sm">
+                  <div className="px-6 py-4 bg-gray-100 border-b border-gray-200">
+                    <p className="text-sm font-medium text-gray-700">Transaction Details</p>
+                  </div>
+                  
+                  <div className="divide-y divide-gray-100">
+                    <div className="px-6 py-4 flex justify-between items-center">
+                      <p className="text-sm font-medium text-gray-500">Token</p>
+                      <p className="text-base font-semibold">{selectedToken?.symbol || ""}</p>
+                    </div>
+                    
+                    <div className="px-6 py-4 flex justify-between items-center">
+                      <p className="text-sm font-medium text-gray-500">Total Amount</p>
+                      <p className="text-base font-semibold">
+                        {parseFloat(transferResults.reduce((sum, result) => sum + parseFloat(result.amount), 0).toFixed(selectedToken?.decimals || 6)).toString()} {selectedToken?.symbol || ""}
+                      </p>
+                    </div>
+                    
+                    <div className="px-6 py-4">
+                      <p className="text-sm font-medium text-gray-500 mb-2">Transaction ID</p>
+                      <div className="bg-white p-3 rounded-lg border border-gray-200 break-all font-mono text-xs text-gray-700">
+                        {transferResults[0].signature}
+                      </div>
                     </div>
                   </div>
-                ))}
-
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <p className="text-sm font-medium text-gray-500">Transaction</p>
-                  <p className="text-base font-mono break-all">{transferResults[0].signature}</p>
                 </div>
               </div>
 
@@ -731,6 +666,7 @@ export default function TransferTokenPage() {
                 <Button
                   variant="outline"
                   onClick={handleCloseSuccessDialog}
+                  className="px-6"
                 >
                   Make Another Transfer
                 </Button>
@@ -743,6 +679,7 @@ export default function TransferTokenPage() {
                       : `https://explorer.solana.com/tx/${transferResults[0].signature}`;
                     window.open(explorerUrl, "_blank");
                   }}
+                  className="px-6"
                 >
                   View on Explorer <ExternalLink className="ml-2 h-4 w-4" />
                 </Button>
@@ -755,8 +692,8 @@ export default function TransferTokenPage() {
   }
 
   return (
-    <div className="h-full flex md:items-center mt-10 md:mt-0">
-      <div className="container mx-auto px-4">
+    <div className="h-full flex md:items-center mt-10 md:mt-0 ">
+      <div className="container mx-auto px-4 max-h-[calc(100vh-100px)] overflow-y-auto py-5">
         <SuspenseLayout>
           <div className={`md:p-3 max-w-[550px] mx-auto my-2 ${!isMobile && "border-gear"}`}>
             <h1 className="text-2xl font-bold text-gray-900 mb-6 flex items-center justify-center">
@@ -777,7 +714,6 @@ export default function TransferTokenPage() {
                     cluster={cluster}
                     onTokensLoaded={handleTokensLoaded}
                   />
-                  
                   {selectedToken && recipients.length > 1 && (
                     <div className="flex justify-end mt-2">
                       <Button
@@ -890,31 +826,13 @@ export default function TransferTokenPage() {
                         </span>
                       </div>
                       
-                      {/* Phí chuyển token */}
+                      {/* Hiển thị phí khi có nhiều người nhận */}
                       {recipients.length > 1 && (
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center">
-                            <span className="text-sm font-medium text-gray-700">Fee:</span>
-                            <button 
-                              type="button"
-                              className="ml-1 text-gray-500 hover:text-gray-700"
-                              onClick={() => setShowFeeInfo(!showFeeInfo)}
-                            >
-                              <Info className="h-4 w-4" />
-                            </button>
-                          </div>
+                          <span className="text-sm font-medium text-gray-700">Fee:</span>
                           <span className="font-medium text-amber-600">
                             {calculateTotalFee().toFixed(6)} SOL
                           </span>
-                        </div>
-                      )}
-                      
-                      {/* Thông tin chi tiết về phí */}
-                      {showFeeInfo && recipients.length > 1 && (
-                        <div className="bg-amber-50 p-2 rounded-md text-xs text-amber-700 mt-2">
-                          <p>A fee of {FEE_PER_RECIPIENT} SOL per recipient is charged for transfers with multiple recipients.</p>
-                          <p>First recipient is free. Total fee: {calculateTotalFee().toFixed(6)} SOL.</p>
-                          <p className="mt-1">Fees help maintain this service and are non-refundable.</p>
                         </div>
                       )}
                     </div>
