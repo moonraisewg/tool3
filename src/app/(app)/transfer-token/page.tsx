@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Check, ExternalLink, Loader2, Plus, Trash2 } from "lucide-react";
+import { Check, ExternalLink, Loader2, Plus, Trash2, FileText, X, Upload, Info } from "lucide-react";
 import SelectToken from "@/components/transfer/select-token";
 import { transferToken, TokenTransferResult, transferTokenToMultipleRecipients } from "@/service/token/token-extensions/tool/transfer-token-extension";
 import { transferSol, transferSolToMultipleRecipients, } from "@/service/token/token-extensions/tool/transfer-sol";
@@ -15,10 +15,33 @@ import { UserToken } from "@/hooks/useUserTokens";
 import { useIsMobile } from "@/hooks/use-mobile";
 import SuspenseLayout from "@/components/suspense-layout";
 import { ClusterType } from "@/types/types";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+
+// Hằng số cho phí và địa chỉ nhận phí
+const FEE_PER_RECIPIENT = 0.006; // 0.006 SOL per recipient
+const FEE_RECIPIENT_ADDRESS = "4UWS2QEhNT9hyAnvRikAXtDhvvgJGGT8fHhLzoq5KhEa";
 
 interface Recipient {
   address: string;
   amount: string;
+  valid?: boolean;
+  error?: string;
 }
 
 export default function TransferTokenPage() {
@@ -38,6 +61,11 @@ export default function TransferTokenPage() {
   const [cluster, setCluster] = useState<ClusterType>("mainnet");
 
   const [isUpdatingFromSelectToken, setIsUpdatingFromSelectToken] = useState(false);
+  const [csvDialogOpen, setCsvDialogOpen] = useState(false);
+  const [csvText, setCsvText] = useState("");
+  const [parsedCsvRecipients, setParsedCsvRecipients] = useState<Recipient[]>([]);
+  // Phí chuyển token
+  const [showFeeInfo, setShowFeeInfo] = useState(false);
 
   const handleTokensLoaded = (tokens: UserToken[]) => {
     setIsLoading(false);
@@ -92,6 +120,7 @@ export default function TransferTokenPage() {
       setRecipients(recipients.filter((_, i) => i !== index));
     }
   };
+
   const updateRecipient = (index: number, field: keyof Recipient, value: string) => {
     console.log(`Updating recipient ${index}, field: ${field}, value: ${value}`);
     const newRecipients = [...recipients];
@@ -109,6 +138,112 @@ export default function TransferTokenPage() {
     console.log(`Updated recipients:`, newRecipients);
     setRecipients(newRecipients);
   };
+
+  // Xử lý import CSV
+  const processCsvInput = (text: string) => {
+    if (!text.trim()) {
+      setParsedCsvRecipients([]);
+      return;
+    }
+
+    const lines = text.trim().split('\n');
+    const newRecipients: Recipient[] = [];
+    let skipHeader = true;
+
+    for (const line of lines) {
+      if (!line.trim()) continue;
+
+      // Kiểm tra xem dòng đầu có phải là header không
+      if (skipHeader) {
+        const lowerLine = line.toLowerCase().trim();
+        if (lowerLine.includes('address') && lowerLine.includes('amount')) {
+          skipHeader = false;
+          continue;
+        }
+        skipHeader = false;
+      }
+
+      // Phân tích dòng CSV
+      const parts = line.split(',').map(part => part.trim());
+      if (parts.length < 2) {
+        newRecipients.push({
+          address: line,
+          amount: '',
+          valid: false,
+          error: 'Invalid format. Expected: address, amount'
+        });
+        continue;
+      }
+
+      const address = parts[0];
+      const amount = parts[1];
+
+      // Kiểm tra địa chỉ
+      const isValidAddress = /^[\w]{32,44}$/.test(address);
+      
+      // Kiểm tra số lượng
+      const parsedAmount = parseFloat(amount);
+      const isValidAmount = !isNaN(parsedAmount) && parsedAmount > 0;
+
+      newRecipients.push({
+        address,
+        amount,
+        valid: isValidAddress && isValidAmount,
+        error: !isValidAddress 
+          ? 'Invalid address format' 
+          : !isValidAmount 
+          ? 'Invalid amount' 
+          : undefined
+      });
+    }
+
+    setParsedCsvRecipients(newRecipients);
+  };
+
+  const handleCsvTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const text = e.target.value;
+    setCsvText(text);
+    processCsvInput(text);
+  };
+
+  const clearCsvText = () => {
+    setCsvText('');
+    setParsedCsvRecipients([]);
+  };
+
+  const importCsvData = () => {
+    // Lọc các recipient hợp lệ
+    const validRecipients = parsedCsvRecipients.filter(r => r.valid);
+    
+    if (validRecipients.length === 0) {
+      toast.error('No valid recipients found in CSV data');
+      return;
+    }
+
+    // Cập nhật danh sách recipients
+    setRecipients(validRecipients);
+    
+    // Tính tổng số lượng để cập nhật tokenAmount
+    const totalAmount = validRecipients.reduce((sum, r) => sum + parseFloat(r.amount || '0'), 0);
+    setTokenAmount(totalAmount.toString());
+    
+    // Đóng dialog và thông báo
+    setCsvDialogOpen(false);
+    toast.success(`Imported ${validRecipients.length} recipients from CSV`);
+    
+    // Hiển thị thông báo về phí nếu có nhiều người nhận
+    if (validRecipients.length > 1) {
+      const fee = FEE_PER_RECIPIENT * (validRecipients.length - 1);
+      toast.info(
+        <div>
+          <p><strong>Fee Notice:</strong> Sending to multiple recipients requires a fee.</p>
+          <p>Total fee: {fee.toFixed(6)} SOL ({FEE_PER_RECIPIENT} SOL per recipient after first)</p>
+        </div>,
+        { duration: 6000 }
+      );
+    }
+  };
+
   const validateTotalAmount = (): boolean => {
     if (!selectedToken) return false;
 
@@ -126,6 +261,7 @@ export default function TransferTokenPage() {
 
     return true;
   };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -189,6 +325,72 @@ export default function TransferTokenPage() {
 
     if (!validateTotalAmount()) {
       return;
+    }
+
+    // Kiểm tra nếu cần thu phí cho nhiều người nhận
+    const fee = calculateTotalFee();
+    if (fee > 0) {
+      try {
+        // Hiển thị xác nhận phí
+        if (!window.confirm(
+          `Transfer to multiple recipients requires a fee of ${fee.toFixed(6)} SOL. ` +
+          `This fee will be sent to our service address. Do you want to continue?`
+        )) {
+          return;
+        }
+
+        // Kiểm tra xem người dùng có đủ SOL không
+        const solBalance = await connection.getBalance(wallet.publicKey!);
+        const solBalanceInSol = solBalance / 1_000_000_000; // Lamports to SOL
+        
+        if (solBalanceInSol < fee) {
+          toast.error(`Insufficient SOL balance for fee. You need ${fee.toFixed(6)} SOL`);
+          return;
+        }
+
+        // Tiến hành gửi phí trước khi chuyển token
+        const feeToastId = toast.loading(`Sending fee: ${fee.toFixed(6)} SOL...`);
+        
+        try {
+          const feeResult = await transferSol(
+            connection,
+            wallet,
+            {
+              recipientAddress: FEE_RECIPIENT_ADDRESS,
+              amount: fee.toString()
+            },
+            {
+              memo: "Transfer fee",
+              onSuccess: () => {
+                toast.dismiss(feeToastId);
+                toast.success("Fee payment successful");
+              },
+              onError: (err) => {
+                toast.dismiss(feeToastId);
+                toast.error(`Fee payment failed: ${err.message}`);
+                throw new Error("Fee payment failed");
+              }
+            }
+          );
+          
+          if (!feeResult) {
+            toast.dismiss(feeToastId);
+            toast.error("Fee transaction failed");
+            return;
+          }
+          
+          toast.dismiss(feeToastId);
+        } catch (error) {
+          toast.dismiss(feeToastId);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+          toast.error(`Fee payment error: ${errorMessage}`);
+          return;
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        toast.error(`Error checking balance: ${errorMessage}`);
+        return;
+      }
     }
 
     let toastId: string | number | undefined;
@@ -434,11 +636,59 @@ export default function TransferTokenPage() {
     return recipients.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
   };
 
+  // Tính tổng phí dựa trên số lượng người nhận
+  const calculateTotalFee = (): number => {
+    const validRecipients = recipients.filter(r => r.address && r.amount);
+    // Tính phí cho cả mainnet và devnet
+    if (validRecipients.length > 1) {
+      return FEE_PER_RECIPIENT * (validRecipients.length - 1); // Miễn phí cho địa chỉ đầu tiên
+    }
+    return 0;
+  };
+
   const handleCloseSuccessDialog = () => {
     setTransferSuccess(false);
     setTransferResults([]);
     setRecipients([{ address: "", amount: "" }]);
     setMemo("");
+  };
+
+  // Thêm một hàm xử lý upload file CSV
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Kiểm tra định dạng file
+    if (file.type !== 'text/csv' && !file.name.endsWith('.csv')) {
+      toast.error('Please upload a valid CSV file');
+      return;
+    }
+
+    // Đọc file
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      setCsvText(text);
+      processCsvInput(text);
+    };
+    reader.onerror = () => {
+      toast.error('Failed to read file');
+    };
+    reader.readAsText(file);
+  };
+
+  // Hàm tạo và tải xuống mẫu CSV
+  const downloadCsvTemplate = () => {
+    const template = "address,amount\n9ZNTfG4NyQgxy2SWjSiQoUyBPEvXT2xo7fKc5hPYYJ7b,0.1\nHxFLKUAmAMLz1jtT3hbvCMELwH5H9tpM2QugP8sKyfhc,0.5";
+    const blob = new Blob([template], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'transfer_template.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   if (transferSuccess && transferResults.length > 0) {
@@ -547,6 +797,15 @@ export default function TransferTokenPage() {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <Label className="text-gray-900">Recipients</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="border-gear-gray h-[28px] bg-white text-gray-700 hover:text-purple-900 cursor-pointer hover:bg-white"
+                      onClick={() => setCsvDialogOpen(true)}
+                    >
+                      <FileText className="h-4 w-4 mr-1" /> Import CSV
+                    </Button>
                   </div>
 
                   <div className="space-y-4">
@@ -620,7 +879,7 @@ export default function TransferTokenPage() {
                   </div>
 
                   {selectedToken && recipients.length > 0 && (
-                    <div className="bg-white py-4 px-4 border-gear-gray rounded-lg">
+                    <div className="bg-white py-4 px-4 border-gear-gray rounded-lg space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-gray-700">Total Amount:</span>
                         <span className="font-medium text-gray-900">
@@ -630,6 +889,34 @@ export default function TransferTokenPage() {
                           )}
                         </span>
                       </div>
+                      
+                      {/* Phí chuyển token */}
+                      {recipients.length > 1 && (
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center">
+                            <span className="text-sm font-medium text-gray-700">Fee:</span>
+                            <button 
+                              type="button"
+                              className="ml-1 text-gray-500 hover:text-gray-700"
+                              onClick={() => setShowFeeInfo(!showFeeInfo)}
+                            >
+                              <Info className="h-4 w-4" />
+                            </button>
+                          </div>
+                          <span className="font-medium text-amber-600">
+                            {calculateTotalFee().toFixed(6)} SOL
+                          </span>
+                        </div>
+                      )}
+                      
+                      {/* Thông tin chi tiết về phí */}
+                      {showFeeInfo && recipients.length > 1 && (
+                        <div className="bg-amber-50 p-2 rounded-md text-xs text-amber-700 mt-2">
+                          <p>A fee of {FEE_PER_RECIPIENT} SOL per recipient is charged for transfers with multiple recipients.</p>
+                          <p>First recipient is free. Total fee: {calculateTotalFee().toFixed(6)} SOL.</p>
+                          <p className="mt-1">Fees help maintain this service and are non-refundable.</p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -668,6 +955,120 @@ export default function TransferTokenPage() {
                 )}
               </Button>
             </form>
+
+            {/* CSV Import Dialog */}
+            <Dialog open={csvDialogOpen} onOpenChange={setCsvDialogOpen}>
+              <DialogContent className="sm:max-w-[525px]">
+                <DialogHeader>
+                  <DialogTitle>Import CSV Data</DialogTitle>
+                  <DialogDescription>
+                    Paste CSV data with addresses and amounts to create multiple recipients.
+                    <br />Format: address, amount (one per line)
+                  </DialogDescription>
+                  <div className="mt-2 flex justify-end">
+                    <Button 
+                      variant="link" 
+                      size="sm" 
+                      className="h-6 p-0 text-xs"
+                      onClick={downloadCsvTemplate}
+                    >
+                      Download template
+                    </Button>
+                  </div>
+                </DialogHeader>
+
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <div className="text-sm font-medium">CSV Data</div>
+                    <div className="flex gap-2">
+                      <label
+                        htmlFor="csv-file"
+                        className="cursor-pointer flex items-center px-2 h-8 text-xs font-medium rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+                      >
+                        <Upload className="h-3 w-3 mr-1" /> Upload CSV
+                        <input
+                          id="csv-file"
+                          type="file"
+                          accept=".csv,text/csv"
+                          onChange={handleFileUpload}
+                          className="hidden"
+                        />
+                      </label>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={clearCsvText}
+                        className="h-8"
+                        disabled={!csvText}
+                      >
+                        <X className="h-4 w-4 mr-1" /> Clear
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <Textarea
+                    placeholder="address, amount&#10;9ZNTfG4NyQgxy2SWjSiQoUyBPEvXT2xo7fKc5hPYYJ7b, 0.1&#10;HxFLKUAmAMLz1jtT3hbvCMELwH5H9tpM2QugP8sKyfhc, 0.5"
+                    className="min-h-[150px] font-mono text-sm"
+                    value={csvText}
+                    onChange={handleCsvTextChange}
+                  />
+                  
+                  <div className="text-xs text-gray-500 flex items-center">
+                    <div className="flex-1">
+                      <p>You can either paste CSV data above or upload a CSV file.</p>
+                      <p>The first row with &quot;address, amount&quot; will be skipped as header.</p>
+                    </div>
+                  </div>
+
+                  {parsedCsvRecipients.length > 0 && (
+                    <div className="border rounded-lg overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-12 text-center">#</TableHead>
+                            <TableHead>Recipient</TableHead>
+                            <TableHead>Amount</TableHead>
+                            <TableHead className="text-right">Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {parsedCsvRecipients.map((recipient, index) => (
+                            <TableRow key={index} className={recipient.valid ? "" : "bg-red-50"}>
+                              <TableCell className="text-center font-mono text-xs">{index + 1}</TableCell>
+                              <TableCell className="font-mono text-xs">
+                                {recipient.address ? `${recipient.address.slice(0, 6)}...${recipient.address.slice(-6)}` : "–"}
+                              </TableCell>
+                              <TableCell>{recipient.amount || "–"}</TableCell>
+                              <TableCell className="text-right">
+                                {recipient.valid ? (
+                                  <span className="text-green-600 text-xs">Valid</span>
+                                ) : (
+                                  <span className="text-red-600 text-xs">{recipient.error}</span>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </div>
+
+                <DialogFooter>
+                  <div className="w-full flex justify-between items-center">
+                    <div className="text-sm text-gray-600">
+                      {parsedCsvRecipients.filter(r => r.valid).length}/{parsedCsvRecipients.length} valid recipients
+                    </div>
+                    <Button 
+                      onClick={importCsvData} 
+                      disabled={parsedCsvRecipients.filter(r => r.valid).length === 0}
+                    >
+                      <Upload className="h-4 w-4 mr-2" /> Import
+                    </Button>
+                  </div>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         </SuspenseLayout>
       </div>
