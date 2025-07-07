@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { Transaction } from "@solana/web3.js";
 import { toast } from "sonner";
 import { useState, useCallback } from "react";
 import { connectionMainnet } from "@/service/solana/connection";
@@ -24,6 +23,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import Image from "next/image";
+import { createTokenTransaction } from "@/lib/dbc/createToken";
 
 const formSchema = z.object({
   name: z.string().min(1, "Token name is required"),
@@ -126,39 +126,18 @@ export default function CreateTokenForm() {
     try {
       setLoading(true);
 
-      const formData = new FormData();
-      formData.append("file", uploadedFile);
-      formData.append("name", data.name);
-      formData.append("symbol", data.symbol);
-      formData.append("description", data.description ?? "");
-      formData.append("socialX", data.socialX ?? "");
-      formData.append("socialTelegram", data.socialTelegram ?? "");
-      formData.append("socialWebsite", data.socialWebsite ?? "");
-
-      const uploadRes = await fetch("/api/dbc/upload", {
-        method: "POST",
-        body: formData,
+      const { transaction, baseMint } = await createTokenTransaction({
+        name: data.name,
+        symbol: data.symbol,
+        description: data.description,
+        socialX: data.socialX,
+        socialTelegram: data.socialTelegram,
+        socialWebsite: data.socialWebsite,
+        file: uploadedFile,
+        userPublicKey: publicKey,
       });
 
-      const uploadResult = await uploadRes.json();
-
-      const metadataUri = uploadResult.uri;
-      if (!metadataUri) throw new Error("No URI returned from upload");
-
-      const res = await fetch("/api/dbc/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...data,
-          uri: metadataUri,
-          userPublicKey: publicKey.toBase58(),
-        }),
-      });
-
-      const { transaction: txBase64, baseMint } = await res.json();
-
-      const tx = Transaction.from(Buffer.from(txBase64, "base64"));
-      const signedTx = await signTransaction(tx);
+      const signedTx = await signTransaction(transaction);
       await connectionMainnet.sendRawTransaction(signedTx.serialize(), {
         skipPreflight: false,
         preflightCommitment: "confirmed",
@@ -169,15 +148,18 @@ export default function CreateTokenForm() {
           label: "View on Birdeye",
           onClick: () =>
             window.open(
-              `https://birdeye.so/token/${baseMint}?chain=solana`,
+              `https://birdeye.so/token/${baseMint.publicKey.toBase58()}?chain=solana`,
               "_blank"
             ),
         },
       });
+
       reset();
       removeFile();
     } catch (err: unknown) {
-      toast.error(`Failed: ${err || "Unknown error"}`);
+      toast.error(
+        `Failed: ${err instanceof Error ? err.message : "Unknown error"}`
+      );
     } finally {
       setLoading(false);
     }
