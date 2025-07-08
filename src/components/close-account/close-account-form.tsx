@@ -181,7 +181,7 @@ export default function CloseAccountForm() {
             });
 
             toast.success("🎉 Accounts closed successfully!", {
-                description: `Closed ${values.selectedAccounts.length} accounts. You received ${(totalRent * 0.9 / 1_000_000_000).toFixed(9)} SOL.`,
+                description: `Closed ${values.selectedAccounts.length} accounts. You received ${(estimatedRent.userRent / 1_000_000_000).toFixed(9)} SOL.`,
                 action: {
                     label: "View Transaction",
                     onClick: () => window.open(`https://solscan.io/tx/${signature}`, "_blank"),
