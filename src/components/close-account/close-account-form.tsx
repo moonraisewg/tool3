@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -10,21 +10,39 @@ import { toast } from "sonner";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Loader2 } from "lucide-react";
-import { Transaction } from "@solana/web3.js";
-import { useUserTokens } from "@/hooks/useUserTokens";
+import { PublicKey, Transaction, SystemProgram } from "@solana/web3.js";
+import {
+    TOKEN_PROGRAM_ID,
+    getAssociatedTokenAddress,
+    createCloseAccountInstruction,
+    getAccount,
+} from "@solana/spl-token";
 import Image from "next/image";
-import { NATIVE_SOL } from "@/utils/constants";
+import { NATIVE_SOL, TOKEN2022 } from "@/utils/constants";
+import { useUserTokens } from "@/hooks/useUserTokens";
+import { connectionMainnet } from "@/service/solana/connection";
 
 const formSchema = z.object({
-    selectedAccounts: z.array(z.string()).min(1, "Please select at least one account to close"),
+    selectedAccounts: z
+        .array(z.string())
+        .min(1, "Please select at least one account to close"),
 });
 
 export default function CloseAccountForm() {
     const isMobile = useIsMobile();
     const [loading, setLoading] = useState(false);
-    const [estimatedRent, setEstimatedRent] = useState({ userRent: 0, systemRent: 0 });
+    const [isEstimating, setIsEstimating] = useState(false);
+    const [estimatedRent, setEstimatedRent] = useState({ userRent: 0, adminRent: 0 });
     const { publicKey, signTransaction } = useWallet();
-    const { tokens, loading: tokensLoading, refetch } = useUserTokens("mainnet", undefined, true);
+    const excludeToken = useMemo(() => [TOKEN2022], []);
+    const { tokens, loading: tokensLoading, refetch } = useUserTokens("mainnet", excludeToken, true);
+    const connection = connectionMainnet;
+
+    if (!process.env.NEXT_PUBLIC_ADMIN_PUBLIC_KEY) {
+        throw new Error("Admin public key is not defined in environment variables.");
+    }
+
+    const ADMIN_PUBLIC_KEY = new PublicKey(process.env.NEXT_PUBLIC_ADMIN_PUBLIC_KEY);
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -56,33 +74,33 @@ export default function CloseAccountForm() {
     useEffect(() => {
         const fetchRent = async () => {
             if (selectedAccounts.length === 0 || !publicKey) {
-                setEstimatedRent({ userRent: 0, systemRent: 0 });
+                setEstimatedRent({ userRent: 0, adminRent: 0 });
                 return;
             }
             try {
-                const response = await fetch("/api/close-account", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        userPublicKey: publicKey.toString(),
-                        tokenAccounts: selectedAccounts,
-                        estimateOnly: true,
-                    }),
-                });
-                const data = await response.json();
-                if (!response.ok) throw new Error(data.error || "Failed to estimate rent");
+                setIsEstimating(true);
+                let totalRent = 0;
+                for (const tokenMint of selectedAccounts) {
+                    const tokenAccount = await getAssociatedTokenAddress(
+                        new PublicKey(tokenMint),
+                        publicKey
+                    );
+                    const accountInfo = await connection.getAccountInfo(tokenAccount);
+                    if (accountInfo) {
+                        totalRent += accountInfo.lamports;
+                    }
+                }
                 setEstimatedRent({
-                    userRent: data.userRent * 0.9,
-                    systemRent: data.userRent * 0.1,
+                    userRent: Math.floor(totalRent * 0.9),
+                    adminRent: Math.floor(totalRent * 0.1),
                 });
             } catch (error: unknown) {
                 const message =
-                    error instanceof Error
-                        ? error.message
-                        : "Failed to estimate rent";
+                    error instanceof Error ? error.message : "Failed to estimate rent";
                 toast.error(message);
-
-                setEstimatedRent({ userRent: 0, systemRent: 0 });
+                setEstimatedRent({ userRent: 0, adminRent: 0 });
+            } finally {
+                setIsEstimating(false);
             }
         };
         fetchRent();
@@ -96,39 +114,77 @@ export default function CloseAccountForm() {
                 throw new Error("Please connect your wallet first");
             }
 
-            const response = await fetch("/api/close-account", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    userPublicKey: publicKey.toString(),
-                    tokenAccounts: values.selectedAccounts,
-                }),
-            });
+            const transaction = new Transaction();
+            let totalRent = 0;
 
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error || "Failed to prepare transaction");
+            for (const tokenMint of values.selectedAccounts) {
+                const tokenAccount = await getAssociatedTokenAddress(
+                    new PublicKey(tokenMint),
+                    publicKey
+                );
+                const accountInfo = await connection.getAccountInfo(tokenAccount);
+                if (!accountInfo) {
+                    console.warn(`Token account ${tokenAccount.toString()} not found, skipping`);
+                    continue;
+                }
 
-            const transaction = Transaction.from(Buffer.from(data.transaction, "base64"));
+                const tokenAccountInfo = await getAccount(connection, tokenAccount);
+                if (tokenAccountInfo.isFrozen) {
+                    throw new Error(`Token account ${tokenAccount.toString()} is frozen and cannot be closed`);
+                }
+
+                totalRent += accountInfo.lamports;
+
+                transaction.add(
+                    createCloseAccountInstruction(
+                        tokenAccount,
+                        publicKey,
+                        publicKey,
+                        [],
+                        TOKEN_PROGRAM_ID
+                    )
+                );
+            }
+
+            if (totalRent === 0) {
+                throw new Error("No rent to reclaim from selected accounts");
+            }
+
+            const adminFee = Math.floor(totalRent * 0.1);
+            if (adminFee > 0) {
+                transaction.add(
+                    SystemProgram.transfer({
+                        fromPubkey: publicKey,
+                        toPubkey: ADMIN_PUBLIC_KEY,
+                        lamports: adminFee,
+                    })
+                );
+            }
+
+            const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+            transaction.recentBlockhash = blockhash;
+            transaction.feePayer = publicKey;
+
             const signedTransaction = await signTransaction(transaction);
+            const signature = await connection.sendRawTransaction(
+                signedTransaction.serialize(),
+                {
+                    skipPreflight: false,
+                    preflightCommitment: "confirmed",
+                }
+            );
 
-            const executeResponse = await fetch("/api/close-account", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    userPublicKey: publicKey.toString(),
-                    tokenAccounts: values.selectedAccounts,
-                    signedTransaction: Array.from(signedTransaction.serialize()),
-                }),
+            await connection.confirmTransaction({
+                signature,
+                blockhash,
+                lastValidBlockHeight,
             });
-
-            const executeData = await executeResponse.json();
-            if (!executeResponse.ok) throw new Error(executeData.error || "Failed to execute transaction");
 
             toast.success("🎉 Accounts closed successfully!", {
-                description: `Closed ${values.selectedAccounts.length} accounts. You received ${(estimatedRent.userRent / 1_000_000_000).toFixed(9)} SOL.`,
+                description: `Closed ${values.selectedAccounts.length} accounts. You received ${(totalRent * 0.9 / 1_000_000_000).toFixed(9)} SOL.`,
                 action: {
                     label: "View Transaction",
-                    onClick: () => window.open(`https://solscan.io/tx/${executeData.signature}`, "_blank"),
+                    onClick: () => window.open(`https://solscan.io/tx/${signature}`, "_blank"),
                 },
             });
 
@@ -137,14 +193,18 @@ export default function CloseAccountForm() {
             const message = error instanceof Error ? error.message : "Failed to close accounts";
             toast.error(message);
         } finally {
-            refetch()
+            refetch();
             setLoading(false);
         }
     };
 
     return (
-        <div className={`md:p-2 max-w-[550px] mx-auto my-2 flex flex-col items-center ${!isMobile && "border-gear"}`}>
-            <h1 className="text-2xl font-bold text-gray-900 mb-6 text-center">Close Zero-Balance Accounts</h1>
+        <div className={`md:p-2 max-w-[550px] mx-auto my-2 flex flex-col items-center ${!isMobile && "border-gear"
+            }`}
+        >
+            <h1 className="text-2xl font-bold text-gray-900 mb-6 text-center">
+                Close Zero-Balance Accounts
+            </h1>
 
             <div className="mb-4 px-3 py-[8px] bg-green-50 border-gear-green-200 w-[calc(100%-10px)]">
                 <p className="text-sm text-green-800">
@@ -169,7 +229,9 @@ export default function CloseAccountForm() {
                                         checked={selectedAccounts.length === zeroBalanceAccounts.length}
                                         onChange={(e) => handleSelectAll(e.target.checked)}
                                     />
-                                    <span className="font-medium ml-2">Select All ({zeroBalanceAccounts.length} accounts)</span>
+                                    <span className="font-medium ml-2">
+                                        Select All ({zeroBalanceAccounts.length} accounts)
+                                    </span>
                                 </label>
                                 <div className="max-h-[240px] overflow-y-auto space-y-2 custom-scroll">
                                     {zeroBalanceAccounts.map((token) => (
@@ -184,9 +246,15 @@ export default function CloseAccountForm() {
                                                 onChange={(e) => {
                                                     const current = form.getValues("selectedAccounts");
                                                     if (e.target.checked) {
-                                                        form.setValue("selectedAccounts", [...current, token.address]);
+                                                        form.setValue("selectedAccounts", [
+                                                            ...current,
+                                                            token.address,
+                                                        ]);
                                                     } else {
-                                                        form.setValue("selectedAccounts", current.filter((addr) => addr !== token.address));
+                                                        form.setValue(
+                                                            "selectedAccounts",
+                                                            current.filter((addr) => addr !== token.address)
+                                                        );
                                                     }
                                                 }}
                                             />
@@ -199,8 +267,12 @@ export default function CloseAccountForm() {
                                                     className="rounded-full object-cover !h-[28px] !w-[28px]"
                                                 />
                                                 <div>
-                                                    <div>{token.symbol || "UNKNOWN"} ({token.name})</div>
-                                                    <div className="text-sm text-gray-400">{shortenAddress(token.address)}</div>
+                                                    <div>
+                                                        {token.symbol || "UNKNOWN"} ({token.name})
+                                                    </div>
+                                                    <div className="text-sm text-gray-400">
+                                                        {shortenAddress(token.address)}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </label>
@@ -211,13 +283,25 @@ export default function CloseAccountForm() {
 
                         <div className="px-3 py-[8px] bg-blue-50 border-gear-blue w-[calc(100%-10px)]">
                             <div className="text-sm text-blue-800">
-                                💰 <strong>Estimated Reclaimed Rent ({selectedAccounts.length} accounts):</strong>{" "}
+                                💰{" "}
+                                <strong>
+                                    Estimated Reclaimed Rent ({selectedAccounts.length} accounts):
+                                </strong>{" "}
                                 {selectedAccounts.length === 0 ? (
                                     "Select accounts to estimate"
+                                ) : isEstimating ? (
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        <span>Estimating rent...</span>
+                                    </div>
                                 ) : (
                                     <div className="mt-1">
-                                        You will receive: <strong className="text-green-600">+{(estimatedRent.userRent / 1_000_000_000).toFixed(9)} SOL</strong> <br />
-                                        Fees: {(estimatedRent.systemRent / 1_000_000_000).toFixed(9)} SOL
+                                        You will receive:{" "}
+                                        <strong className="text-green-600">
+                                            +{(estimatedRent.userRent / 1_000_000_000).toFixed(9)} SOL
+                                        </strong>{" "}
+                                        <br />
+                                        Fees: {(estimatedRent.adminRent / 1_000_000_000).toFixed(9)} SOL
                                     </div>
                                 )}
                             </div>
