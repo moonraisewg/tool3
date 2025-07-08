@@ -139,15 +139,13 @@ export default function SwapAllTokenFormMulti() {
       );
 
       toast.success(
-        `🎉 Successfully swapped ${selectedTokens.length} token${
-          selectedTokens.length !== 1 ? "s" : ""
+        `🎉 Successfully swapped ${selectedTokens.length} token${selectedTokens.length !== 1 ? "s" : ""
         } to SOL!`,
         {
-          description: `Completed in ${signatures.length} transaction${
-            signatures.length !== 1 ? "s" : ""
-          }. Estimated SOL: ${data.breakdown?.totalExpectedSolOutput?.toFixed(
-            6
-          )} SOL`,
+          description: `Completed in ${signatures.length} transaction${signatures.length !== 1 ? "s" : ""
+            }. Estimated SOL: ${data.breakdown?.totalExpectedSolOutput?.toFixed(
+              6
+            )} SOL`,
           action: {
             label: "View Last Transaction",
             onClick: () => {
@@ -170,19 +168,18 @@ export default function SwapAllTokenFormMulti() {
 
   return (
     <div
-      className={`md:p-2 max-w-[550px] mx-auto my-2 ${
-        !isMobile && "border-gear"
-      }`}
+      className={`md:p-2 max-w-[550px] mx-auto my-2 flex flex-col items-center ${!isMobile && "border-gear"
+        }`}
     >
-      <h1 className="text-2xl font-bold text-gray-900 mb-8 text-center">
+      <h1 className="text-2xl font-bold text-gray-900 mb-8 text-center ">
         Swap All Tokens To SOL
       </h1>
 
-      <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-center ">
+      <div className="mb-4 p-[8px] bg-green-50 border-gear-green-200 text-center w-[calc(100%-10px)]">
         <p className="text-sm text-green-800">⚡ Just $0.50 per transaction!</p>
       </div>
 
-      <div className="space-y-6 flex flex-col justify-center">
+      <div className="space-y-4 flex flex-col justify-center w-full">
         <MultiTokenSelector
           selectedTokens={selectedTokens}
           onTokensChange={setSelectedTokens}
@@ -198,9 +195,8 @@ export default function SwapAllTokenFormMulti() {
         >
           {loading
             ? "Processing Multi-Swap..."
-            : `💫 Swap ${selectedTokens.length} Token${
-                selectedTokens.length !== 1 ? "s" : ""
-              } to SOL `}
+            : `💫 Swap ${selectedTokens.length} Token${selectedTokens.length !== 1 ? "s" : ""
+            } to SOL `}
         </Button>
       </div>
     </div>

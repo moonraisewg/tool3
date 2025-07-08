@@ -158,6 +158,7 @@ const TokenExtensionUpdateForm = () => {
                                 placeholder="Enter token mint address"
                                 {...field}
                                 disabled={addressValidated || isLoading}
+                                className="border-gear-gray h-[28px] w-[calc(100%-8px)] ml-[4px] mt-[4px]"
                               />
                             </FormControl>
                             <Button

@@ -296,7 +296,7 @@ export function RecoveryForm({ }: RecoveryFormProps) {
         <div className="text-center mb-6">
           Recover tokens from other wallets using permanent delegate authority
         </div>
-        <Alert className="bg-purple-50 border-purple-200 mb-6">
+        <Alert className="bg-purple-50 border-gear-purple w-[calc(100%-8px)] ml-1 mb-6">
           <Info className="h-4 w-4 text-purple-500" />
           <AlertTitle>About Permanent Delegate Recovery</AlertTitle>
           <AlertDescription>
@@ -306,24 +306,25 @@ export function RecoveryForm({ }: RecoveryFormProps) {
         </Alert>
 
         <form onSubmit={(e) => { e.preventDefault(); openConfirmDialog(); }} className="space-y-6">
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label htmlFor="token">Select Token</Label>
-            <SelectToken
-              selectedToken={selectedToken}
-              setSelectedToken={setSelectedToken}
-              onAmountChange={handleAmountChange}
-              title="Select Token"
-              disabled={!connected}
-              amount={amount}
-              amountLoading={isLoading}
-              cluster={cluster}
-              onTokensLoaded={handleTokensLoaded}
-            />
-
+            <div className="w-[calc(100%-8px)] ml-1">
+              <SelectToken
+                selectedToken={selectedToken}
+                setSelectedToken={setSelectedToken}
+                onAmountChange={handleAmountChange}
+                title="Select Token"
+                disabled={!connected}
+                amount={amount}
+                amountLoading={isLoading}
+                cluster={cluster}
+                onTokensLoaded={handleTokensLoaded}
+              />
+            </div>
             {/* Verify Button */}
             <Button
               variant="outline"
-              className="mt-2"
+              className="mt-2 border-gear-gray cursor-pointer ml-1 py-0 h-[30px]"
               onClick={verifyDelegateStatus}
               disabled={!selectedToken || verifyLoading}
             >
@@ -340,7 +341,7 @@ export function RecoveryForm({ }: RecoveryFormProps) {
           </div>
 
           {/* Source Wallet Address */}
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label htmlFor="source-wallet">Source Wallet Address</Label>
             <Input
               id="source-wallet"
@@ -348,6 +349,7 @@ export function RecoveryForm({ }: RecoveryFormProps) {
               value={sourceWalletAddress}
               onChange={(e) => setSourceWalletAddress(e.target.value)}
               disabled={!selectedToken}
+              className="w-[calc(100%-8px)] border-gear-gray !h-[28px] ml-1"
             />
             <p className="text-xs text-gray-500">
               The wallet address you want to recover tokens from
@@ -370,7 +372,7 @@ export function RecoveryForm({ }: RecoveryFormProps) {
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label htmlFor="amount">Amount</Label>
             <Input
               id="amount"
@@ -378,10 +380,11 @@ export function RecoveryForm({ }: RecoveryFormProps) {
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               disabled={!selectedToken}
+              className="w-[calc(100%-8px)] border-gear-gray !h-[28px] ml-1"
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label htmlFor="memo">Memo (Optional)</Label>
             <Input
               id="memo"
@@ -389,6 +392,7 @@ export function RecoveryForm({ }: RecoveryFormProps) {
               value={memo}
               onChange={(e) => setMemo(e.target.value)}
               disabled={!selectedToken}
+              className="w-[calc(100%-8px)] border-gear-gray !h-[28px] ml-1"
             />
           </div>
 

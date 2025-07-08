@@ -24,6 +24,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import Image from "next/image";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const formSchema = z.object({
   name: z.string().min(1, "Token name is required"),
@@ -46,6 +47,7 @@ export default function CreateTokenForm() {
     resolver: zodResolver(formSchema),
   });
 
+  const isMobile = useIsMobile();
   const { publicKey, signTransaction } = useWallet();
   const [loading, setLoading] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
@@ -184,49 +186,49 @@ export default function CreateTokenForm() {
   };
 
   return (
-    <div className="max-h-[90vh] overflow-y-auto p-4">
+    <div className={`max-h-[calc(100vh-100px)] overflow-y-auto ${isMobile ? "py-2" : "py-6"}`}>
       <form
         onSubmit={handleSubmit(onSubmit)}
-        className="max-w-2xl mx-auto p-6 bg-white rounded-xl shadow-md space-y-6"
+        className={`max-w-2xl mx-auto p-2 bg-white space-y-6 ${!isMobile && "border-gear"}`}
       >
         <h2 className="text-2xl font-bold text-center">Create a New Token</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label htmlFor="name">Token Name *</Label>
-            <Input id="name" {...register("name")} placeholder="Dipts Zyx" />
+            <Input id="name" {...register("name")} placeholder="Dipts Zyx" className="border-gear-gray h-[28px] w-[calc(100%-8px)] ml-[4px]" />
             {errors.name && (
               <p className="text-red-500 text-sm">{errors.name.message}</p>
             )}
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label htmlFor="symbol">Token Symbol *</Label>
-            <Input id="symbol" {...register("symbol")} placeholder="DIS" />
+            <Input id="symbol" {...register("symbol")} placeholder="DIS" className="border-gear-gray h-[28px] w-[calc(100%-8px)] ml-[4px]" />
             {errors.symbol && (
               <p className="text-red-500 text-sm">{errors.symbol.message}</p>
             )}
           </div>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-3">
           <Label htmlFor="description">Description (Optional)</Label>
           <Textarea
             id="description"
             {...register("description")}
             placeholder="Describe your token and its purpose..."
             rows={3}
+            className="border-gear-gray h-[28px] w-[calc(100%-8px)] ml-[4px]"
           />
         </div>
 
         <div className="space-y-2">
           <Label>Token Image *</Label>
           <div
-            className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
-              isDragOver
-                ? "border-blue-500 bg-blue-50"
-                : "border-gray-300 hover:border-gray-400"
-            }`}
+            className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${isDragOver
+              ? "border-blue-500 bg-blue-50"
+              : "border-gray-300 hover:border-gray-400"
+              }`}
             onDrop={handleDrop}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -272,6 +274,7 @@ export default function CreateTokenForm() {
                   onClick={() =>
                     document.getElementById("file-upload")?.click()
                   }
+                  className="border-gear-gray py-0 cursor-pointer h-[28px]"
                 >
                   <Upload className="h-4 w-4 mr-2" />
                   Choose Image
@@ -285,7 +288,7 @@ export default function CreateTokenForm() {
           <Button
             type="button"
             variant="outline"
-            className="w-full justify-between bg-transparent"
+            className="justify-between bg-transparent border-gear-gray py-0 w-[calc(100%-8px)] ml-[4px] cursor-pointer"
             onClick={() => setShowSocialLinks(!showSocialLinks)}
           >
             <span className="flex items-center gap-2">
@@ -293,15 +296,14 @@ export default function CreateTokenForm() {
               Social Links (Optional)
             </span>
             <ChevronDown
-              className={`h-4 w-4 transition-transform duration-200 ${
-                showSocialLinks ? "rotate-180" : ""
-              }`}
+              className={`h-4 w-4 transition-transform duration-200 ${showSocialLinks ? "rotate-180" : ""
+                }`}
             />
           </Button>
 
           {showSocialLinks && (
-            <div className="space-y-3 pt-2 border-l-2 border-gray-200 pl-4 ml-2">
-              <div className="space-y-2">
+            <div className="space-y-4 pt-2 border-l-2 border-gray-200 pl-4 ml-2">
+              <div className="space-y-3">
                 <Label htmlFor="socialX" className="flex items-center gap-2">
                   <Twitter className="h-4 w-4" />X (Twitter)
                 </Label>
@@ -309,10 +311,11 @@ export default function CreateTokenForm() {
                   id="socialX"
                   {...register("socialX")}
                   placeholder="https://x.com/yourusername"
+                  className="border-gear-gray h-[28px] w-[calc(100%-8px)] ml-[4px]"
                 />
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label
                   htmlFor="socialTelegram"
                   className="flex items-center gap-2"
@@ -324,10 +327,11 @@ export default function CreateTokenForm() {
                   id="socialTelegram"
                   {...register("socialTelegram")}
                   placeholder="https://t.me/yourchannel"
+                  className="border-gear-gray h-[28px] w-[calc(100%-8px)] ml-[4px]"
                 />
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label
                   htmlFor="socialWebsite"
                   className="flex items-center gap-2"
@@ -339,13 +343,14 @@ export default function CreateTokenForm() {
                   id="socialWebsite"
                   {...register("socialWebsite")}
                   placeholder="https://yourwebsite.com"
+                  className="border-gear-gray h-[28px] w-[calc(100%-8px)] ml-[4px]"
                 />
               </div>
             </div>
           )}
         </div>
 
-        <Button type="submit" className="w-full mt-6" disabled={loading}>
+        <Button type="submit" className="w-full mt-4 cursor-pointer" disabled={loading}>
           {loading ? "Creating Token..." : "Create Token"}
         </Button>
       </form>
