@@ -29,6 +29,7 @@ import {
   CreditCard,
   Trash,
   Wallet,
+  Trophy,
 } from "@nsmr/pixelart-react";
 import { useState } from "react";
 
@@ -56,16 +57,16 @@ export const route = {
       icon: CreditCard,
       submenu: [
         {
+          title: "Gasless Transfer",
+          url: "/transfer-spl-token",
+        },
+        {
           title: "Swap to SOL ",
           url: "/swap-sol",
         },
         {
           title: "Swap All Token to SOL ",
           url: "/swap-all",
-        },
-        {
-          title: "Gasless Transfer",
-          url: "/transfer-spl-token",
         },
       ],
     },
@@ -130,7 +131,23 @@ export const route = {
       title: "Close account",
       url: "/close-account",
     },
+    {
+      title: "Buy SOL devnet",
+      icon: Wallet,
+      url: "/sell-sol-devnet",
+    },
+    // {
+    //   title: "Increase Holders",
+    //   icon: Wallet,
+    //   url: "/increase-holders",
+    // },
+    {
+      icon: Trophy,
+      title: "Launch Token DBC Meteora",
+      url: "/dbc/token",
+    },
   ],
+
   devnet: [
     {
       title: "Dashboard",

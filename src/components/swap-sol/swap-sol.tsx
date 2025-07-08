@@ -16,6 +16,7 @@ import { Transaction } from "@solana/web3.js";
 import { UserToken } from "@/hooks/useUserTokens";
 import { WSOL_MINT } from "@/utils/constants";
 import { getTokenFeeFromUsd } from "@/service/jupiter/calculate-fee";
+import { connectionMainnet } from "../../service/solana/connection";
 
 const formSchema = z.object({
   amount: z.string(),
@@ -30,7 +31,7 @@ export default function SwapSolForm() {
   const [loading, setLoading] = useState<boolean>(false);
   const [priceLoading, setPriceLoading] = useState<boolean>(false);
   const [tokenFee, setTokenFee] = useState<number>(0);
-  const { publicKey, signTransaction } = useWallet();
+  const { publicKey, signAllTransactions } = useWallet();
 
   const form = useForm<FormSwapSol>({
     resolver: zodResolver(formSchema),
@@ -134,7 +135,7 @@ export default function SwapSolForm() {
     try {
       setLoading(true);
 
-      if (!publicKey || !signTransaction) {
+      if (!publicKey || !signAllTransactions) {
         toast.error("Please connect your wallet first");
         return;
       }
@@ -182,24 +183,46 @@ export default function SwapSolForm() {
         throw new Error(data.error || "Failed to prepare swap transaction");
       }
 
-      const swapTx = Transaction.from(Buffer.from(data.transaction, "base64"));
-      const signedTx = await signTransaction(swapTx);
+      const swapTx = Transaction.from(
+        Buffer.from(data.swapTransaction, "base64")
+      );
+      const unwrapTx = Transaction.from(
+        Buffer.from(data.unwrapTransaction, "base64")
+      );
 
-      const executeResponse = await fetch("/api/swap-sol", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...swapData,
-          signedTransaction: Array.from(signedTx.serialize()),
-        }),
-      });
+      const [signedSwapTx, signedUnwrapTx] = await signAllTransactions([
+        swapTx,
+        unwrapTx,
+      ]);
 
-      const executeData = await executeResponse.json();
+      const swapSignature = await connectionMainnet.sendRawTransaction(
+        signedSwapTx.serialize()
+      );
+      const swapConfirmation = await connectionMainnet.confirmTransaction(
+        swapSignature
+      );
 
-      if (!executeResponse.ok) {
-        throw new Error(executeData.error || "Failed to execute swap");
+      if (swapConfirmation.value.err) {
+        throw new Error("Swap failed");
+      }
+
+      const unwrapSignature = await connectionMainnet.sendRawTransaction(
+        signedUnwrapTx.serialize()
+      );
+      const unwrapConfirmation = await connectionMainnet.confirmTransaction(
+        unwrapSignature
+      );
+
+      if (swapConfirmation.value.err) {
+        throw new Error(
+          `Transaction failed: ${JSON.stringify(swapConfirmation.value.err)}`
+        );
+      }
+
+      if (unwrapConfirmation.value.err) {
+        throw new Error(
+          `Transaction failed: ${JSON.stringify(unwrapConfirmation.value.err)}`
+        );
       }
 
       toast.success("🎉 Gasless Swap to SOL Successful!", {
@@ -207,10 +230,7 @@ export default function SwapSolForm() {
         action: {
           label: "View Transaction",
           onClick: () =>
-            window.open(
-              `https://solscan.io/tx/${executeData.signature}`,
-              "_blank"
-            ),
+            window.open(`https://solscan.io/tx/${swapSignature}`, "_blank"),
         },
       });
 
@@ -234,15 +254,14 @@ export default function SwapSolForm() {
 
   return (
     <div
-      className={`md:p-2 max-w-[550px] mx-auto my-2 ${
-        !isMobile && "border-gear"
-      }`}
+      className={`md:p-2 max-w-[550px] mx-auto my-2 flex flex-col items-center ${!isMobile && "border-gear"
+        }`}
     >
       <h1 className="text-2xl font-bold text-gray-900 mb-8 text-center">
         Gasless Swap to SOL
       </h1>
 
-      <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+      <div className="mb-6 p-[8px] bg-green-50 border-gear-green-200 w-[calc(100%-10px)]">
         <p className="text-sm text-green-800">
           ⚡ <strong>No SOL ownership required:</strong> Just $0.50 per
           transaction!
@@ -252,7 +271,7 @@ export default function SwapSolForm() {
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(onSubmit)}
-          className="space-y-4 flex flex-col justify-center"
+          className="space-y-4 flex flex-col justify-center w-full"
         >
           <div className="px-[5px] space-y-6">
             <SelectToken

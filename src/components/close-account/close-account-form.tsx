@@ -143,18 +143,18 @@ export default function CloseAccountForm() {
     };
 
     return (
-        <div className={`md:p-2 max-w-[550px] mx-auto my-2 ${!isMobile && "border-gear"}`}>
+        <div className={`md:p-2 max-w-[550px] mx-auto my-2 flex flex-col items-center ${!isMobile && "border-gear"}`}>
             <h1 className="text-2xl font-bold text-gray-900 mb-6 text-center">Close Zero-Balance Accounts</h1>
 
-            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+            <div className="mb-4 px-3 py-[8px] bg-green-50 border-gear-green-200 w-[calc(100%-10px)]">
                 <p className="text-sm text-green-800">
                     ⚡ Solana Blockchain keeps your SOL! We give it back to you!
                 </p>
             </div>
 
             <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                    <div className="px-[5px] space-y-4">
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 w-full">
+                    <div className="space-y-4 flex flex-col items-center">
                         {tokensLoading ? (
                             <div className="text-center">Loading accounts...</div>
                         ) : zeroBalanceAccounts.length === 0 ? (
@@ -162,7 +162,7 @@ export default function CloseAccountForm() {
                                 No zero-balance accounts found. Try connecting a different wallet or switching clusters.
                             </div>
                         ) : (
-                            <div className="space-y-2">
+                            <div className="space-y-2 w-full">
                                 <label className="flex items-center gap-2 p-2 border rounded-lg bg-gray-50 cursor-pointer px-4">
                                     <input
                                         type="checkbox"
@@ -196,7 +196,7 @@ export default function CloseAccountForm() {
                                                     alt={token.name}
                                                     width={28}
                                                     height={28}
-                                                    className="rounded-full object-cover"
+                                                    className="rounded-full object-cover !h-[28px] !w-[28px]"
                                                 />
                                                 <div>
                                                     <div>{token.symbol || "UNKNOWN"} ({token.name})</div>
@@ -209,7 +209,7 @@ export default function CloseAccountForm() {
                             </div>
                         )}
 
-                        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="px-3 py-[8px] bg-blue-50 border-gear-blue w-[calc(100%-10px)]">
                             <div className="text-sm text-blue-800">
                                 💰 <strong>Estimated Reclaimed Rent ({selectedAccounts.length} accounts):</strong>{" "}
                                 {selectedAccounts.length === 0 ? (
@@ -223,7 +223,6 @@ export default function CloseAccountForm() {
                             </div>
                         </div>
                     </div>
-
                     <Button
                         type="submit"
                         className="w-full font-semibold py-2 rounded-lg cursor-pointer"

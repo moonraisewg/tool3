@@ -44,10 +44,11 @@ const SelectToken: React.FC<SelectTokenProps> = ({
 
   useEffect(() => {
     if (tokens.length > 0 && !selectedToken && !userHasSelected) {
-      const solToken = tokens.find(token =>
-        token.symbol === "SOL" ||
-        token.address === "11111111111111111111111111111111" ||
-        token.address === NATIVE_SOL
+      const solToken = tokens.find(
+        (token) =>
+          token.symbol === "SOL" ||
+          token.address === "11111111111111111111111111111111" ||
+          token.address === NATIVE_SOL
       );
 
       if (solToken) {
@@ -75,25 +76,36 @@ const SelectToken: React.FC<SelectTokenProps> = ({
     onAmountChange("");
   };
 
-  const setHalf = () => {
-    if (selectedToken) {
-      const halfBalance = (parseFloat(selectedToken.balance) / 2).toFixed(
-        selectedToken.decimals || 2
+  const setAmount = (type: "half" | "max") => {
+    if (!selectedToken) return;
+
+    const balance = parseFloat(selectedToken.balance);
+    const decimals = selectedToken.decimals || 6;
+    const symbol = selectedToken.symbol;
+
+    if (balance < tokenFee) {
+      toast.error(
+        `Insufficient balance to cover fee. Need ${tokenFee.toFixed(
+          6
+        )} ${symbol}, but only have ${balance.toFixed(6)} ${symbol}`
       );
-      onAmountChange(halfBalance);
+      onAmountChange("0");
+      return;
     }
+
+    const availableAmount = Math.max(0, balance - tokenFee);
+    const amount = type === "half" ? availableAmount / 2 : availableAmount;
+    const amountString = amount.toFixed(decimals);
+
+    toast.success(
+      `You can proceed with up to ${amountString} ${symbol} after deducting fee`
+    );
+
+    onAmountChange(amountString);
   };
 
-  const setMax = () => {
-    if (selectedToken) {
-      const balance = parseFloat(selectedToken.balance);
-
-      const maxAmount = Math.max(0, balance - tokenFee);
-      const maxAmountString = maxAmount.toFixed(selectedToken.decimals || 6);
-
-      onAmountChange(maxAmountString);
-    }
-  };
+  const setHalf = () => setAmount("half");
+  const setMax = () => setAmount("max");
 
   const handleAmountChange = (value: string) => {
     if (disabled) return;
@@ -168,12 +180,17 @@ const SelectToken: React.FC<SelectTokenProps> = ({
                 alt={selectedToken?.name || "Token"}
                 width={24}
                 height={24}
-                className="rounded-full object-cover"
+                className="rounded-full object-cover !h-6 !w-6"
               />
               <div className="mt-[2px]">
                 {title === "You Pay"
                   ? `${selectedToken.symbol} Mainnet`
                   : selectedToken.symbol}
+                {selectedToken.isToken2022 && (
+                  <span className="ml-1 text-xs text-purple-600 font-semibold">
+                    2022
+                  </span>
+                )}
               </div>
             </div>
           ) : (
@@ -192,6 +209,12 @@ const SelectToken: React.FC<SelectTokenProps> = ({
               type="number"
               value={amount}
               onChange={(e) => handleAmountChange(e.target.value)}
+              onWheel={(e) => e.currentTarget.blur()}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                  e.preventDefault();
+                }
+              }}
               className="focus-visible:ring-0 focus-visible:border-none focus-visible:outline-none outline-none ring-0 border-none shadow-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-right md:!text-[32px] !text-[24px] pr-0"
               placeholder="0.00"
               disabled={disabled}

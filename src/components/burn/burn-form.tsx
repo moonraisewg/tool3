@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 import { toast } from "sonner";
@@ -10,7 +9,7 @@ import { Check, ExternalLink, Flame, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { burnToken, TokenBurnResult } from "@/service/token/token-extensions/tool/burn-token-extension";
 import { Separator } from "@/components/ui/separator";
-import { SelectTokenModal } from "./select-token-modal";
+import SelectToken from "@/components/transfer/select-token";
 import React from "react";
 import { UserToken } from "@/hooks/useUserTokens";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -33,94 +32,35 @@ export interface BurnFormProps {
 
 export function BurnForm({ }: BurnFormProps) {
   const wallet = useWallet();
-  const { publicKey, connected } = wallet;
+  const { connected } = wallet;
   const { connection } = useConnection();
   const isMobile = useIsMobile();
   const [isLoading, setIsLoading] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedToken, setSelectedToken] = useState<UserToken | null>(null);
-  const [tokens, setTokens] = useState<UserToken[]>([]);
   const [amount, setAmount] = useState("");
   const [burnInProgress, setBurnInProgress] = useState(false);
   const [burnSuccess, setBurnSuccess] = useState(false);
   const [burnResult, setBurnResult] = useState<TokenBurnResult | null>(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [cluster, setCluster] = useState<"mainnet" | "devnet">("mainnet");
 
-  const handleTokenSelect = (token: UserToken) => {
-    setSelectedToken(token);
-    setIsModalOpen(false);
+  const handleTokensLoaded = () => {
+    setIsLoading(false);
   };
 
-  interface TokenAsset {
-    interface: string;
-    id: string;
-    token_info?: {
-      balance: number;
-      decimals: number;
-      symbol?: string;
-    };
-    content?: {
-      metadata?: {
-        name?: string;
-        symbol?: string;
-      };
-      links?: {
-        image?: string;
-      };
-    };
-  }
+  useEffect(() => {
+    const urlCluster = window.location.href.includes('cluster=devnet') ? 'devnet' : 'mainnet';
+    setCluster(urlCluster);
+  }, []);
 
-  const fetchUserTokens = async () => {
-    if (!publicKey) return;
+  const handleAmountChange = (amount: string) => {
+    setAmount(amount);
+  };
 
-    try {
-      setIsLoading(true);
-      const urlCluster = window.location.href.includes('cluster=devnet') ? 'devnet' : 'mainnet';
-
-      const response = await fetch("/api/user-tokens", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          publicKey: publicKey.toString(),
-          cluster: urlCluster
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const assets = data.result?.items || [];
-
-      const formattedTokens: UserToken[] = assets
-        .filter((asset: TokenAsset) =>
-          (asset.interface === "FungibleToken" || asset.interface === "FungibleAsset") &&
-          asset.id !== "NativeSOL" &&
-          parseFloat(((asset.token_info?.balance || 0) / Math.pow(10, asset.token_info?.decimals || 0)).toString()) > 0
-        )
-        .map((asset: TokenAsset) => {
-          const mint = asset.id;
-          const balance = (asset.token_info?.balance || 0) / Math.pow(10, asset.token_info?.decimals || 0);
-          return {
-            address: mint,
-            name: asset.content?.metadata?.name || "Unknown Token",
-            balance: balance.toString(),
-            symbol: asset.token_info?.symbol || asset.content?.metadata?.symbol,
-            logoURI: asset.content?.links?.image,
-            decimals: asset.token_info?.decimals || 0,
-          };
-        });
-
-      setTokens(formattedTokens);
-    } catch (error) {
-      console.error("Error fetching tokens:", error);
-      toast.error("Failed to fetch tokens");
-    } finally {
-      setIsLoading(false);
-    }
+  const handleCloseBurnDialog = () => {
+    setBurnSuccess(false);
+    setBurnResult(null);
+    setAmount("");
   };
 
   const openConfirmDialog = () => {
@@ -190,9 +130,7 @@ export function BurnForm({ }: BurnFormProps) {
         setBurnResult(result);
         setBurnSuccess(true);
 
-        setTimeout(() => {
-          fetchUserTokens();
-        }, 2000);
+        // Reloading tokens will happen automatically through parent components
       }
     } catch (error: unknown) {
       console.error("Error in burn:", error);
@@ -203,26 +141,6 @@ export function BurnForm({ }: BurnFormProps) {
       setBurnInProgress(false);
     }
   };
-
-  const handleMaxAmount = () => {
-    if (selectedToken) {
-      setAmount(selectedToken.balance);
-    }
-  };
-
-  const handleCloseBurnDialog = () => {
-    setBurnSuccess(false);
-    setBurnResult(null);
-    setAmount("");
-  };
-
-  const memoizedFetchUserTokens = React.useCallback(fetchUserTokens, [publicKey]);
-
-  useEffect(() => {
-    if (publicKey) {
-      memoizedFetchUserTokens();
-    }
-  }, [publicKey, memoizedFetchUserTokens]);
 
   if (burnSuccess && burnResult) {
     return (
@@ -285,63 +203,32 @@ export function BurnForm({ }: BurnFormProps) {
         Burn Token Extensions
       </h1>
       <div>
-        <Alert className="bg-amber-50 border-amber-200 mb-6">
+        <Alert className="bg-amber-50 border-gear-orange mb-6 w-[calc(100%-8px)] ml-1 flex gap-3">
           <Flame className="h-4 w-4 text-amber-500" />
-          <AlertTitle>Warning: Irreversible Action</AlertTitle>
-          <AlertDescription>
-            Burning tokens permanently removes them from circulation. This action cannot be undone.
-          </AlertDescription>
+          <div>
+            <AlertTitle>Warning: Irreversible Action</AlertTitle>
+            <AlertDescription>
+              Burning tokens permanently removes them from circulation. This action cannot be undone.
+            </AlertDescription>
+          </div>
         </Alert>
 
         <form onSubmit={(e) => { e.preventDefault(); openConfirmDialog(); }} className="space-y-6">
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label htmlFor="token">Select Token</Label>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full flex justify-between items-center h-10"
-              onClick={() => {
-                fetchUserTokens();
-                setIsModalOpen(true);
-              }}
-            >
-              {selectedToken ? (
-                <span>
-                  {selectedToken.symbol} - {selectedToken.name}
-                </span>
-              ) : (
-                <span>Select a token</span>
-              )}
-              <span>▼</span>
-            </Button>
-            {selectedToken && (
-              <div className="text-sm text-gray-500">
-                Balance: {selectedToken.balance} {selectedToken.symbol}
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <Label htmlFor="amount">Amount to Burn</Label>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-6 text-xs"
-                onClick={handleMaxAmount}
-                disabled={!selectedToken}
-              >
-                MAX
-              </Button>
+            <div className="w-[calc(100%-8px)] ml-1">
+              <SelectToken
+                selectedToken={selectedToken}
+                setSelectedToken={setSelectedToken}
+                onAmountChange={handleAmountChange}
+                title="Select Token"
+                disabled={!connected}
+                amount={amount}
+                amountLoading={isLoading}
+                cluster={cluster}
+                onTokensLoaded={handleTokensLoaded}
+              />
             </div>
-            <Input
-              id="amount"
-              placeholder="0.00"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              disabled={!selectedToken}
-            />
           </div>
 
           {selectedToken && amount && (
@@ -358,7 +245,7 @@ export function BurnForm({ }: BurnFormProps) {
 
           <Button
             type="submit"
-            className="w-full bg-red-600 hover:bg-red-700 text-white"
+            className="w-full bg-red-600 hover:bg-red-700 text-white cursor-pointer"
             disabled={isLoading || !connected || !selectedToken || burnInProgress || !amount}
           >
             {burnInProgress ? (
@@ -375,14 +262,6 @@ export function BurnForm({ }: BurnFormProps) {
           </Button>
         </form>
       </div>
-
-      <SelectTokenModal
-        open={isModalOpen}
-        onOpenChange={setIsModalOpen}
-        tokens={tokens}
-        onSelect={handleTokenSelect}
-        isLoading={isLoading}
-      />
 
       <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
         <DialogContent className="bg-white border-gray-200 text-gray-900 sm:max-w-[425px]">
@@ -420,7 +299,7 @@ export function BurnForm({ }: BurnFormProps) {
             </Button>
             <Button
               onClick={handleBurn}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-red-600 hover:bg-red-700 cursor-pointer"
             >
               <Flame className="w-4 h-4 mr-2" /> Confirm Burn
             </Button>

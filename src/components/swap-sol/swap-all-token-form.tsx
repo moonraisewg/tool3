@@ -6,11 +6,10 @@ import { toast } from "sonner";
 import { useWallet } from "@solana/wallet-adapter-react";
 import MultiTokenSelector from "./multi-token-selector";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { VersionedTransaction } from "@solana/web3.js";
 import type { UserToken } from "@/hooks/useUserTokens";
 import { connectionMainnet } from "@/service/solana/connection";
-import { BatchTransaction } from "@/types/types";
 import { WSOL_MINT } from "@/utils/constants";
+import { createMultiSwapToSolTransactions } from "@/lib/multi-swap-to-sol";
 
 interface SelectedTokenData {
   token: UserToken;
@@ -46,74 +45,36 @@ export default function SwapAllTokenFormMulti() {
         }
       }
 
-      console.log(
-        `🚀 Starting multi-swap for ${selectedTokens.length} tokens...`
+      const swapData = selectedTokens.map((selectedToken) => ({
+        inputTokenMint: selectedToken.token.address,
+      }));
+
+      const result = await createMultiSwapToSolTransactions(
+        publicKey,
+        swapData,
+        3
       );
 
-      const swapData = {
-        walletPublicKey: publicKey.toString(),
-        tokenSwaps: selectedTokens.map((selectedToken) => ({
-          inputTokenMint: selectedToken.token.address,
-        })),
-        batchSize: 3,
-      };
-
-      console.log("Sending multi-swap request:", swapData);
-
-      const response = await fetch("/api/swap-all", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(swapData),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.error || "Failed to prepare multi-swap transactions"
-        );
-      }
-
-      console.log("Multi-swap transactions prepared:", {
-        batchCount: data.transactions?.length,
-        totalTokens: selectedTokens.length,
-        estimatedSol: data.breakdown?.totalExpectedSolOutput,
-        adminFee: data.breakdown?.adminFeeInSol,
-      });
-
-      const transactions = data.transactions.map((txData: BatchTransaction) =>
-        VersionedTransaction.deserialize(
-          Buffer.from(txData.transaction, "base64")
-        )
+      const transactions = result.transactions.map(
+        (txData) => txData.transaction
       );
 
-      console.log(`Signing ${transactions.length} transactions...`);
       const signedTransactions = await signAllTransactions(transactions);
 
-      console.log(
-        `Broadcasting ${signedTransactions.length} transactions in parallel...`
-      );
-
-      const broadcastPromises = signedTransactions.map(
-        async (signedTx, index) => {
-          const signature = await connectionMainnet.sendRawTransaction(
-            signedTx.serialize(),
-            {
-              skipPreflight: false,
-              preflightCommitment: "confirmed",
-              maxRetries: 3,
-            }
-          );
-          console.log(`Transaction ${index + 1} sent: ${signature}`);
-          return signature;
-        }
-      );
+      const broadcastPromises = signedTransactions.map(async (signedTx) => {
+        const signature = await connectionMainnet.sendRawTransaction(
+          signedTx.serialize(),
+          {
+            skipPreflight: false,
+            preflightCommitment: "confirmed",
+            maxRetries: 3,
+          }
+        );
+        return signature;
+      });
 
       const signatures = await Promise.all(broadcastPromises);
 
-      console.log("Confirming all transactions...");
       const confirmPromises = signatures.map(async (signature, index) => {
         const confirmation = await connectionMainnet.confirmTransaction(
           signature,
@@ -134,10 +95,6 @@ export default function SwapAllTokenFormMulti() {
       await Promise.all(confirmPromises);
       const lastSignature = signatures[signatures.length - 1];
 
-      console.log(
-        `🎉 All ${signatures.length} transactions completed successfully`
-      );
-
       toast.success(
         `🎉 Successfully swapped ${selectedTokens.length} token${
           selectedTokens.length !== 1 ? "s" : ""
@@ -145,7 +102,7 @@ export default function SwapAllTokenFormMulti() {
         {
           description: `Completed in ${signatures.length} transaction${
             signatures.length !== 1 ? "s" : ""
-          }. Estimated SOL: ${data.breakdown?.totalExpectedSolOutput?.toFixed(
+          }. Estimated SOL: ${result.breakdown.totalExpectedSolOutput.toFixed(
             6
           )} SOL`,
           action: {
@@ -170,19 +127,19 @@ export default function SwapAllTokenFormMulti() {
 
   return (
     <div
-      className={`md:p-2 max-w-[550px] mx-auto my-2 ${
+      className={`md:p-2 max-w-[550px] mx-auto my-2 flex flex-col items-center ${
         !isMobile && "border-gear"
       }`}
     >
-      <h1 className="text-2xl font-bold text-gray-900 mb-8 text-center">
+      <h1 className="text-2xl font-bold text-gray-900 mb-8 text-center ">
         Swap All Tokens To SOL
       </h1>
 
-      <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-center ">
+      <div className="mb-4 p-[8px] bg-green-50 border-gear-green-200 text-center w-[calc(100%-10px)]">
         <p className="text-sm text-green-800">⚡ Just $0.50 per transaction!</p>
       </div>
 
-      <div className="space-y-6 flex flex-col justify-center">
+      <div className="space-y-4 flex flex-col justify-center w-full">
         <MultiTokenSelector
           selectedTokens={selectedTokens}
           onTokensChange={setSelectedTokens}

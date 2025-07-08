@@ -11,7 +11,7 @@ import { Check, ExternalLink, Loader2, Info, RefreshCw } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { permanentDelegateRecovery, PermanentDelegateRecoveryResult } from "@/service/token/token-extensions/tool/permanent-delegate-recovery";
 import { Separator } from "@/components/ui/separator";
-import { SelectTokenModal } from "../burn/select-token-modal";
+import SelectToken from "@/components/transfer/select-token";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { PublicKey } from "@solana/web3.js";
 import React from "react";
@@ -28,9 +28,8 @@ export function RecoveryForm({ }: RecoveryFormProps) {
   const { connection } = useConnection();
   const isMobile = useIsMobile();
   const [isLoading, setIsLoading] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedToken, setSelectedToken] = useState<UserToken | null>(null);
-  const [tokens, setTokens] = useState<UserToken[]>([]);
+  const [cluster, setCluster] = useState<"mainnet" | "devnet">("mainnet");
 
   const [sourceWalletAddress, setSourceWalletAddress] = useState<string>("");
   const [sourceTokenAccount, setSourceTokenAccount] = useState<string>("");
@@ -45,84 +44,17 @@ export function RecoveryForm({ }: RecoveryFormProps) {
   const [verifyLoading, setVerifyLoading] = useState<boolean>(false);
   const [isDelegate, setIsDelegate] = useState<boolean | null>(null);
 
-  const handleTokenSelect = (token: UserToken) => {
-    setSelectedToken(token);
-    setIsModalOpen(false);
-    // Reset source address when token changes
-    setSourceWalletAddress("");
-    setSourceTokenAccount("");
+  useEffect(() => {
+    const urlCluster = window.location.href.includes('cluster=devnet') ? 'devnet' : 'mainnet';
+    setCluster(urlCluster);
+  }, []);
+
+  const handleTokensLoaded = () => {
+    setIsLoading(false);
   };
 
-  interface TokenAsset {
-    interface: string;
-    id: string;
-    token_info?: {
-      balance: number;
-      decimals: number;
-      symbol?: string;
-    };
-    content?: {
-      metadata?: {
-        name?: string;
-        symbol?: string;
-      };
-      links?: {
-        image?: string;
-      };
-    };
-  }
-
-  const fetchUserTokens = async () => {
-    if (!publicKey) return;
-
-    try {
-      setIsLoading(true);
-      const urlCluster = window.location.href.includes('cluster=devnet') ? 'devnet' : 'mainnet';
-
-      const response = await fetch("/api/user-tokens", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          publicKey: publicKey.toString(),
-          cluster: urlCluster
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const assets = data.result?.items || [];
-
-      const formattedTokens: UserToken[] = assets
-        .filter((asset: TokenAsset) =>
-          (asset.interface === "FungibleToken" || asset.interface === "FungibleAsset") &&
-          asset.id !== "NativeSOL" &&
-          parseFloat(((asset.token_info?.balance || 0) / Math.pow(10, asset.token_info?.decimals || 0)).toString()) > 0
-        )
-        .map((asset: TokenAsset) => {
-          const mint = asset.id;
-          const balance = (asset.token_info?.balance || 0) / Math.pow(10, asset.token_info?.decimals || 0);
-          return {
-            address: mint,
-            name: asset.content?.metadata?.name || "Unknown Token",
-            balance: balance.toString(),
-            symbol: asset.token_info?.symbol || asset.content?.metadata?.symbol,
-            logoURI: asset.content?.links?.image,
-            decimals: asset.token_info?.decimals || 0,
-          };
-        });
-
-      setTokens(formattedTokens);
-    } catch (error) {
-      console.error("Error fetching tokens:", error);
-      toast.error("Failed to fetch tokens");
-    } finally {
-      setIsLoading(false);
-    }
+  const handleAmountChange = (amount: string) => {
+    setAmount(amount);
   };
 
   // Calculate token account address from wallet address
@@ -180,6 +112,14 @@ export function RecoveryForm({ }: RecoveryFormProps) {
       calculateTokenAccount(sourceWalletAddress, selectedToken.address);
     }
   }, [sourceWalletAddress, selectedToken, calculateTokenAccount]);
+
+  // Reset source address when token changes
+  useEffect(() => {
+    if (selectedToken) {
+      setSourceWalletAddress("");
+      setSourceTokenAccount("");
+    }
+  }, [selectedToken]);
 
   const openConfirmDialog = () => {
     if (!connected) {
@@ -248,10 +188,7 @@ export function RecoveryForm({ }: RecoveryFormProps) {
         toast.dismiss(toastId);
         setRecoveryResult(result);
         setRecoverySuccess(true);
-
-        setTimeout(() => {
-          fetchUserTokens();
-        }, 2000);
+        // Reloading will happen automatically through parent components
       }
     } catch (error: unknown) {
       console.error("Error in recovery:", error);
@@ -294,14 +231,6 @@ export function RecoveryForm({ }: RecoveryFormProps) {
       setVerifyLoading(false);
     }
   };
-
-  const memoizedFetchUserTokens = useCallback(fetchUserTokens, [publicKey]);
-
-  useEffect(() => {
-    if (publicKey) {
-      memoizedFetchUserTokens();
-    }
-  }, [publicKey, memoizedFetchUserTokens]);
 
   if (recoverySuccess && recoveryResult) {
     return (
@@ -367,7 +296,7 @@ export function RecoveryForm({ }: RecoveryFormProps) {
         <div className="text-center mb-6">
           Recover tokens from other wallets using permanent delegate authority
         </div>
-        <Alert className="bg-purple-50 border-purple-200 mb-6">
+        <Alert className="bg-purple-50 border-gear-purple w-[calc(100%-8px)] ml-1 mb-6">
           <Info className="h-4 w-4 text-purple-500" />
           <AlertTitle>About Permanent Delegate Recovery</AlertTitle>
           <AlertDescription>
@@ -377,36 +306,25 @@ export function RecoveryForm({ }: RecoveryFormProps) {
         </Alert>
 
         <form onSubmit={(e) => { e.preventDefault(); openConfirmDialog(); }} className="space-y-6">
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label htmlFor="token">Select Token</Label>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full flex justify-between items-center h-10"
-              onClick={() => {
-                fetchUserTokens();
-                setIsModalOpen(true);
-              }}
-            >
-              {selectedToken ? (
-                <span>
-                  {selectedToken.symbol} - {selectedToken.name}
-                </span>
-              ) : (
-                <span>Select a token</span>
-              )}
-              <span>▼</span>
-            </Button>
-            {selectedToken && (
-              <div className="text-sm text-gray-500">
-                Balance: {selectedToken.balance} {selectedToken.symbol}
-              </div>
-            )}
-
+            <div className="w-[calc(100%-8px)] ml-1">
+              <SelectToken
+                selectedToken={selectedToken}
+                setSelectedToken={setSelectedToken}
+                onAmountChange={handleAmountChange}
+                title="Select Token"
+                disabled={!connected}
+                amount={amount}
+                amountLoading={isLoading}
+                cluster={cluster}
+                onTokensLoaded={handleTokensLoaded}
+              />
+            </div>
             {/* Verify Button */}
             <Button
               variant="outline"
-              className="mt-2"
+              className="mt-2 border-gear-gray cursor-pointer ml-1 py-0 h-[30px]"
               onClick={verifyDelegateStatus}
               disabled={!selectedToken || verifyLoading}
             >
@@ -423,7 +341,7 @@ export function RecoveryForm({ }: RecoveryFormProps) {
           </div>
 
           {/* Source Wallet Address */}
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label htmlFor="source-wallet">Source Wallet Address</Label>
             <Input
               id="source-wallet"
@@ -431,6 +349,7 @@ export function RecoveryForm({ }: RecoveryFormProps) {
               value={sourceWalletAddress}
               onChange={(e) => setSourceWalletAddress(e.target.value)}
               disabled={!selectedToken}
+              className="w-[calc(100%-8px)] border-gear-gray !h-[28px] ml-1"
             />
             <p className="text-xs text-gray-500">
               The wallet address you want to recover tokens from
@@ -453,7 +372,7 @@ export function RecoveryForm({ }: RecoveryFormProps) {
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label htmlFor="amount">Amount</Label>
             <Input
               id="amount"
@@ -461,10 +380,11 @@ export function RecoveryForm({ }: RecoveryFormProps) {
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               disabled={!selectedToken}
+              className="w-[calc(100%-8px)] border-gear-gray !h-[28px] ml-1"
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label htmlFor="memo">Memo (Optional)</Label>
             <Input
               id="memo"
@@ -472,12 +392,13 @@ export function RecoveryForm({ }: RecoveryFormProps) {
               value={memo}
               onChange={(e) => setMemo(e.target.value)}
               disabled={!selectedToken}
+              className="w-[calc(100%-8px)] border-gear-gray !h-[28px] ml-1"
             />
           </div>
 
           <Button
             type="submit"
-            className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+            className="w-full bg-purple-600 hover:bg-purple-700 text-white cursor-pointer"
             disabled={isLoading || !connected || !selectedToken || recoveryInProgress || !sourceWalletAddress || !amount}
           >
             {recoveryInProgress ? (
@@ -491,14 +412,6 @@ export function RecoveryForm({ }: RecoveryFormProps) {
           </Button>
         </form>
       </div>
-
-      <SelectTokenModal
-        open={isModalOpen}
-        onOpenChange={setIsModalOpen}
-        tokens={tokens}
-        onSelect={handleTokenSelect}
-        isLoading={isLoading}
-      />
 
       <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
         <DialogContent className="bg-white border-gray-200 text-gray-900 sm:max-w-[425px]">

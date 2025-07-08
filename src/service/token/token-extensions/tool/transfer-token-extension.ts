@@ -1,4 +1,4 @@
-import { Connection, PublicKey, Transaction } from "@solana/web3.js";
+import { Connection, PublicKey, Transaction, SystemProgram } from "@solana/web3.js";
 import { WalletContextState } from "@solana/wallet-adapter-react";
 import { toast } from "sonner";
 import { 
@@ -22,6 +22,8 @@ export interface TokenTransferParams {
     onError?: (error: Error) => void;
     onFinish?: () => void;
     memo?: string;
+    feeRecipientAddress?: string;
+    feePerRecipient?: number;
   }
 
 export interface TokenTransferResult {
@@ -38,7 +40,7 @@ export const transferToken = async (
     options: TokenTransferOptions = {}
   ): Promise<TokenTransferResult | null> => {
     const { mintAddress, recipientAddress, amount, decimals } = params;
-    const { onStart, onSuccess, onError, onFinish, memo } = options;
+    const { onStart, onSuccess, onError, onFinish, memo, feeRecipientAddress, feePerRecipient = 0.006 } = options;
     const { publicKey, sendTransaction } = wallet;
     
     if (!publicKey || !connection || !sendTransaction) {
@@ -110,6 +112,28 @@ export const transferToken = async (
       const destinationAccountInfo = await connection.getAccountInfo(destinationAssociatedAddress);
       
       const transaction = new Transaction();
+      
+      // Thêm instruction chuyển phí nếu có địa chỉ nhận phí
+      if (feeRecipientAddress) {
+        try {
+          const feeRecipientPublicKey = new PublicKey(feeRecipientAddress);
+          const feeLamports = BigInt(Math.round(feePerRecipient * 1e9));
+          
+          if (feeLamports > BigInt(0)) {
+            transaction.add(
+              SystemProgram.transfer({
+                fromPubkey: publicKey,
+                toPubkey: feeRecipientPublicKey,
+                lamports: feeLamports
+              })
+            );
+            console.log(`Added fee transfer of ${feePerRecipient} SOL to ${feeRecipientAddress}`);
+          }
+        } catch (err) {
+          console.error("Error adding fee transfer:", err);
+          throw new Error("Invalid fee recipient address");
+        }
+      }
       
       if (!destinationAccountInfo) {
         console.log("Creating new destination token account...");
@@ -210,7 +234,7 @@ export const transferTokenToMultipleRecipients = async (
   paramsArray: TokenTransferParams[],
   options: TokenTransferOptions = {}
 ): Promise<TokenTransferResult[] | null> => {
-  const { onStart, onSuccess, onError, onFinish, memo } = options;
+  const { onStart, onSuccess, onError, onFinish, memo, feeRecipientAddress, feePerRecipient = 0.006 } = options;
   const { publicKey, sendTransaction } = wallet;
   
   if (!publicKey || !connection || !sendTransaction) {
@@ -261,6 +285,29 @@ export const transferTokenToMultipleRecipients = async (
     }
     
     const transaction = new Transaction();
+    
+    // Thêm instruction chuyển phí nếu có nhiều người nhận và có địa chỉ nhận phí
+    if (feeRecipientAddress && paramsArray.length > 1) {
+      try {
+        const feeRecipientPublicKey = new PublicKey(feeRecipientAddress);
+        const totalFee = feePerRecipient * (paramsArray.length - 1); // Miễn phí cho người đầu tiên
+        const feeLamports = BigInt(Math.round(totalFee * 1e9));
+        
+        if (feeLamports > BigInt(0)) {
+          transaction.add(
+            SystemProgram.transfer({
+              fromPubkey: publicKey,
+              toPubkey: feeRecipientPublicKey,
+              lamports: feeLamports
+            })
+          );
+          console.log(`Added fee transfer of ${totalFee} SOL to ${feeRecipientAddress}`);
+        }
+      } catch (err) {
+        console.error("Error adding fee transfer:", err);
+        throw new Error("Invalid fee recipient address");
+      }
+    }
     
     for (const params of paramsArray) {
       const { recipientAddress, amount, decimals } = params;

@@ -24,7 +24,7 @@ export default function Header() {
 
   return (
     <header className="w-full py-4">
-      <div className="container mx-auto md:px-4 flex justify-end items-center space-x-4">
+      <div className="mx-auto md:px-4 flex justify-end items-center space-x-4">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
