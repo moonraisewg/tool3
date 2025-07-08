@@ -189,7 +189,7 @@ export const TokenCreationForm = () => {
       <div className="pb-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="md:col-span-2">
-            <div className={`pt-6 ${!isMobile && "border-gear"}`}>
+            <div className={`pt-6 px-1 pb-2 ${!isMobile && "border-gear"}`}>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className={`space-y-6 ${!isMobile && "max-h-[calc(100vh-200px)] overflow-y-auto px-2"}`}>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -200,7 +200,7 @@ export const TokenCreationForm = () => {
                         <FormItem>
                           <FormLabel>Token Name</FormLabel>
                           <FormControl>
-                            <Input placeholder="e.g. Moon Token" {...field} className="focus:border-purple-500 focus:ring-purple-500" />
+                            <Input placeholder="e.g. Moon Token" {...field} className="w-[calc(100%-8px)] border-gear-gray !h-[28px] ml-1 mt-1" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -214,7 +214,7 @@ export const TokenCreationForm = () => {
                         <FormItem>
                           <FormLabel>Token Symbol</FormLabel>
                           <FormControl>
-                            <Input placeholder="e.g. MOON" {...field} className="focus:border-purple-500 focus:ring-purple-500" />
+                            <Input placeholder="e.g. MOON" {...field} className="w-[calc(100%-8px)] border-gear-gray !h-[28px] ml-1 mt-1" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -230,7 +230,7 @@ export const TokenCreationForm = () => {
                         <FormItem>
                           <FormLabel>Decimals</FormLabel>
                           <FormControl>
-                            <Input type="number" min="0" max="9" {...field} className="focus:border-purple-500 focus:ring-purple-500" />
+                            <Input type="number" min="0" max="9" {...field} className="w-[calc(100%-8px)] border-gear-gray !h-[28px] ml-1 mt-1" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -244,7 +244,7 @@ export const TokenCreationForm = () => {
                         <FormItem>
                           <FormLabel>Initial Supply</FormLabel>
                           <FormControl>
-                            <Input type="text" placeholder="e.g. 1000000" {...field} className="focus:border-purple-500 focus:ring-purple-500" />
+                            <Input type="text" placeholder="e.g. 1000000" {...field} className="w-[calc(100%-8px)] border-gear-gray !h-[28px] ml-1 mt-1" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -259,7 +259,7 @@ export const TokenCreationForm = () => {
                       <FormItem>
                         <FormLabel>Token Description (Optional)</FormLabel>
                         <FormControl>
-                          <Textarea placeholder="A brief description of your token" {...field} className="focus:border-purple-500 focus:ring-purple-500" />
+                          <Textarea placeholder="A brief description of your token" {...field} className="w-[calc(100%-8px)] border-gear-gray !h-[28px] ml-1 mt-1" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -315,7 +315,7 @@ export const TokenCreationForm = () => {
                           <FormItem>
                             <FormLabel>Website URL</FormLabel>
                             <FormControl>
-                              <Input placeholder="https://example.com" {...field} />
+                              <Input placeholder="https://example.com" {...field} className="w-[calc(100%-8px)] border-gear-gray !h-[28px] ml-1 mt-1" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -329,7 +329,7 @@ export const TokenCreationForm = () => {
                           <FormItem>
                             <FormLabel>Twitter URL</FormLabel>
                             <FormControl>
-                              <Input placeholder="https://twitter.com/username" {...field} />
+                              <Input placeholder="https://twitter.com/username" {...field} className="w-[calc(100%-8px)] border-gear-gray !h-[28px] ml-1 mt-1" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -345,7 +345,7 @@ export const TokenCreationForm = () => {
                           <FormItem>
                             <FormLabel>Telegram URL</FormLabel>
                             <FormControl>
-                              <Input placeholder="https://t.me/groupname" {...field} />
+                              <Input placeholder="https://t.me/groupname" {...field} className="w-[calc(100%-8px)] border-gear-gray !h-[28px] ml-1 mt-1" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -359,7 +359,7 @@ export const TokenCreationForm = () => {
                           <FormItem>
                             <FormLabel>Discord URL</FormLabel>
                             <FormControl>
-                              <Input placeholder="https://discord.gg/invite" {...field} />
+                              <Input placeholder="https://discord.gg/invite" {...field} className="w-[calc(100%-8px)] border-gear-gray !h-[28px] ml-1 mt-1" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -376,9 +376,9 @@ export const TokenCreationForm = () => {
 
           <div className="space-y-4 mb-8">
             <div className="sticky top-4">
-              <div className={`pt-2 ${!isMobile && "border-gear"}`}>
+              <div className={`pt-2 px-1 pb-1 ${!isMobile && "border-gear"}`}>
                 <h3 className="text-lg text-center font-medium mb-4">Token Extensions</h3>
-                <div className="space-y-3 max-h-[min(624px,_calc(100vh-228px))] overflow-y-auto">
+                <div className="space-y-3 max-h-[min(624px,_calc(100vh-224px))] overflow-y-auto">
                   {tokenExtensions.map((extension) => {
                     const isSelected = selectedExtensions.includes(extension.id);
                     const isExpanded = openExtensions[extension.id] || false;

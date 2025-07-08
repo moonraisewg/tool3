@@ -131,8 +131,8 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: "Invalid token transfer transaction" }, { status: 400 });
         }
 
-        const tokenAAmountBN = new BN(amountA);
-        const tokenBAmountBN = new BN(amountB);
+        const tokenAAmountBN = new BN(Math.floor(amountA));
+        const tokenBAmountBN = new BN(Math.floor(amountB));
         const { initSqrtPrice, liquidityDelta } = cpAmm.preparePoolCreationParams({
             tokenAAmount: tokenAAmountBN,
             tokenBAmount: tokenBAmountBN,

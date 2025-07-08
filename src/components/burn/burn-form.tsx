@@ -203,28 +203,32 @@ export function BurnForm({ }: BurnFormProps) {
         Burn Token Extensions
       </h1>
       <div>
-        <Alert className="bg-amber-50 border-amber-200 mb-6">
+        <Alert className="bg-amber-50 border-gear-orange mb-6 w-[calc(100%-8px)] ml-1 flex gap-3">
           <Flame className="h-4 w-4 text-amber-500" />
-          <AlertTitle>Warning: Irreversible Action</AlertTitle>
-          <AlertDescription>
-            Burning tokens permanently removes them from circulation. This action cannot be undone.
-          </AlertDescription>
+          <div>
+            <AlertTitle>Warning: Irreversible Action</AlertTitle>
+            <AlertDescription>
+              Burning tokens permanently removes them from circulation. This action cannot be undone.
+            </AlertDescription>
+          </div>
         </Alert>
 
         <form onSubmit={(e) => { e.preventDefault(); openConfirmDialog(); }} className="space-y-6">
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label htmlFor="token">Select Token</Label>
-            <SelectToken
-              selectedToken={selectedToken}
-              setSelectedToken={setSelectedToken}
-              onAmountChange={handleAmountChange}
-              title="Select Token"
-              disabled={!connected}
-              amount={amount}
-              amountLoading={isLoading}
-              cluster={cluster}
-              onTokensLoaded={handleTokensLoaded}
-            />
+            <div className="w-[calc(100%-8px)] ml-1">
+              <SelectToken
+                selectedToken={selectedToken}
+                setSelectedToken={setSelectedToken}
+                onAmountChange={handleAmountChange}
+                title="Select Token"
+                disabled={!connected}
+                amount={amount}
+                amountLoading={isLoading}
+                cluster={cluster}
+                onTokensLoaded={handleTokensLoaded}
+              />
+            </div>
           </div>
 
           {selectedToken && amount && (
