@@ -18,17 +18,13 @@ interface TransferRequestBody {
   tokenAmount: number;
   receiverWalletPublicKey: string;
   tokenMint: string;
-  signedTransaction: number[];
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body: TransferRequestBody = await req.json();
-    if (body.signedTransaction) {
-      return await executeSignedTransaction(body);
-    } else {
-      return await prepareTransaction(body);
-    }
+
+    return await prepareTransaction(body);
   } catch (error: unknown) {
     return NextResponse.json(
       {
@@ -177,8 +173,7 @@ async function prepareTransaction(
   );
   transaction.add(netTransferIx);
 
-  const { blockhash, lastValidBlockHeight } =
-    await connectionMainnet.getLatestBlockhash();
+  const { blockhash } = await connectionMainnet.getLatestBlockhash();
   transaction.recentBlockhash = blockhash;
   transaction.feePayer = adminKeypair.publicKey;
   transaction.partialSign(adminKeypair);
@@ -190,59 +185,5 @@ async function prepareTransaction(
   return NextResponse.json({
     success: true,
     transaction: serializedTransaction,
-    blockhash,
-    lastValidBlockHeight,
-    breakdown: {
-      transferAmount: body.tokenAmount,
-      feeAmount: feeAmount / Math.pow(10, decimals),
-      totalRequired: totalAmount / Math.pow(10, decimals),
-    },
   });
-}
-
-async function executeSignedTransaction(body: TransferRequestBody) {
-  try {
-    const signedTransaction = Transaction.from(
-      Buffer.from(body.signedTransaction)
-    );
-
-    const hasValidSignatures = signedTransaction.signatures.some(
-      (sig) => sig.signature !== null
-    );
-
-    if (!hasValidSignatures) {
-      throw new Error("No valid signatures found");
-    }
-
-    const signature = await connectionMainnet.sendRawTransaction(
-      signedTransaction.serialize(),
-      {
-        skipPreflight: false,
-        preflightCommitment: "confirmed",
-        maxRetries: 3,
-      }
-    );
-
-    const confirmation = await connectionMainnet.confirmTransaction(signature);
-
-    if (confirmation.value.err) {
-      throw new Error(
-        `Transaction failed: ${JSON.stringify(confirmation.value.err)}`
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      signature: signature,
-      message: "Gasless transfer completed successfully",
-    });
-  } catch (error) {
-    return NextResponse.json(
-      {
-        error: "Failed to execute transaction",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
-  }
 }

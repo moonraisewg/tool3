@@ -6,6 +6,7 @@ import {
   createAssociatedTokenAccountInstruction,
   getAccount,
   createTransferInstruction,
+  createCloseAccountInstruction,
 } from "@solana/spl-token";
 import { connectionMainnet } from "@/service/solana/connection";
 import { getTokenProgram } from "@/lib/helper";
@@ -17,26 +18,21 @@ import {
 import { adminKeypair } from "@/config";
 import { getTokenFeeFromUsd } from "@/service/jupiter/calculate-fee";
 
+const SOL_MINT = "So11111111111111111111111111111111111111112";
+
 interface SwapRequestBody {
   walletPublicKey: string;
   inputTokenMint: string;
   inputAmount: number;
   slippageBps?: number;
-  signedTransaction?: number[];
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body: SwapRequestBody = await req.json();
-    console.log("Request body:", body);
 
-    if (body.signedTransaction) {
-      return await executeSignedSwapTransaction(body);
-    } else {
-      return await prepareSwapTransaction(body);
-    }
+    return await prepareSwapTransaction(body);
   } catch (error: unknown) {
-    console.error("error:", error);
     return NextResponse.json(
       {
         error: "Failed to process swap",
@@ -52,9 +48,7 @@ async function prepareSwapTransaction(
 ) {
   const userPublicKey = new PublicKey(body.walletPublicKey);
   const inputTokenMint = new PublicKey(body.inputTokenMint);
-  const outputTokenMint = new PublicKey(
-    "So11111111111111111111111111111111111111112"
-  );
+  const outputTokenMint = new PublicKey(SOL_MINT);
 
   const inputMintInfo = await getMint(connectionMainnet, inputTokenMint);
   const inputDecimals = inputMintInfo.decimals;
@@ -69,7 +63,7 @@ async function prepareSwapTransaction(
 
   const quote = await getJupiterQuote(
     body.inputTokenMint,
-    "So11111111111111111111111111111111111111112",
+    SOL_MINT,
     inputAmountInLamports
   );
 
@@ -99,9 +93,9 @@ async function prepareSwapTransaction(
     0.5,
     body.walletPublicKey
   );
-  const feeAmount = Math.round(feeInTokens * Math.pow(10, inputDecimals));
+  let feeAmount = Math.round(feeInTokens * Math.pow(10, inputDecimals));
 
-  const totalRequiredAmount = inputAmountInLamports + feeAmount;
+  let totalRequiredAmount = inputAmountInLamports + feeAmount;
 
   try {
     const userAccount = await getAccount(
@@ -112,14 +106,22 @@ async function prepareSwapTransaction(
     );
 
     if (userAccount.amount < BigInt(totalRequiredAmount)) {
-      return NextResponse.json(
-        {
-          error: "Insufficient token balance",
-          required: totalRequiredAmount.toString(),
-          available: userAccount.amount.toString(),
-        },
-        { status: 400 }
+      const reducedFeeAmount = Math.round(
+        feeInTokens * 0.98 * Math.pow(10, inputDecimals)
       );
+      totalRequiredAmount = inputAmountInLamports + reducedFeeAmount;
+      if (userAccount.amount >= BigInt(totalRequiredAmount)) {
+        feeAmount = reducedFeeAmount;
+      } else {
+        return NextResponse.json(
+          {
+            error: "Token price has change. Please try again.",
+            required: totalRequiredAmount.toString(),
+            available: userAccount.amount.toString(),
+          },
+          { status: 400 }
+        );
+      }
     }
   } catch {
     return NextResponse.json(
@@ -131,7 +133,6 @@ async function prepareSwapTransaction(
   const swapInstructionsResponse = await getJupiterSwapInstructions({
     userPublicKey: body.walletPublicKey,
     quoteResponse: quote,
-    wrapAndUnwrapSol: true,
     prioritizationFeeLamports: {
       priorityLevelWithMaxLamports: {
         maxLamports: 1000000,
@@ -141,14 +142,7 @@ async function prepareSwapTransaction(
     dynamicComputeUnitLimit: false,
   });
 
-  const transaction = new Transaction();
-
-  if (swapInstructionsResponse.computeBudgetInstructions.length > 0) {
-    const ix = createInstructionFromJupiter(
-      swapInstructionsResponse.computeBudgetInstructions[0]
-    );
-    transaction.add(ix);
-  }
+  const swapTransaction = new Transaction();
 
   try {
     await getAccount(
@@ -165,7 +159,7 @@ async function prepareSwapTransaction(
       outputTokenMint,
       outputTokenProgram
     );
-    transaction.add(createOutputAccountIx);
+    swapTransaction.add(createOutputAccountIx);
   }
 
   try {
@@ -183,7 +177,7 @@ async function prepareSwapTransaction(
       inputTokenMint,
       inputTokenProgram
     );
-    transaction.add(createFeeAccountIx);
+    swapTransaction.add(createFeeAccountIx);
   }
 
   if (feeAmount > 0) {
@@ -195,71 +189,43 @@ async function prepareSwapTransaction(
       [],
       inputTokenProgram
     );
-    transaction.add(feeTransferIx);
+    swapTransaction.add(feeTransferIx);
   }
 
   const swapIx = createInstructionFromJupiter(
     swapInstructionsResponse.swapInstruction
   );
-  transaction.add(swapIx);
+  swapTransaction.add(swapIx);
 
   const { blockhash } = await connectionMainnet.getLatestBlockhash();
-  transaction.recentBlockhash = blockhash;
-  transaction.feePayer = adminKeypair.publicKey;
-  transaction.partialSign(adminKeypair);
+  swapTransaction.recentBlockhash = blockhash;
+  swapTransaction.feePayer = adminKeypair.publicKey;
+  swapTransaction.partialSign(adminKeypair);
 
-  const serializedTransaction = transaction
-    .serialize({ requireAllSignatures: false })
-    .toString("base64");
+  const unwrapTransaction = new Transaction();
+
+  const closeAccountIx = createCloseAccountInstruction(
+    userOutputTokenAccount,
+    userPublicKey,
+    userPublicKey,
+    [],
+    outputTokenProgram
+  );
+  unwrapTransaction.add(closeAccountIx);
+
+  const { blockhash: unwrapBlockhash } =
+    await connectionMainnet.getLatestBlockhash();
+  unwrapTransaction.recentBlockhash = unwrapBlockhash;
+  unwrapTransaction.feePayer = adminKeypair.publicKey;
+  unwrapTransaction.partialSign(adminKeypair);
 
   return NextResponse.json({
     success: true,
-    transaction: serializedTransaction,
+    swapTransaction: swapTransaction
+      .serialize({ requireAllSignatures: false })
+      .toString("base64"),
+    unwrapTransaction: unwrapTransaction
+      .serialize({ requireAllSignatures: false })
+      .toString("base64"),
   });
-}
-
-async function executeSignedSwapTransaction(body: SwapRequestBody) {
-  try {
-    const signedTransaction = Transaction.from(
-      Buffer.from(body.signedTransaction!)
-    );
-
-    const hasValidSignatures = signedTransaction.signatures.some(
-      (sig) => sig.signature !== null
-    );
-
-    if (!hasValidSignatures) {
-      throw new Error("No valid signatures found");
-    }
-
-    const signature = await connectionMainnet.sendRawTransaction(
-      signedTransaction.serialize(),
-      {
-        skipPreflight: false,
-        preflightCommitment: "confirmed",
-        maxRetries: 3,
-      }
-    );
-
-    const confirmation = await connectionMainnet.confirmTransaction(signature);
-
-    if (confirmation.value.err) {
-      throw new Error(
-        `Transaction failed: ${JSON.stringify(confirmation.value.err)}`
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      signature: signature,
-    });
-  } catch (error) {
-    return NextResponse.json(
-      {
-        error: "Failed to execute swap transaction",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
-  }
 }

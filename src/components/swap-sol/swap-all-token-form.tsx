@@ -6,11 +6,10 @@ import { toast } from "sonner";
 import { useWallet } from "@solana/wallet-adapter-react";
 import MultiTokenSelector from "./multi-token-selector";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { VersionedTransaction } from "@solana/web3.js";
 import type { UserToken } from "@/hooks/useUserTokens";
 import { connectionMainnet } from "@/service/solana/connection";
-import { BatchTransaction } from "@/types/types";
 import { WSOL_MINT } from "@/utils/constants";
+import { createMultiSwapToSolTransactions } from "@/lib/multi-swap-to-sol";
 
 interface SelectedTokenData {
   token: UserToken;
@@ -50,43 +49,25 @@ export default function SwapAllTokenFormMulti() {
         `🚀 Starting multi-swap for ${selectedTokens.length} tokens...`
       );
 
-      const swapData = {
-        walletPublicKey: publicKey.toString(),
-        tokenSwaps: selectedTokens.map((selectedToken) => ({
-          inputTokenMint: selectedToken.token.address,
-        })),
-        batchSize: 3,
-      };
+      const swapData = selectedTokens.map((selectedToken) => ({
+        inputTokenMint: selectedToken.token.address,
+      }));
 
-      console.log("Sending multi-swap request:", swapData);
-
-      const response = await fetch("/api/swap-all", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(swapData),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.error || "Failed to prepare multi-swap transactions"
-        );
-      }
+      const result = await createMultiSwapToSolTransactions(
+        publicKey,
+        swapData,
+        3
+      );
 
       console.log("Multi-swap transactions prepared:", {
-        batchCount: data.transactions?.length,
+        batchCount: result.transactions.length,
         totalTokens: selectedTokens.length,
-        estimatedSol: data.breakdown?.totalExpectedSolOutput,
-        adminFee: data.breakdown?.adminFeeInSol,
+        estimatedSol: result.breakdown.totalExpectedSolOutput,
+        adminFee: result.breakdown.adminFeeInSol,
       });
 
-      const transactions = data.transactions.map((txData: BatchTransaction) =>
-        VersionedTransaction.deserialize(
-          Buffer.from(txData.transaction, "base64")
-        )
+      const transactions = result.transactions.map(
+        (txData) => txData.transaction
       );
 
       console.log(`Signing ${transactions.length} transactions...`);
@@ -134,10 +115,6 @@ export default function SwapAllTokenFormMulti() {
       await Promise.all(confirmPromises);
       const lastSignature = signatures[signatures.length - 1];
 
-      console.log(
-        `🎉 All ${signatures.length} transactions completed successfully`
-      );
-
       toast.success(
         `🎉 Successfully swapped ${selectedTokens.length} token${
           selectedTokens.length !== 1 ? "s" : ""
@@ -145,7 +122,7 @@ export default function SwapAllTokenFormMulti() {
         {
           description: `Completed in ${signatures.length} transaction${
             signatures.length !== 1 ? "s" : ""
-          }. Estimated SOL: ${data.breakdown?.totalExpectedSolOutput?.toFixed(
+          }. Estimated SOL: ${result.breakdown.totalExpectedSolOutput.toFixed(
             6
           )} SOL`,
           action: {

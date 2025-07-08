@@ -23,6 +23,7 @@ import { useWatch } from "react-hook-form";
 import { UserToken } from "@/hooks/useUserTokens";
 import { WSOL_MINT } from "@/utils/constants";
 import { getTokenFeeFromUsd } from "@/service/jupiter/calculate-fee";
+import { connectionMainnet } from "../../service/solana/connection";
 
 const formSchema = z.object({
   recipient: z
@@ -149,26 +150,25 @@ export default function TransferForm() {
       const transaction = Transaction.from(
         Buffer.from(prepareResult.transaction, "base64")
       );
-      const signedTransaction = await signTransaction(transaction);
+      const signedTx = await signTransaction(transaction);
 
-      const executeData = {
-        walletPublicKey: publicKey.toString(),
-        tokenAmount: amountValue,
-        receiverWalletPublicKey: values.recipient,
-        tokenMint: selectedToken.address,
-        signedTransaction: Array.from(signedTransaction.serialize()),
-      };
+      const signature = await connectionMainnet.sendRawTransaction(
+        signedTx.serialize(),
+        {
+          skipPreflight: false,
+          preflightCommitment: "confirmed",
+          maxRetries: 3,
+        }
+      );
 
-      const executeResponse = await fetch("/api/transfer", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(executeData),
-      });
+      const confirmation = await connectionMainnet.confirmTransaction(
+        signature
+      );
 
-      const executeResult = await executeResponse.json();
-
-      if (!executeResponse.ok) {
-        throw new Error(executeResult.error || "Failed to execute transaction");
+      if (confirmation.value.err) {
+        throw new Error(
+          `Transaction failed: ${JSON.stringify(confirmation.value.err)}`
+        );
       }
 
       toast.success("🎉 Gasless Transfer Successful!", {
@@ -178,10 +178,7 @@ export default function TransferForm() {
         action: {
           label: "View Transaction",
           onClick: () =>
-            window.open(
-              `https://solscan.io/tx/${executeResult.signature}`,
-              "_blank"
-            ),
+            window.open(`https://solscan.io/tx/${signature}`, "_blank"),
         },
       });
 

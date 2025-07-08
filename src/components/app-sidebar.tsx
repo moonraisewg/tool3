@@ -29,6 +29,7 @@ import {
   CreditCard,
   Trash,
   Wallet,
+  Trophy,
 } from "@nsmr/pixelart-react";
 import { useState } from "react";
 
@@ -67,22 +68,8 @@ export const route = {
           title: "Swap All Token to SOL ",
           url: "/swap-all",
         },
-        {
-          title: "Create Token",
-          url: "/dbc/token",
-        },
       ],
     },
-    {
-      title: "Buy SOL devnet",
-      icon: Wallet,
-      url: "/sell-sol-devnet",
-    },
-    // {
-    //   title: "Increase Holders",
-    //   icon: Wallet,
-    //   url: "/increase-holders",
-    // },
 
     {
       title: "Token",
@@ -135,7 +122,23 @@ export const route = {
       title: "Close account",
       url: "/close-account",
     },
+    {
+      title: "Buy SOL devnet",
+      icon: Wallet,
+      url: "/sell-sol-devnet",
+    },
+    // {
+    //   title: "Increase Holders",
+    //   icon: Wallet,
+    //   url: "/increase-holders",
+    // },
+    {
+      icon: Trophy,
+      title: "Launch Token DBC Meteora",
+      url: "/dbc/token",
+    },
   ],
+
   devnet: [
     {
       title: "Dashboard",
