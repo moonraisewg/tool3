@@ -172,9 +172,8 @@ export default function TransferForm() {
       }
 
       toast.success("🎉 Gasless Transfer Successful!", {
-        description: `Transferred ${values.amount} ${
-          selectedToken.symbol || selectedToken.name
-        } to ${values.recipient.slice(0, 8)}...${values.recipient.slice(-8)}`,
+        description: `Transferred ${values.amount} ${selectedToken.symbol || selectedToken.name
+          } to ${values.recipient.slice(0, 8)}...${values.recipient.slice(-8)}`,
         action: {
           label: "View Transaction",
           onClick: () =>
@@ -198,15 +197,14 @@ export default function TransferForm() {
 
   return (
     <div
-      className={`md:p-2 max-w-[550px] mx-auto my-2 ${
-        !isMobile && "border-gear"
-      }`}
+      className={`md:p-2 max-w-[550px] mx-auto my-2 flex flex-col items-center ${!isMobile && "border-gear"
+        }`}
     >
       <h1 className="text-2xl font-bold text-gray-900 mb-6 text-center">
         Gasless SPL Token Transfer
       </h1>
 
-      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+      <div className="mb-2 p-[8px] bg-blue-50 border-gear-blue w-[calc(100%-10px)]">
         <p className="text-sm text-blue-800">
           💰 <strong>Estimated Fee:</strong>{" "}
           {feeLoading ? (
@@ -219,14 +217,14 @@ export default function TransferForm() {
         </p>
       </div>
 
-      <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+      <div className="mb-6 p-[8px] bg-green-50 border-gear-green-200 mt-4 w-[calc(100%-10px)]" >
         <p className="text-sm text-green-800">
           ⚡ <strong>100% Gasless:</strong> No SOL needed!
         </p>
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 w-full">
           <div className="px-[5px] space-y-6">
             <FormField
               control={form.control}
@@ -238,7 +236,7 @@ export default function TransferForm() {
                   </FormLabel>
                   <FormControl>
                     <Input
-                      className="border-gray-300 bg-white text-gray-900 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 rounded-lg"
+                      className="border-gear-gray bg-white text-gray-900 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 rounded-lg !h-[30px] mt-1"
                       placeholder="Enter recipient Solana address"
                       {...field}
                       disabled={loading}

@@ -45,10 +45,6 @@ export default function SwapAllTokenFormMulti() {
         }
       }
 
-      console.log(
-        `🚀 Starting multi-swap for ${selectedTokens.length} tokens...`
-      );
-
       const swapData = selectedTokens.map((selectedToken) => ({
         inputTokenMint: selectedToken.token.address,
       }));
@@ -59,42 +55,26 @@ export default function SwapAllTokenFormMulti() {
         3
       );
 
-      console.log("Multi-swap transactions prepared:", {
-        batchCount: result.transactions.length,
-        totalTokens: selectedTokens.length,
-        estimatedSol: result.breakdown.totalExpectedSolOutput,
-        adminFee: result.breakdown.adminFeeInSol,
-      });
-
       const transactions = result.transactions.map(
         (txData) => txData.transaction
       );
 
-      console.log(`Signing ${transactions.length} transactions...`);
       const signedTransactions = await signAllTransactions(transactions);
 
-      console.log(
-        `Broadcasting ${signedTransactions.length} transactions in parallel...`
-      );
-
-      const broadcastPromises = signedTransactions.map(
-        async (signedTx, index) => {
-          const signature = await connectionMainnet.sendRawTransaction(
-            signedTx.serialize(),
-            {
-              skipPreflight: false,
-              preflightCommitment: "confirmed",
-              maxRetries: 3,
-            }
-          );
-          console.log(`Transaction ${index + 1} sent: ${signature}`);
-          return signature;
-        }
-      );
+      const broadcastPromises = signedTransactions.map(async (signedTx) => {
+        const signature = await connectionMainnet.sendRawTransaction(
+          signedTx.serialize(),
+          {
+            skipPreflight: false,
+            preflightCommitment: "confirmed",
+            maxRetries: 3,
+          }
+        );
+        return signature;
+      });
 
       const signatures = await Promise.all(broadcastPromises);
 
-      console.log("Confirming all transactions...");
       const confirmPromises = signatures.map(async (signature, index) => {
         const confirmation = await connectionMainnet.confirmTransaction(
           signature,
@@ -147,19 +127,19 @@ export default function SwapAllTokenFormMulti() {
 
   return (
     <div
-      className={`md:p-2 max-w-[550px] mx-auto my-2 ${
+      className={`md:p-2 max-w-[550px] mx-auto my-2 flex flex-col items-center ${
         !isMobile && "border-gear"
       }`}
     >
-      <h1 className="text-2xl font-bold text-gray-900 mb-8 text-center">
+      <h1 className="text-2xl font-bold text-gray-900 mb-8 text-center ">
         Swap All Tokens To SOL
       </h1>
 
-      <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-center ">
+      <div className="mb-4 p-[8px] bg-green-50 border-gear-green-200 text-center w-[calc(100%-10px)]">
         <p className="text-sm text-green-800">⚡ Just $0.50 per transaction!</p>
       </div>
 
-      <div className="space-y-6 flex flex-col justify-center">
+      <div className="space-y-4 flex flex-col justify-center w-full">
         <MultiTokenSelector
           selectedTokens={selectedTokens}
           onTokensChange={setSelectedTokens}

@@ -21,8 +21,8 @@ export async function createTokenTransferTx(
     const destinationPubkey = destinationKeypair.publicKey;
 
     // Validate input amounts
-    const amountANum = Number(amountA);
-    const amountBNum = Number(amountB);
+    const amountANum = Math.floor(Number(amountA));
+    const amountBNum = Math.floor(Number(amountB));
     if (isNaN(amountANum) || amountANum <= 0 || isNaN(amountBNum) || amountBNum <= 0) {
         throw new Error("Invalid transfer amounts");
     }

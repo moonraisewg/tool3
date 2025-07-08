@@ -46,11 +46,6 @@ interface SwapResult {
 export async function POST(req: NextRequest) {
   try {
     const body: MultiSwapToSolRequestBody = await req.json();
-    console.log("Multi-swap to SOL request:", {
-      wallet: body.walletPublicKey,
-      tokenSwapCount: body.tokenSwaps?.length || 0,
-      batchSize: body.batchSize || 3,
-    });
 
     if (!body.tokenSwaps || body.tokenSwaps.length === 0) {
       return NextResponse.json(
@@ -81,10 +76,6 @@ async function prepareBatchedSwapTransactions(body: MultiSwapToSolRequestBody) {
     body.walletPublicKey
   );
 
-  console.log(
-    `Creating batched transactions: ${body.tokenSwaps.length} tokens, ${batchSize} per batch`
-  );
-
   const balanceValidation = await validateTokenBalances(
     body.tokenSwaps,
     userPublicKey
@@ -98,8 +89,6 @@ async function prepareBatchedSwapTransactions(body: MultiSwapToSolRequestBody) {
     tokenBatches.push(body.tokenSwaps.slice(i, i + batchSize));
   }
 
-  console.log(`Created ${tokenBatches.length} batches`);
-
   const batchTransactions: BatchTransaction[] = [];
   const allSwapResults: SwapResult[] = [];
   let totalExpectedSolOutput = 0;
@@ -107,12 +96,6 @@ async function prepareBatchedSwapTransactions(body: MultiSwapToSolRequestBody) {
   for (let batchIndex = 0; batchIndex < tokenBatches.length; batchIndex++) {
     const batch = tokenBatches[batchIndex];
     const isLastBatch = batchIndex === tokenBatches.length - 1;
-
-    console.log(
-      `Processing batch ${batchIndex + 1}/${tokenBatches.length}: ${
-        batch.length
-      } tokens`
-    );
 
     try {
       const batchResult = await createBatchTransaction(
@@ -151,10 +134,6 @@ async function prepareBatchedSwapTransactions(body: MultiSwapToSolRequestBody) {
       { status: 400 }
     );
   }
-
-  console.log(
-    `All ${batchTransactions.length} batch transactions created successfully`
-  );
 
   return NextResponse.json({
     success: true,
@@ -244,9 +223,6 @@ async function createBatchTransaction(
       lamports: adminFeeInLamports,
     });
     instructions.push(solTransferIx);
-    console.log(
-      `Added ${adminFeeInSol} SOL admin fee to batch ${batchIndex + 1}`
-    );
   }
 
   const { blockhash } = await connectionMainnet.getLatestBlockhash();
@@ -262,12 +238,6 @@ async function createBatchTransaction(
     versionedTransaction.serialize()
   ).toString("base64");
   const transactionSize = versionedTransaction.serialize().length;
-
-  console.log(
-    `Batch ${batchIndex + 1} created: ${tokenBatch.length} swaps, ${
-      instructions.length
-    } instructions, ${transactionSize} bytes`
-  );
 
   const batchTransaction: BatchTransaction = {
     transaction: serializedTransaction,

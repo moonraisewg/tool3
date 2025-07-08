@@ -145,8 +145,8 @@ function MultiTokenSelector({
 
   return (
     <div className="">
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
+      <div className="space-y-4 flex flex-col items-center">
+        <div className="flex items-center justify-between w-full">
           <h3 className="text-base font-semibold">Select Tokens to Swap</h3>
           <div className="text-sm text-gray-600">
             {selectedTokens.length} token
@@ -155,13 +155,13 @@ function MultiTokenSelector({
         </div>
 
         {selectedTokens.length > 0 && (
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="px-3 py-2 bg-blue-50 border-gear-blue w-[calc(100%-10px)]">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-blue-800">
                 Total Estimated SOL:
               </span>
               <div className="flex items-center gap-2">
-                <span className="text-lg font-bold text-blue-900">
+                <span className="text-lg font-bold text-blue-900 mt-[2px]">
                   {getTotalEstimatedSol()}
                 </span>
                 <Image
@@ -176,29 +176,26 @@ function MultiTokenSelector({
           </div>
         )}
 
-        <div className="relative">
-          <Input
-            type="text"
-            placeholder="Search tokens..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full"
-          />
-        </div>
+        <Input
+          type="text"
+          placeholder="Search tokens..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-[calc(100%-10px)] border-gear-gray !h-[30px]"
+        />
 
         <ScrollArea className="h-[250px] w-full">
-          <div className="space-y-2 pb-1">
+          <div className="space-y-4 pb-2 p-[6px]">
             {filteredTokens.map((token) => {
               const isSelected = isTokenSelected(token.address);
               const canSwap = canSwapMap[token.address] !== false;
               return (
                 <div
                   key={token.address}
-                  className={`border rounded-lg p-3 transition-colors ${
-                    isSelected
-                      ? "bg-blue-50 border-blue-200"
-                      : "bg-white border-gray-200"
-                  }`}
+                  className={`border rounded-lg transition-colors px-1 py-1 ${isSelected
+                    ? "bg-blue-50 border-gear-blue"
+                    : "bg-white border-gear-gray"
+                    }`}
                 >
                   <div className="flex items-center space-x-3">
                     <Checkbox
@@ -214,7 +211,7 @@ function MultiTokenSelector({
                       alt={token.name}
                       width={32}
                       height={32}
-                      className="rounded-full object-cover"
+                      className="rounded-full object-cover !h-[32px] !w-[32px]"
                     />
 
                     <div className="flex-1 min-w-0">

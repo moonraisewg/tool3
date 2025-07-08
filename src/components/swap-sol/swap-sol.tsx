@@ -254,15 +254,14 @@ export default function SwapSolForm() {
 
   return (
     <div
-      className={`md:p-2 max-w-[550px] mx-auto my-2 ${
-        !isMobile && "border-gear"
-      }`}
+      className={`md:p-2 max-w-[550px] mx-auto my-2 flex flex-col items-center ${!isMobile && "border-gear"
+        }`}
     >
       <h1 className="text-2xl font-bold text-gray-900 mb-8 text-center">
         Gasless Swap to SOL
       </h1>
 
-      <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+      <div className="mb-6 p-[8px] bg-green-50 border-gear-green-200 w-[calc(100%-10px)]">
         <p className="text-sm text-green-800">
           ⚡ <strong>No SOL ownership required:</strong> Just $0.50 per
           transaction!
@@ -272,7 +271,7 @@ export default function SwapSolForm() {
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(onSubmit)}
-          className="space-y-4 flex flex-col justify-center"
+          className="space-y-4 flex flex-col justify-center w-full"
         >
           <div className="px-[5px] space-y-6">
             <SelectToken
