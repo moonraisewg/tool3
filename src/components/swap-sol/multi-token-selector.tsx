@@ -9,6 +9,12 @@ import Image from "next/image";
 import { Wallet } from "lucide-react";
 import { useUserTokens, type UserToken } from "@/hooks/useUserTokens";
 import { ClusterType } from "@/types/types";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface SelectedTokenData {
   token: UserToken;
@@ -34,6 +40,7 @@ function MultiTokenSelector({
   const [searchTerm, setSearchTerm] = useState("");
   const [, setPriceLoading] = useState<Record<string, boolean>>({});
   const [didAutoSelect, setDidAutoSelect] = useState(false);
+  const [canSwapMap, setCanSwapMap] = useState<Record<string, boolean>>({});
 
   const filteredTokens = tokens.filter(
     (token) =>
@@ -49,29 +56,37 @@ function MultiTokenSelector({
 
   const fetchSwapQuote = useCallback(
     async (token: UserToken, amount: string) => {
-      if (!amount || Number(amount) === 0) return "0";
+      if (!amount || Number(amount) === 0) {
+        setCanSwapMap((prev) => ({ ...prev, [token.address]: false }));
+        return "0";
+      }
 
       try {
         setPriceLoading((prev) => ({ ...prev, [token.address]: true }));
 
-        const amountValue = Number.parseFloat(amount);
-        if (isNaN(amountValue) || amountValue <= 0) return "0";
-
         const inputAmountInLamports = Math.round(
-          amountValue * Math.pow(10, token.decimals || 0)
+          Number(amount) * Math.pow(10, token.decimals || 0)
         );
 
         const response = await fetch(
           `https://lite-api.jup.ag/swap/v1/quote?inputMint=${token.address}&outputMint=So11111111111111111111111111111111111111112&amount=${inputAmountInLamports}&slippageBps=100&swapMode=ExactIn`
         );
 
-        if (!response.ok) throw new Error("Failed to fetch quote");
+        if (!response.ok) {
+          setCanSwapMap((prev) => ({ ...prev, [token.address]: false }));
+          return "0";
+        }
 
         const quote = await response.json();
         const solAmount = Number.parseFloat(quote.outAmount) / Math.pow(10, 9);
+
+        const canSwap = solAmount > 0;
+        setCanSwapMap((prev) => ({ ...prev, [token.address]: canSwap }));
+
         return solAmount.toFixed(6);
       } catch (error) {
         console.error("Failed to fetch swap quote:", error);
+        setCanSwapMap((prev) => ({ ...prev, [token.address]: false }));
         return "0";
       } finally {
         setPriceLoading((prev) => ({ ...prev, [token.address]: false }));
@@ -117,10 +132,11 @@ function MultiTokenSelector({
         const updated = await Promise.all(
           tokens.map(async (token) => {
             const estimatedSol = await fetchSwapQuote(token, token.balance);
+            if (Number(estimatedSol) === 0) return null;
             return { token, estimatedSol };
           })
         );
-        onTokensChange(updated);
+        onTokensChange(updated.filter(Boolean) as SelectedTokenData[]);
         setDidAutoSelect(true);
       };
       autoSelectAll();
@@ -172,7 +188,7 @@ function MultiTokenSelector({
           <div className="space-y-4 pb-2 p-[6px]">
             {filteredTokens.map((token) => {
               const isSelected = isTokenSelected(token.address);
-
+              const canSwap = canSwapMap[token.address] !== false;
               return (
                 <div
                   key={token.address}
@@ -187,7 +203,7 @@ function MultiTokenSelector({
                       onCheckedChange={(checked) =>
                         handleTokenToggle(token, checked as boolean)
                       }
-                      disabled={disabled}
+                      disabled={disabled || !canSwap}
                     />
 
                     <Image
@@ -207,6 +223,21 @@ function MultiTokenSelector({
                           <p className="text-sm text-gray-500 truncate">
                             {token.name}
                           </p>
+                          {!canSwap && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <p className="text-xs text-red-500 mt-1 cursor-help">
+                                    🚫 Not swappable
+                                  </p>
+                                </TooltipTrigger>
+                                <TooltipContent side="right">
+                                  Jupiter doesn’t support swapping this token to
+                                  SOL.
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
                         </div>
                         <div className="text-right">
                           <div className="flex items-center text-sm text-gray-600">
