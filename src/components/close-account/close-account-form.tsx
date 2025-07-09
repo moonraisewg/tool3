@@ -104,7 +104,7 @@ export default function CloseAccountForm() {
             }
         };
         fetchRent();
-    }, [selectedAccounts, publicKey]);
+    }, [selectedAccounts, publicKey, connection]);
 
     const onSubmit = async (values: z.infer<typeof formSchema>) => {
         try {
