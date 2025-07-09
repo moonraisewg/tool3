@@ -4,7 +4,6 @@ import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
-  SidebarGroupLabel,
   SidebarGroupContent,
   SidebarHeader,
   SidebarMenu,
@@ -31,7 +30,9 @@ import {
   Wallet,
   Trophy,
 } from "@nsmr/pixelart-react";
+
 import { useState } from "react";
+import Image from "next/image";
 
 interface RouteItem {
   title: string;
@@ -202,7 +203,6 @@ export function AppSidebar() {
     setOpenSubmenu(openSubmenu === title ? null : title);
   };
 
-  // Check if any submenu item is active
   const isSubmenuActive = (submenuItems: RouteItem[]) => {
     if (!pathname) return false;
     return submenuItems.some((item) => {
@@ -227,77 +227,99 @@ export function AppSidebar() {
           </Link>
         </div>
       </SidebarHeader>
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Main</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {navMain
-                .filter((item) => !item.hidden)
-                .map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    {item.submenu ? (
-                      <>
+      <SidebarContent className="flex flex-col justify-between h-full">
+        <div>
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {navMain
+                  .filter((item) => !item.hidden)
+                  .map((item) => (
+                    <SidebarMenuItem key={item.title}>
+                      {item.submenu ? (
+                        <>
+                          <SidebarMenuButton
+                            onClick={() => toggleSubmenu(item.title)}
+                            isActive={isSubmenuActive(item.submenu)}
+                            className="flex items-center justify-between w-full"
+                          >
+                            <div className="flex items-center">
+                              {item.icon && (
+                                <item.icon className="mr-2 h-4 w-4" />
+                              )}
+                              <span>{item.title}</span>
+                            </div>
+                            <ChevronDown className="h-4 w-4" />
+                          </SidebarMenuButton>
+
+                          {(openSubmenu === item.title ||
+                            isSubmenuActive(item.submenu)) && (
+                            <SidebarMenuSub>
+                              {item.submenu.map((subItem) => (
+                                <SidebarMenuSubItem key={subItem.title}>
+                                  <SidebarMenuSubButton
+                                    asChild
+                                    isActive={
+                                      pathname && subItem.url
+                                        ? pathname.split("?")[0] ===
+                                          subItem.url.split("?")[0]
+                                        : false
+                                    }
+                                  >
+                                    <Link href={subItem.url || "#"}>
+                                      <span>{subItem.title}</span>
+                                    </Link>
+                                  </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                              ))}
+                            </SidebarMenuSub>
+                          )}
+                        </>
+                      ) : (
                         <SidebarMenuButton
-                          onClick={() => toggleSubmenu(item.title)}
-                          isActive={isSubmenuActive(item.submenu)}
-                          className="flex items-center justify-between w-full"
+                          asChild
+                          isActive={
+                            pathname && item.url
+                              ? pathname.split("?")[0] ===
+                                item.url.split("?")[0]
+                              : false
+                          }
                         >
-                          <div className="flex items-center">
+                          <Link
+                            href={item.url || "#"}
+                            className="flex items-center"
+                          >
                             {item.icon && (
                               <item.icon className="mr-2 h-4 w-4" />
                             )}
                             <span>{item.title}</span>
-                          </div>
-                          <ChevronDown className="h-4 w-4" />
+                          </Link>
                         </SidebarMenuButton>
+                      )}
+                    </SidebarMenuItem>
+                  ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </div>
 
-                        {(openSubmenu === item.title ||
-                          isSubmenuActive(item.submenu)) && (
-                          <SidebarMenuSub>
-                            {item.submenu.map((subItem) => (
-                              <SidebarMenuSubItem key={subItem.title}>
-                                <SidebarMenuSubButton
-                                  asChild
-                                  isActive={
-                                    pathname && subItem.url
-                                      ? pathname.split("?")[0] ===
-                                        subItem.url.split("?")[0]
-                                      : false
-                                  }
-                                >
-                                  <Link href={subItem.url || "#"}>
-                                    <span>{subItem.title}</span>
-                                  </Link>
-                                </SidebarMenuSubButton>
-                              </SidebarMenuSubItem>
-                            ))}
-                          </SidebarMenuSub>
-                        )}
-                      </>
-                    ) : (
-                      <SidebarMenuButton
-                        asChild
-                        isActive={
-                          pathname && item.url
-                            ? pathname.split("?")[0] === item.url.split("?")[0]
-                            : false
-                        }
-                      >
-                        <Link
-                          href={item.url || "#"}
-                          className="flex items-center"
-                        >
-                          {item.icon && <item.icon className="mr-2 h-4 w-4" />}
-                          <span>{item.title}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    )}
-                  </SidebarMenuItem>
-                ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <div className="p-4">
+          <Link
+            href="https://t.me/+oIOsdVtqdeg0ODc1"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center text-sm hover:underline"
+          >
+            <Image
+              src="/image/telegram.png"
+              alt="Telegram"
+              className="mr-2 object-contain"
+              width={16}
+              height={16}
+            />
+            Feedbacks?
+          </Link>
+        </div>
       </SidebarContent>
       <SidebarRail />
     </Sidebar>
