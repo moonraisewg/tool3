@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { toast } from "sonner"
 import { useWallet } from "@solana/wallet-adapter-react"
 import { Loader2, Info } from "lucide-react"
-import { Transaction, PublicKey, TransactionInstruction, TransactionMessage, VersionedTransaction } from "@solana/web3.js"
+import { Transaction, PublicKey, TransactionInstruction, TransactionMessage, VersionedTransaction, SendTransactionError } from "@solana/web3.js"
 import { getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, TOKEN_PROGRAM_ID, NATIVE_MINT } from "@solana/spl-token"
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import WalletList from "./wallet-list"
@@ -24,6 +24,7 @@ import {
   CurveCalculator,
 } from "@raydium-io/raydium-sdk-v2"
 import { BN } from "bn.js"
+import { Keypair } from "@solana/web3.js"
 
 const formSchema = z.object({
   amount: z.string().refine((val) => !isNaN(Number.parseFloat(val)) && Number.parseFloat(val) >= 0, {
@@ -49,7 +50,7 @@ interface TokenAccount {
 
 export interface WalletAddress {
   id: string
-  address: string
+  keypair: Keypair
   solBalance: number
   tokenBalance: number
   selected: boolean
@@ -60,8 +61,7 @@ export default function BundledForm() {
   const [loading, setLoading] = useState(false)
   const [loadingMessage, setLoadingMessage] = useState("")
   const [walletAddresses, setWalletAddresses] = useState<WalletAddress[]>([])
-  const [raydium, setRaydium] = useState<Raydium | null>(null)
-  const { publicKey, signTransaction } = useWallet()
+  const { publicKey } = useWallet()
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -75,17 +75,6 @@ export default function BundledForm() {
     },
   })
 
-  useEffect(() => {
-    const initRaydium = async () => {
-      if (!publicKey) return
-      const raydiumInstance = await Raydium.load({
-        connection: connectionDevnet,
-        owner: publicKey,
-      })
-      setRaydium(raydiumInstance)
-    }
-    initRaydium()
-  }, [publicKey])
 
   const toLamports = useCallback((amountStr: string, decimals: number): string => {
     const amount = Number.parseFloat(amountStr)
@@ -115,7 +104,7 @@ export default function BundledForm() {
       const allPubKeys: PublicKey[] = []
 
       for (const wallet of walletAddresses) {
-        const pubKey = new PublicKey(wallet.address)
+        const pubKey = wallet.keypair.publicKey
         allPubKeys.push(pubKey)
 
         if (selectedToken) {
@@ -132,7 +121,7 @@ export default function BundledForm() {
           const walletIndex = index * 2
           const accountInfo = accountInfos[walletIndex]
           if (!accountInfo) {
-            toast.error(`Failed to fetch balance for ${shortenAddress(wallet.address)}`)
+            toast.error(`Failed to fetch balance for ${shortenAddress(wallet.keypair.publicKey.toString())}`)
             return wallet
           }
 
@@ -175,116 +164,108 @@ export default function BundledForm() {
     return `${address.slice(0, 6)}...${address.slice(-4)}`
   }
 
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      console.log(values);
+      setLoading(true);
+      setLoadingMessage("Chuẩn bị giao dịch...");
 
-      setLoading(true)
-      setLoadingMessage("Preparing transaction...")
-
-      if (!publicKey || !signTransaction) {
-        throw new Error("Please connect your wallet first")
-      }
-      if (!selectedToken) {
-        throw new Error("Please select a token")
-      }
-      if (!selectedToken.decimals) {
-        throw new Error("Invalid token decimals")
-      }
-      if (!raydium) {
-        throw new Error("Raydium SDK not initialized")
+      if (!selectedToken || !selectedToken.decimals) {
+        throw new Error("Vui lòng chọn token hợp lệ");
       }
 
-      const selectedAddresses = walletAddresses.filter((w) => w.selected).map((w) => w.address)
-      if (selectedAddresses.length === 0) {
-        throw new Error("Please select at least one wallet address")
+      const selectedWallets = walletAddresses.filter((w) => w.selected);
+      if (selectedWallets.length === 0) {
+        throw new Error("Vui lòng chọn ít nhất một ví");
       }
-      if (selectedAddresses.length > 50) {
-        throw new Error("Maximum 50 addresses allowed for bundling")
+      if (selectedWallets.length > 50) {
+        throw new Error("Tối đa 50 ví được phép cho bundle");
       }
 
-      const amountInLamports = new BN(toLamports(values.amount, selectedToken.decimals))
-      // const jitoFeeInLamports = toLamports(values.jitoFee, 9)
-      const tokenMint = new PublicKey("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU")
-      const solMint = NATIVE_MINT
-      const slippage = 0.1 // 0.1% slippage
-      const txVersion = TxVersion.LEGACY
-      const poolId = "2HyNe5a32uVoB4BybXCLak41QrejZLqF9hZM6KBMQ1V2"
+      const amountInLamports = new BN(toLamports(values.amount, selectedToken.decimals));
+      const tokenMint = new PublicKey("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU");
+      const solMint = NATIVE_MINT;
+      const slippage = 0.1;
+      const txVersion = TxVersion.LEGACY;
+      const poolId = "2HyNe5a32uVoB4BybXCLak41QrejZLqF9hZM6KBMQ1V2";
 
-      const { blockhash, lastValidBlockHeight } = await connectionDevnet.getLatestBlockhash("confirmed")
-      const transaction = new Transaction({
-        recentBlockhash: blockhash,
-        feePayer: publicKey,
-      })
+      const txIds: string[] = [];
 
-      // Add Jito fee transfer instruction
-      // if (Number(jitoFeeInLamports) > 0) {
-      //   const jitoTipAccount = new PublicKey("3bT5oZ2y9tA5kY1nWFu84tqqpx2mC8n6T3n2f1qG4rnx")
-      //   transaction.add(
-      //     SystemProgram.transfer({
-      //       fromPubkey: publicKey,
-      //       toPubkey: jitoTipAccount,
-      //       lamports: BigInt(jitoFeeInLamports),
-      //     })
-      //   )
-      // }
+      for (const wallet of selectedWallets) {
+        const walletPubKey = wallet.keypair.publicKey;
+        const walletKeypair = wallet.keypair;
 
-      // Add service fee instruction (0.001 SOL per address, paid by first wallet)
-      // const serviceFeePerAddress = BigInt(1_000_000)
-      // const totalServiceFee = serviceFeePerAddress * BigInt(selectedAddresses.length)
-      // if (selectedAddresses.length > 0) {
-      //   const firstWallet = new PublicKey(selectedAddresses[0])
-      //   transaction.add(
-      //     SystemProgram.transfer({
-      //       fromPubkey: firstWallet,
-      //       toPubkey: publicKey,
-      //       lamports: totalServiceFee,
-      //     })
-      //   )
-      // }
+        setLoadingMessage(`Chuẩn bị giao dịch cho ${shortenAddress(walletPubKey.toString())}...`);
 
-      // Process transactions for each address
-      for (const address of selectedAddresses) {
-        const walletPubKey = new PublicKey(address)
-        const { tokenAccounts } = await fetchTokenAccountData(walletPubKey)
-        const isInputSol = values.action === "bundledBuy" || values.action === "sellAndBundledBuy"
-        const isOutputSol = values.action === "bundledSell" || values.action === "sellAndBundledBuy"
-
-        const inputMint = isInputSol ? solMint : tokenMint
-        const outputMint = isOutputSol ? solMint : tokenMint
-        const inputTokenAcc = tokenAccounts.find((a) => a.mint.toBase58() === inputMint.toBase58())?.publicKey
-        const outputTokenAcc = tokenAccounts.find((a) => a.mint.toBase58() === outputMint.toBase58())?.publicKey
-
-        if (!inputTokenAcc && !isInputSol) {
-          throw new Error(`No input token account for ${inputMint.toBase58()}`)
+        // Kiểm tra số dư SOL
+        const solBalance = await connectionDevnet.getBalance(walletPubKey);
+        if (solBalance < 0.002 * 1_000_000_000) {
+          throw new Error(`Ví ${shortenAddress(walletPubKey.toString())} không đủ SOL (cần ít nhất 0.002 SOL)`);
         }
 
+        // Khởi tạo Raydium cho ví hiện tại
+        const raydium = await Raydium.load({
+          connection: connectionDevnet,
+          owner: walletPubKey,
+        });
+
+        // Lấy blockhash mới
+        const { blockhash, lastValidBlockHeight } = await connectionDevnet.getLatestBlockhash("confirmed");
+
+        const transaction = new Transaction({
+          recentBlockhash: blockhash,
+          feePayer: walletPubKey,
+        });
+
+        const { tokenAccounts } = await fetchTokenAccountData(walletPubKey);
+        const isInputSol = values.action === "bundledBuy" || values.action === "sellAndBundledBuy";
+        const isOutputSol = values.action === "bundledSell" || values.action === "sellAndBundledBuy";
+
+        const inputMint = isInputSol ? solMint : tokenMint;
+        const outputMint = isOutputSol ? solMint : tokenMint;
+        const inputTokenAcc = tokenAccounts.find((a) => a.mint.toBase58() === inputMint.toBase58())?.publicKey;
+
+        // Kiểm tra số dư token
+        if (!isInputSol && inputTokenAcc) {
+          const tokenAccountInfo = await connectionDevnet.getParsedAccountInfo(inputTokenAcc);
+          if (!tokenAccountInfo.value || !("parsed" in tokenAccountInfo.value.data)) {
+            throw new Error(`Tài khoản token ${inputMint.toBase58()} không tồn tại cho ví ${shortenAddress(walletPubKey.toString())}`);
+          }
+          const tokenAmount = new BN(tokenAccountInfo.value.data.parsed.info.tokenAmount.amount);
+          if (tokenAmount.lt(amountInLamports)) {
+            throw new Error(`Ví ${shortenAddress(walletPubKey.toString())} không đủ token ${inputMint.toBase58()} (cần ${values.amount}, có ${tokenAmount.toString()})`);
+          }
+        }
+
+        if (!inputTokenAcc && !isInputSol) {
+          throw new Error(`Không tìm thấy tài khoản token đầu vào cho ${inputMint.toBase58()} trong ví ${shortenAddress(walletPubKey.toString())}`);
+        }
+
+        const outputTokenAcc = tokenAccounts.find((a) => a.mint.toBase58() === outputMint.toBase58())?.publicKey;
         if (!outputTokenAcc && !isOutputSol) {
-          const outputATA = await getAssociatedTokenAddress(outputMint, walletPubKey)
+          const outputATA = await getAssociatedTokenAddress(outputMint, walletPubKey);
           transaction.add(
             createAssociatedTokenAccountInstruction(
-              publicKey,
+              walletPubKey,
               outputATA,
               walletPubKey,
               outputMint
             )
-          )
+          );
         }
 
         if (values.action === "bundledSell") {
           if (values.dex === "raydium") {
-            const data = await raydium.cpmm.getPoolInfoFromRpc(poolId)
-            const poolInfo = data.poolInfo
-            const poolKeys = data.poolKeys
-            const rpcData = data.rpcData
-            const baseIn = inputMint.toBase58() === poolInfo.mintA.address
+            const data = await raydium.cpmm.getPoolInfoFromRpc(poolId);
+            const { poolInfo, poolKeys, rpcData } = data;
+            const baseIn = inputMint.toBase58() === poolInfo.mintA.address;
 
             const swapResult = CurveCalculator.swap(
               amountInLamports,
               baseIn ? rpcData.baseReserve : rpcData.quoteReserve,
               baseIn ? rpcData.quoteReserve : rpcData.baseReserve,
               rpcData.configInfo!.tradeFeeRate
-            )
+            );
 
             const swapParams: CpmmSwapParams = {
               poolInfo,
@@ -294,14 +275,14 @@ export default function BundledForm() {
               slippage,
               baseIn,
               txVersion,
-            }
+            };
 
-            const { transaction: swapTx } = await raydium.cpmm.swap(swapParams)
-            transaction.add(...swapTx.instructions)
+            const { transaction: swapTx } = await raydium.cpmm.swap(swapParams);
+            transaction.add(...swapTx.instructions);
           } else {
-            // Pump sell placeholder
-            const pumpProgramId = new PublicKey("PUMP_PROGRAM_ID")
-            const poolIdKey = new PublicKey("PUMP_POOL_ID")
+            // Placeholder cho Pump
+            const pumpProgramId = new PublicKey("PUMP_PROGRAM_ID");
+            const poolIdKey = new PublicKey("PUMP_POOL_ID");
             transaction.add(
               new TransactionInstruction({
                 keys: [
@@ -313,97 +294,64 @@ export default function BundledForm() {
                 programId: pumpProgramId,
                 data: Buffer.from([]),
               })
-            )
+            );
           }
         }
 
-        if (values.action === "bundledBuy") {
-          if (values.dex === "raydium") {
-            const data = await raydium.cpmm.getPoolInfoFromRpc(poolId)
-            const poolInfo = data.poolInfo
-            const poolKeys = data.poolKeys
-            const rpcData = data.rpcData
-            const baseIn = inputMint.toBase58() === poolInfo.mintA.address
+        const messageV0 = new TransactionMessage({
+          payerKey: walletPubKey,
+          recentBlockhash: blockhash,
+          instructions: transaction.instructions,
+        }).compileToV0Message();
+        const versionedTx = new VersionedTransaction(messageV0);
 
-            const swapResult = CurveCalculator.swap(
-              amountInLamports,
-              baseIn ? rpcData.baseReserve : rpcData.quoteReserve,
-              baseIn ? rpcData.quoteReserve : rpcData.baseReserve,
-              rpcData.configInfo!.tradeFeeRate
-            )
+        // Ký giao dịch
+        try {
+          versionedTx.sign([walletKeypair]);
+        } catch (signError) {
+          throw new Error(`Lỗi ký giao dịch cho ví ${shortenAddress(walletPubKey.toString())}: ${signError instanceof Error ? signError.message : "Lỗi không xác định"}`);
+        }
 
-            const swapParams: CpmmSwapParams = {
-              poolInfo,
-              poolKeys,
-              inputAmount: amountInLamports,
-              swapResult,
-              slippage,
-              baseIn,
-              txVersion,
-            }
+        // Gửi giao dịch
+        setLoadingMessage(`Gửi giao dịch cho ${shortenAddress(walletPubKey.toString())}...`);
+        try {
+          const txId = await connectionDevnet.sendRawTransaction(versionedTx.serialize(), {
+            skipPreflight: false,
+            maxRetries: 3,
+          });
+          await connectionDevnet.confirmTransaction({
+            signature: txId,
+            blockhash,
+            lastValidBlockHeight,
+          });
 
-            const { transaction: swapTx } = await raydium.cpmm.swap(swapParams)
-            transaction.add(...swapTx.instructions)
+          txIds.push(txId);
+          toast.success(`Giao dịch ${txId} hoàn tất cho ${shortenAddress(walletPubKey.toString())}`, {
+            action: {
+              label: "Xem giao dịch",
+              onClick: () => window.open(`https://solscan.io/tx/${txId}?cluster=devnet`, "_blank"),
+            },
+          });
+        } catch (error) {
+          if (error instanceof SendTransactionError) {
+            console.error(`Lỗi giao dịch cho ví ${shortenAddress(walletPubKey.toString())}:`, error);
           } else {
-            // Pump buy placeholder
-            const pumpProgramId = new PublicKey("PUMP_PROGRAM_ID")
-            const poolIdKey = new PublicKey("PUMP_POOL_ID")
-            transaction.add(
-              new TransactionInstruction({
-                keys: [
-                  { pubkey: walletPubKey, isSigner: true, isWritable: true },
-                  { pubkey: solMint, isSigner: false, isWritable: true },
-                  { pubkey: outputTokenAcc || tokenMint, isSigner: false, isWritable: true },
-                  { pubkey: poolIdKey, isSigner: false, isWritable: true },
-                ],
-                programId: pumpProgramId,
-                data: Buffer.from([]),
-              })
-            )
+            throw new Error(`Lỗi gửi giao dịch cho ví ${shortenAddress(walletPubKey.toString())}: ${error instanceof Error ? error.message : "Lỗi không xác định"}`);
           }
         }
       }
 
-      // Convert to VersionedTransaction
-      const messageV0 = new TransactionMessage({
-        payerKey: publicKey,
-        recentBlockhash: blockhash,
-        instructions: transaction.instructions,
-      }).compileToV0Message()
-      const versionedTx = new VersionedTransaction(messageV0)
-
-      // Sign transaction
-      setLoadingMessage("Awaiting transaction signature...")
-      const signedTx = await signTransaction(versionedTx)
-
-      // Send transaction directly on devnet (Jito not supported on devnet)
-      setLoadingMessage(`Sending ${values.action.includes("Sell") ? "sell" : "buy"} transaction...`)
-      const txId = await connectionDevnet.sendRawTransaction(signedTx.serialize())
-      await connectionDevnet.confirmTransaction({
-        signature: txId,
-        blockhash,
-        lastValidBlockHeight,
-      })
-
-      toast.success(`Transaction ${txId} submitted`, {
-        description: `Transaction ID: ${txId}`,
-        action: {
-          label: "View Transaction",
-          onClick: () => window.open(`https://solscan.io/tx/${txId}?cluster=devnet`, "_blank"),
-        },
-      })
-
-      form.reset()
-      setSelectedToken(null)
-      setWalletAddresses([])
+      form.reset();
+      setSelectedToken(null);
+      setWalletAddresses([]);
     } catch (error) {
-      console.error("BundledForm error:", error)
-      toast.error(error instanceof Error ? error.message : `Failed to ${values.action} token`)
+      console.error("Lỗi BundledForm:", error);
+      toast.error(error instanceof Error ? error.message : `Không thể thực hiện ${values.action}`);
     } finally {
-      setLoading(false)
-      setLoadingMessage("")
+      setLoading(false);
+      setLoadingMessage("");
     }
-  }
+  };
 
   return (
     <div className="max-w-6xl mx-auto p-4 space-y-6 max-h-[calc(100vh-200px)] overflow-y-auto">

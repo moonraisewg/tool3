@@ -57,7 +57,7 @@ export default function WalletList({
             const keypair = Keypair.fromSecretKey(secretKey)
             return {
               id: Date.now().toString() + Math.random(),
-              address: keypair.publicKey.toString(),
+              keypair: keypair,
               solBalance: 0,
               tokenBalance: 0,
               selected: true,
@@ -80,7 +80,7 @@ export default function WalletList({
             const keypair = Keypair.fromSeed(new Uint8Array(derivedSeed))
             return {
               id: Date.now().toString() + Math.random(),
-              address: keypair.publicKey.toString(),
+              keypair: keypair,
               solBalance: 0,
               tokenBalance: 0,
               selected: true,
@@ -244,12 +244,12 @@ export default function WalletList({
                       <span>{index + 1}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs">{shortenAddress(wallet.address)}</span>
+                      <span className="font-mono text-xs">{shortenAddress(wallet.keypair.publicKey.toString())}</span>
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={() => navigator.clipboard.writeText(wallet.address)}
+                        onClick={() => navigator.clipboard.writeText(wallet.keypair.publicKey.toString())}
                       >
                         <Copy className="h-3 w-3" />
                       </Button>
