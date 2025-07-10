@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -10,13 +10,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { toast } from "sonner"
 import { useWallet } from "@solana/wallet-adapter-react"
 import { Loader2, Info } from "lucide-react"
-import { Transaction, PublicKey, ParsedAccountData } from "@solana/web3.js"
-import { getAssociatedTokenAddress } from "@solana/spl-token"
+import { Transaction, PublicKey, TransactionInstruction, TransactionMessage, VersionedTransaction } from "@solana/web3.js"
+import { getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, TOKEN_PROGRAM_ID, NATIVE_MINT } from "@solana/spl-token"
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import WalletList from "./wallet-list"
 import SelectTokenBundled from "./select-token-bundled"
 import { Token } from "@/types/types"
 import { connectionDevnet } from "@/service/solana/connection"
+import {
+  CpmmSwapParams,
+  Raydium,
+  TxVersion,
+  CurveCalculator,
+} from "@raydium-io/raydium-sdk-v2"
+import { BN } from "bn.js"
 
 const formSchema = z.object({
   amount: z.string().refine((val) => !isNaN(Number.parseFloat(val)) && Number.parseFloat(val) >= 0, {
@@ -35,6 +42,11 @@ const formSchema = z.object({
   }),
 })
 
+interface TokenAccount {
+  mint: PublicKey
+  publicKey: PublicKey
+}
+
 export interface WalletAddress {
   id: string
   address: string
@@ -48,12 +60,13 @@ export default function BundledForm() {
   const [loading, setLoading] = useState(false)
   const [loadingMessage, setLoadingMessage] = useState("")
   const [walletAddresses, setWalletAddresses] = useState<WalletAddress[]>([])
+  const [raydium, setRaydium] = useState<Raydium | null>(null)
   const { publicKey, signTransaction } = useWallet()
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      amount: "0",
+      amount: "0.0001",
       action: "bundledSell",
       dex: "raydium",
       chain: "solana",
@@ -62,66 +75,80 @@ export default function BundledForm() {
     },
   })
 
+  useEffect(() => {
+    const initRaydium = async () => {
+      if (!publicKey) return
+      const raydiumInstance = await Raydium.load({
+        connection: connectionDevnet,
+        owner: publicKey,
+      })
+      setRaydium(raydiumInstance)
+    }
+    initRaydium()
+  }, [publicKey])
+
   const toLamports = useCallback((amountStr: string, decimals: number): string => {
     const amount = Number.parseFloat(amountStr)
     if (isNaN(amount) || amount < 0) throw new Error("Invalid amount")
     return (amount * 10 ** decimals).toString()
   }, [])
 
+  const fetchTokenAccountData = async (wallet: PublicKey): Promise<{ tokenAccounts: TokenAccount[] }> => {
+    const accounts = await connectionDevnet.getParsedTokenAccountsByOwner(wallet, { programId: TOKEN_PROGRAM_ID })
+    const tokenAccounts = accounts.value.map(({ pubkey, account }) => ({
+      mint: new PublicKey(account.data.parsed.info.mint),
+      publicKey: pubkey,
+    }))
+    return { tokenAccounts }
+  }
+
   const handleCheckBalance = async () => {
     if (walletAddresses.length === 0) {
-      toast.error("Please import at least one wallet");
-      return;
+      toast.error("Please import at least one wallet")
+      return
     }
 
     try {
-      setLoading(true);
-      setLoadingMessage("Checking balances...");
+      setLoading(true)
+      setLoadingMessage("Checking balances...")
 
+      const allPubKeys: PublicKey[] = []
 
-      const allPubKeys: PublicKey[] = [];
-
-      // Tạo danh sách tất cả PublicKey: ví + ATA
       for (const wallet of walletAddresses) {
-        const pubKey = new PublicKey(wallet.address);
-        allPubKeys.push(pubKey);
+        const pubKey = new PublicKey(wallet.address)
+        allPubKeys.push(pubKey)
 
         if (selectedToken) {
-          const ata = await getAssociatedTokenAddress(
-            new PublicKey(selectedToken.address), // mint address
-            pubKey                                // owner address
-          );
-          allPubKeys.push(ata);
+          const ata = await getAssociatedTokenAddress(new PublicKey("Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr"), pubKey)
+          allPubKeys.push(ata)
         }
       }
-      const response = await connectionDevnet.getMultipleParsedAccounts(allPubKeys, {
-        commitment: "confirmed",
-      });
 
-      const accountInfos = response.value;
+      const response = await connectionDevnet.getMultipleParsedAccounts(allPubKeys, { commitment: "confirmed" })
+      const accountInfos = response.value
 
       const updatedWallets = await Promise.all(
         walletAddresses.map(async (wallet, index) => {
-          const walletIndex = index * 2;
-          const accountInfo = accountInfos[walletIndex];
+          const walletIndex = index * 2
+          const accountInfo = accountInfos[walletIndex]
           if (!accountInfo) {
-            toast.error(`Failed to fetch balance for ${shortenAddress(wallet.address)}`);
-            return wallet;
+            toast.error(`Failed to fetch balance for ${shortenAddress(wallet.address)}`)
+            return wallet
           }
 
-          const solBalance = accountInfo.lamports / 1_000_000_000;
-          let tokenBalance = 0;
+          const solBalance = accountInfo.lamports / 1_000_000_000
+          let tokenBalance = 0
           if (selectedToken) {
-            const ataIndex = walletIndex + 1;
-            const ataAccountInfo = accountInfos[ataIndex];
+            const ataIndex = walletIndex + 1
+            const ataAccountInfo = accountInfos[ataIndex]
 
             if (
               ataAccountInfo &&
               "parsed" in ataAccountInfo.data &&
-              (ataAccountInfo.data as ParsedAccountData).program === "spl-token"
+              (ataAccountInfo.data).program === "spl-token"
             ) {
-              const parsed = ataAccountInfo.data as ParsedAccountData;
-              tokenBalance = Number(parsed.parsed.info.tokenAmount.uiAmount);
+              const parsed = ataAccountInfo.data
+              tokenBalance = Number(parsed.parsed.info.tokenAmount.uiAmount)
             }
           }
 
@@ -129,19 +156,19 @@ export default function BundledForm() {
             ...wallet,
             solBalance,
             tokenBalance,
-          };
+          }
         })
-      );
+      )
 
-      setWalletAddresses(updatedWallets);
-      toast.success("Balances checked successfully!");
+      setWalletAddresses(updatedWallets)
+      toast.success("Balances checked successfully!")
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to check balances");
+      toast.error(error instanceof Error ? error.message : "Failed to check balances")
     } finally {
-      setLoading(false);
-      setLoadingMessage("");
+      setLoading(false)
+      setLoadingMessage("")
     }
-  };
+  }
 
   const shortenAddress = (address: string) => {
     if (address.length <= 10) return address
@@ -150,6 +177,8 @@ export default function BundledForm() {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
+      console.log(values);
+
       setLoading(true)
       setLoadingMessage("Preparing transaction...")
 
@@ -162,70 +191,213 @@ export default function BundledForm() {
       if (!selectedToken.decimals) {
         throw new Error("Invalid token decimals")
       }
+      if (!raydium) {
+        throw new Error("Raydium SDK not initialized")
+      }
 
       const selectedAddresses = walletAddresses.filter((w) => w.selected).map((w) => w.address)
       if (selectedAddresses.length === 0) {
         throw new Error("Please select at least one wallet address")
       }
+      if (selectedAddresses.length > 50) {
+        throw new Error("Maximum 50 addresses allowed for bundling")
+      }
 
-      const amountInLamports = toLamports(values.amount, selectedToken.decimals)
-      const isSell = values.action.includes("Sell")
-      const jitoFeeInLamports = toLamports(values.jitoFee, 9)
+      const amountInLamports = new BN(toLamports(values.amount, selectedToken.decimals))
+      // const jitoFeeInLamports = toLamports(values.jitoFee, 9)
+      const tokenMint = new PublicKey("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU")
+      const solMint = NATIVE_MINT
+      const slippage = 0.1 // 0.1% slippage
+      const txVersion = TxVersion.LEGACY
+      const poolId = "2HyNe5a32uVoB4BybXCLak41QrejZLqF9hZM6KBMQ1V2"
 
-      setLoadingMessage(`Requesting ${isSell ? "sell" : "buy"} transaction...`)
-      const response = await fetch("/api/bundled-transaction", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userPublicKey: publicKey.toString(),
-          tokenAddress: selectedToken.address,
-          amount: amountInLamports,
-          action: values.action,
-          dex: values.dex,
-          chain: values.chain,
-          jitoFee: jitoFeeInLamports,
-          addresses: selectedAddresses,
-        }),
+      const { blockhash, lastValidBlockHeight } = await connectionDevnet.getLatestBlockhash("confirmed")
+      const transaction = new Transaction({
+        recentBlockhash: blockhash,
+        feePayer: publicKey,
       })
 
-      const data = await response.json()
-      if (!response.ok) throw new Error(data.error || `Failed to prepare ${isSell ? "sell" : "buy"} transaction`)
+      // Add Jito fee transfer instruction
+      // if (Number(jitoFeeInLamports) > 0) {
+      //   const jitoTipAccount = new PublicKey("3bT5oZ2y9tA5kY1nWFu84tqqpx2mC8n6T3n2f1qG4rnx")
+      //   transaction.add(
+      //     SystemProgram.transfer({
+      //       fromPubkey: publicKey,
+      //       toPubkey: jitoTipAccount,
+      //       lamports: BigInt(jitoFeeInLamports),
+      //     })
+      //   )
+      // }
 
+      // Add service fee instruction (0.001 SOL per address, paid by first wallet)
+      // const serviceFeePerAddress = BigInt(1_000_000)
+      // const totalServiceFee = serviceFeePerAddress * BigInt(selectedAddresses.length)
+      // if (selectedAddresses.length > 0) {
+      //   const firstWallet = new PublicKey(selectedAddresses[0])
+      //   transaction.add(
+      //     SystemProgram.transfer({
+      //       fromPubkey: firstWallet,
+      //       toPubkey: publicKey,
+      //       lamports: totalServiceFee,
+      //     })
+      //   )
+      // }
+
+      // Process transactions for each address
+      for (const address of selectedAddresses) {
+        const walletPubKey = new PublicKey(address)
+        const { tokenAccounts } = await fetchTokenAccountData(walletPubKey)
+        const isInputSol = values.action === "bundledBuy" || values.action === "sellAndBundledBuy"
+        const isOutputSol = values.action === "bundledSell" || values.action === "sellAndBundledBuy"
+
+        const inputMint = isInputSol ? solMint : tokenMint
+        const outputMint = isOutputSol ? solMint : tokenMint
+        const inputTokenAcc = tokenAccounts.find((a) => a.mint.toBase58() === inputMint.toBase58())?.publicKey
+        const outputTokenAcc = tokenAccounts.find((a) => a.mint.toBase58() === outputMint.toBase58())?.publicKey
+
+        if (!inputTokenAcc && !isInputSol) {
+          throw new Error(`No input token account for ${inputMint.toBase58()}`)
+        }
+
+        if (!outputTokenAcc && !isOutputSol) {
+          const outputATA = await getAssociatedTokenAddress(outputMint, walletPubKey)
+          transaction.add(
+            createAssociatedTokenAccountInstruction(
+              publicKey,
+              outputATA,
+              walletPubKey,
+              outputMint
+            )
+          )
+        }
+
+        if (values.action === "bundledSell") {
+          if (values.dex === "raydium") {
+            const data = await raydium.cpmm.getPoolInfoFromRpc(poolId)
+            const poolInfo = data.poolInfo
+            const poolKeys = data.poolKeys
+            const rpcData = data.rpcData
+            const baseIn = inputMint.toBase58() === poolInfo.mintA.address
+
+            const swapResult = CurveCalculator.swap(
+              amountInLamports,
+              baseIn ? rpcData.baseReserve : rpcData.quoteReserve,
+              baseIn ? rpcData.quoteReserve : rpcData.baseReserve,
+              rpcData.configInfo!.tradeFeeRate
+            )
+
+            const swapParams: CpmmSwapParams = {
+              poolInfo,
+              poolKeys,
+              inputAmount: amountInLamports,
+              swapResult,
+              slippage,
+              baseIn,
+              txVersion,
+            }
+
+            const { transaction: swapTx } = await raydium.cpmm.swap(swapParams)
+            transaction.add(...swapTx.instructions)
+          } else {
+            // Pump sell placeholder
+            const pumpProgramId = new PublicKey("PUMP_PROGRAM_ID")
+            const poolIdKey = new PublicKey("PUMP_POOL_ID")
+            transaction.add(
+              new TransactionInstruction({
+                keys: [
+                  { pubkey: walletPubKey, isSigner: true, isWritable: true },
+                  { pubkey: inputTokenAcc || walletPubKey, isSigner: false, isWritable: true },
+                  { pubkey: solMint, isSigner: false, isWritable: true },
+                  { pubkey: poolIdKey, isSigner: false, isWritable: true },
+                ],
+                programId: pumpProgramId,
+                data: Buffer.from([]),
+              })
+            )
+          }
+        }
+
+        if (values.action === "bundledBuy") {
+          if (values.dex === "raydium") {
+            const data = await raydium.cpmm.getPoolInfoFromRpc(poolId)
+            const poolInfo = data.poolInfo
+            const poolKeys = data.poolKeys
+            const rpcData = data.rpcData
+            const baseIn = inputMint.toBase58() === poolInfo.mintA.address
+
+            const swapResult = CurveCalculator.swap(
+              amountInLamports,
+              baseIn ? rpcData.baseReserve : rpcData.quoteReserve,
+              baseIn ? rpcData.quoteReserve : rpcData.baseReserve,
+              rpcData.configInfo!.tradeFeeRate
+            )
+
+            const swapParams: CpmmSwapParams = {
+              poolInfo,
+              poolKeys,
+              inputAmount: amountInLamports,
+              swapResult,
+              slippage,
+              baseIn,
+              txVersion,
+            }
+
+            const { transaction: swapTx } = await raydium.cpmm.swap(swapParams)
+            transaction.add(...swapTx.instructions)
+          } else {
+            // Pump buy placeholder
+            const pumpProgramId = new PublicKey("PUMP_PROGRAM_ID")
+            const poolIdKey = new PublicKey("PUMP_POOL_ID")
+            transaction.add(
+              new TransactionInstruction({
+                keys: [
+                  { pubkey: walletPubKey, isSigner: true, isWritable: true },
+                  { pubkey: solMint, isSigner: false, isWritable: true },
+                  { pubkey: outputTokenAcc || tokenMint, isSigner: false, isWritable: true },
+                  { pubkey: poolIdKey, isSigner: false, isWritable: true },
+                ],
+                programId: pumpProgramId,
+                data: Buffer.from([]),
+              })
+            )
+          }
+        }
+      }
+
+      // Convert to VersionedTransaction
+      const messageV0 = new TransactionMessage({
+        payerKey: publicKey,
+        recentBlockhash: blockhash,
+        instructions: transaction.instructions,
+      }).compileToV0Message()
+      const versionedTx = new VersionedTransaction(messageV0)
+
+      // Sign transaction
       setLoadingMessage("Awaiting transaction signature...")
-      const transaction = Transaction.from(Buffer.from(data.transaction, "base64"))
-      const signedTransaction = await signTransaction(transaction)
+      const signedTx = await signTransaction(versionedTx)
 
-      setLoadingMessage(`Sending ${isSell ? "sell" : "buy"} transaction...`)
-      const executeResponse = await fetch("/api/send-transaction", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          transaction: Buffer.from(signedTransaction.serialize()).toString("base64"),
-          blockhash: data.blockhash,
-          lastValidBlockHeight: data.lastValidBlockHeight,
-          cluster: "mainnet",
-        }),
+      // Send transaction directly on devnet (Jito not supported on devnet)
+      setLoadingMessage(`Sending ${values.action.includes("Sell") ? "sell" : "buy"} transaction...`)
+      const txId = await connectionDevnet.sendRawTransaction(signedTx.serialize())
+      await connectionDevnet.confirmTransaction({
+        signature: txId,
+        blockhash,
+        lastValidBlockHeight,
       })
 
-      const executeData = await executeResponse.json()
-      if (!executeResponse.ok)
-        throw new Error(executeData.error || `Failed to execute ${isSell ? "sell" : "buy"} transaction`)
-
-      toast.success(
-        `🎉 ${isSell ? "Sold" : "Bought"} ${values.amount} ${selectedToken.symbol || "UNKNOWN"} successfully!`,
-        {
-          description: `Transaction ID: ${executeData.txId}`,
-          action: {
-            label: "View Transaction",
-            onClick: () => window.open(`https://solscan.io/tx/${executeData.txId}?cluster=mainnet`, "_blank"),
-          },
+      toast.success(`Transaction ${txId} submitted`, {
+        description: `Transaction ID: ${txId}`,
+        action: {
+          label: "View Transaction",
+          onClick: () => window.open(`https://solscan.io/tx/${txId}?cluster=devnet`, "_blank"),
         },
-      )
+      })
 
       form.reset()
       setSelectedToken(null)
       setWalletAddresses([])
     } catch (error) {
+      console.error("BundledForm error:", error)
       toast.error(error instanceof Error ? error.message : `Failed to ${values.action} token`)
     } finally {
       setLoading(false)
@@ -348,7 +520,6 @@ export default function BundledForm() {
                   variant={form.watch("amountType") === "allAmount" ? "default" : "outline"}
                   onClick={() => form.setValue("amountType", "allAmount")}
                   size="sm"
-                  className=""
                 >
                   All Amount
                 </Button>
@@ -411,7 +582,6 @@ export default function BundledForm() {
                   variant={form.watch("jitoFee") === "0.0003" ? "default" : "outline"}
                   onClick={() => form.setValue("jitoFee", "0.0003")}
                   size="sm"
-                  className=""
                 >
                   0.0003 SOL
                 </Button>
@@ -457,7 +627,7 @@ export default function BundledForm() {
             <CardContent className="">
               <p className="text-sm text-green-800">
                 Up to 50 addresses are supported for simultaneous bundle operation. The service fee for each address is
-                0.0000066SOL, and all service fees will be paid by the first address imported.
+                0.001 SOL, and all service fees will be paid by the first address imported.
               </p>
             </CardContent>
           </Card>
