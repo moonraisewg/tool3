@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { toast } from "sonner"
 import { useWallet } from "@solana/wallet-adapter-react"
 import { Loader2, Info } from "lucide-react"
-import { Transaction, PublicKey, TransactionInstruction, TransactionMessage, VersionedTransaction, SendTransactionError } from "@solana/web3.js"
+import { Transaction, PublicKey, TransactionInstruction, TransactionMessage, VersionedTransaction } from "@solana/web3.js"
 import { getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, TOKEN_PROGRAM_ID, NATIVE_MINT } from "@solana/spl-token"
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import WalletList from "./wallet-list"
@@ -25,6 +25,8 @@ import {
 } from "@raydium-io/raydium-sdk-v2"
 import { BN } from "bn.js"
 import { Keypair } from "@solana/web3.js"
+import { SystemProgram } from "@solana/web3.js"
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes"
 
 const formSchema = z.object({
   amount: z.string().refine((val) => !isNaN(Number.parseFloat(val)) && Number.parseFloat(val) >= 0, {
@@ -70,7 +72,7 @@ export default function BundledForm() {
       action: "bundledSell",
       dex: "raydium",
       chain: "solana",
-      jitoFee: "0.0003",
+      jitoFee: "0.000001",
       amountType: "allAmount",
     },
   })
@@ -165,6 +167,13 @@ export default function BundledForm() {
   }
 
 
+  // const getRandomTipAccountAddress = async (searcherClient: searcher.SearcherClient): Promise<PublicKey> => {
+  //   const accounts = await searcherClient.getTipAccounts();
+  //   return new PublicKey(accounts[Math.floor(Math.random() * accounts.length)]);
+  // };
+
+
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       setLoading(true);
@@ -178,18 +187,21 @@ export default function BundledForm() {
       if (selectedWallets.length === 0) {
         throw new Error("Vui lòng chọn ít nhất một ví");
       }
-      if (selectedWallets.length > 50) {
-        throw new Error("Tối đa 50 ví được phép cho bundle");
+      if (selectedWallets.length > 5) {
+        throw new Error("Jito bundle chỉ hỗ trợ tối đa 5 giao dịch");
       }
 
+      const jitoFeeInLamports = new BN(toLamports(values.jitoFee, 9));
       const amountInLamports = new BN(toLamports(values.amount, selectedToken.decimals));
       const tokenMint = new PublicKey("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU");
       const solMint = NATIVE_MINT;
       const slippage = 0.1;
       const txVersion = TxVersion.LEGACY;
       const poolId = "2HyNe5a32uVoB4BybXCLak41QrejZLqF9hZM6KBMQ1V2";
+      const tipAccount = new PublicKey("84DrGKhycCUGfLzw8hXsUYX9SnWdh2wW3ozsTPrC5xyg");
 
-      const txIds: string[] = [];
+      const { blockhash, lastValidBlockHeight } = await connectionDevnet.getLatestBlockhash("confirmed");
+      const transactions: VersionedTransaction[] = [];
 
       for (const wallet of selectedWallets) {
         const walletPubKey = wallet.keypair.publicKey;
@@ -197,20 +209,15 @@ export default function BundledForm() {
 
         setLoadingMessage(`Chuẩn bị giao dịch cho ${shortenAddress(walletPubKey.toString())}...`);
 
-        // Kiểm tra số dư SOL
         const solBalance = await connectionDevnet.getBalance(walletPubKey);
         if (solBalance < 0.002 * 1_000_000_000) {
           throw new Error(`Ví ${shortenAddress(walletPubKey.toString())} không đủ SOL (cần ít nhất 0.002 SOL)`);
         }
 
-        // Khởi tạo Raydium cho ví hiện tại
         const raydium = await Raydium.load({
           connection: connectionDevnet,
           owner: walletPubKey,
         });
-
-        // Lấy blockhash mới
-        const { blockhash, lastValidBlockHeight } = await connectionDevnet.getLatestBlockhash("confirmed");
 
         const transaction = new Transaction({
           recentBlockhash: blockhash,
@@ -225,7 +232,6 @@ export default function BundledForm() {
         const outputMint = isOutputSol ? solMint : tokenMint;
         const inputTokenAcc = tokenAccounts.find((a) => a.mint.toBase58() === inputMint.toBase58())?.publicKey;
 
-        // Kiểm tra số dư token
         if (!isInputSol && inputTokenAcc) {
           const tokenAccountInfo = await connectionDevnet.getParsedAccountInfo(inputTokenAcc);
           if (!tokenAccountInfo.value || !("parsed" in tokenAccountInfo.value.data)) {
@@ -280,7 +286,6 @@ export default function BundledForm() {
             const { transaction: swapTx } = await raydium.cpmm.swap(swapParams);
             transaction.add(...swapTx.instructions);
           } else {
-            // Placeholder cho Pump
             const pumpProgramId = new PublicKey("PUMP_PROGRAM_ID");
             const poolIdKey = new PublicKey("PUMP_POOL_ID");
             transaction.add(
@@ -298,6 +303,16 @@ export default function BundledForm() {
           }
         }
 
+        if (wallet === selectedWallets[selectedWallets.length - 1] && jitoFeeInLamports.gtn(0)) {
+          transaction.add(
+            SystemProgram.transfer({
+              fromPubkey: walletPubKey,
+              toPubkey: tipAccount,
+              lamports: jitoFeeInLamports.toNumber(),
+            })
+          );
+        }
+
         const messageV0 = new TransactionMessage({
           payerKey: walletPubKey,
           recentBlockhash: blockhash,
@@ -305,40 +320,80 @@ export default function BundledForm() {
         }).compileToV0Message();
         const versionedTx = new VersionedTransaction(messageV0);
 
-        // Ký giao dịch
+        // Kiểm tra serialize trước khi ký
         try {
-          versionedTx.sign([walletKeypair]);
-        } catch (signError) {
-          throw new Error(`Lỗi ký giao dịch cho ví ${shortenAddress(walletPubKey.toString())}: ${signError instanceof Error ? signError.message : "Lỗi không xác định"}`);
+          versionedTx.serialize();
+        } catch (error) {
+          throw new Error(`Giao dịch cho ví ${shortenAddress(walletPubKey.toString())} không hợp lệ: ${error}`);
         }
 
-        // Gửi giao dịch
-        setLoadingMessage(`Gửi giao dịch cho ${shortenAddress(walletPubKey.toString())}...`);
-        try {
-          const txId = await connectionDevnet.sendRawTransaction(versionedTx.serialize(), {
-            skipPreflight: false,
-            maxRetries: 3,
-          });
-          await connectionDevnet.confirmTransaction({
-            signature: txId,
-            blockhash,
-            lastValidBlockHeight,
-          });
+        versionedTx.sign([walletKeypair]);
+        transactions.push(versionedTx);
+      }
 
-          txIds.push(txId);
-          toast.success(`Giao dịch ${txId} hoàn tất cho ${shortenAddress(walletPubKey.toString())}`, {
-            action: {
-              label: "Xem giao dịch",
-              onClick: () => window.open(`https://solscan.io/tx/${txId}?cluster=devnet`, "_blank"),
+      // Chuyển các giao dịch thành base64
+      const base64Transactions = transactions.map((tx) => Buffer.from(tx.serialize()).toString('base64'));
+
+      // Log để debug
+      base64Transactions.forEach((tx, index) => {
+        const buffer = Buffer.from(tx, 'base64');
+        console.log(`Giao dịch ${index}: ${buffer.length} bytes`);
+      });
+
+      // Gửi yêu cầu tới Jito Bundle API
+      setLoadingMessage("Gửi Jito bundle...");
+      const jitoEndpoint = "https://singapore.mainnet.block-engine.jito.wtf";
+      const response = await fetch(jitoEndpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "sendBundle",
+          params: [
+            base64Transactions,
+            {
+              encoding: "base64",
             },
-          });
-        } catch (error) {
-          if (error instanceof SendTransactionError) {
-            console.error(`Lỗi giao dịch cho ví ${shortenAddress(walletPubKey.toString())}:`, error);
-          } else {
-            throw new Error(`Lỗi gửi giao dịch cho ví ${shortenAddress(walletPubKey.toString())}: ${error instanceof Error ? error.message : "Lỗi không xác định"}`);
+          ],
+        }),
+      });
+
+      const result = await response.json();
+      console.log(result);
+
+      if (response.ok && result.result) {
+        const bundleId = result.result;
+        toast.success(`Bundle đã được gửi: ${bundleId}`, {
+          action: {
+            label: "Xem chi tiết",
+            onClick: () => console.log("Bundle ID:", bundleId),
+          },
+        });
+
+        for (const tx of transactions) {
+          const signature = bs58.encode(tx.signatures[0]);
+          try {
+            await connectionDevnet.confirmTransaction({
+              signature,
+              blockhash,
+              lastValidBlockHeight,
+            });
+            toast.success(`Giao dịch ${signature} hoàn tất`, {
+              action: {
+                label: "Xem giao dịch",
+                onClick: () => window.open(`https://solscan.io/tx/${signature}?cluster=devnet`, "_blank"),
+              },
+            });
+          } catch (confirmError) {
+            console.error(`Lỗi xác nhận giao dịch ${signature}:`, confirmError);
+            toast.error(`Lỗi xác nhận giao dịch ${signature}`);
           }
         }
+      } else {
+        throw new Error(result.error?.message || "Không thể gửi bundle");
       }
 
       form.reset();
