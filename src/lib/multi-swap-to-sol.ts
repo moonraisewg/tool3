@@ -1,4 +1,3 @@
-import { NextRequest, NextResponse } from "next/server";
 import {
   PublicKey,
   TransactionInstruction,
@@ -22,85 +21,92 @@ import {
   createInstructionFromJupiter,
   type QuoteResponse,
 } from "@/service/jupiter/swap";
-import { adminKeypair } from "@/config";
+
 import { getTokenFeeFromUsd } from "@/service/jupiter/calculate-fee";
-import { BatchTransaction } from "@/types/types";
 
 const SOL_MINT = "So11111111111111111111111111111111111111112";
 
-interface MultiSwapToSolRequestBody {
-  walletPublicKey: string;
-  tokenSwaps: Array<{
-    inputTokenMint: string;
-  }>;
-  batchSize?: number;
+export interface SwapTokenData {
+  inputTokenMint: string;
 }
 
-interface SwapResult {
+export interface SwapResult {
   inputTokenMint: string;
   actualInputAmount: number;
   expectedSolOutput: number;
   quote: QuoteResponse;
 }
 
-export async function POST(req: NextRequest) {
-  try {
-    const body: MultiSwapToSolRequestBody = await req.json();
-    console.log("Multi-swap to SOL request:", {
-      wallet: body.walletPublicKey,
-      tokenSwapCount: body.tokenSwaps?.length || 0,
-      batchSize: body.batchSize || 3,
-    });
-
-    if (!body.tokenSwaps || body.tokenSwaps.length === 0) {
-      return NextResponse.json(
-        { error: "No token swaps provided" },
-        { status: 400 }
-      );
-    }
-
-    return await prepareBatchedSwapTransactions(body);
-  } catch (error: unknown) {
-    console.error("Multi-swap to SOL error:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to process multi-swap to SOL",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
-  }
+export interface BatchTransactionResult {
+  transaction: VersionedTransaction;
+  tokenSwaps: string[];
+  expectedSolOutput: number;
+  metadata: {
+    batchIndex: number;
+    swapCount: number;
+    instructionCount: number;
+    transactionSize: number;
+  };
 }
 
-async function prepareBatchedSwapTransactions(body: MultiSwapToSolRequestBody) {
-  const userPublicKey = new PublicKey(body.walletPublicKey);
-  const batchSize = body.batchSize || 3;
-  const adminFeeInSol = await getTokenFeeFromUsd(
-    SOL_MINT,
-    0.5,
-    body.walletPublicKey
-  );
+export interface MultiSwapResult {
+  transactions: BatchTransactionResult[];
+  metadata: {
+    totalBatches: number;
+    totalTokenSwaps: number;
+    batchSize: number;
+    totalInstructions: number;
+    adminFeeInSol: number;
+    feeChargedInLastBatch: boolean;
+  };
+  breakdown: {
+    totalTokenSwaps: number;
+    totalExpectedSolOutput: number;
+    adminFeeInSol: number;
+    netSolAfterFee: number;
+    estimatedTotalGasFee: number;
+    batchBreakdown: Array<{
+      batchIndex: number;
+      tokenCount: number;
+      expectedSolOutput: number;
+      instructionCount: number;
+      transactionSize: number;
+    }>;
+  };
+  allSwapResults: SwapResult[];
+}
 
+export async function createMultiSwapToSolTransactions(
+  walletPublicKey: PublicKey,
+  tokenSwaps: SwapTokenData[],
+  batchSize: number = 3
+): Promise<MultiSwapResult> {
   console.log(
-    `Creating batched transactions: ${body.tokenSwaps.length} tokens, ${batchSize} per batch`
+    `Creating batched transactions: ${tokenSwaps.length} tokens, ${batchSize} per batch`
   );
 
   const balanceValidation = await validateTokenBalances(
-    body.tokenSwaps,
-    userPublicKey
+    tokenSwaps,
+    walletPublicKey
   );
   if (!balanceValidation.success) {
-    return NextResponse.json(balanceValidation.error, { status: 400 });
+    throw new Error(balanceValidation.error);
   }
 
-  const tokenBatches: Array<MultiSwapToSolRequestBody["tokenSwaps"]> = [];
-  for (let i = 0; i < body.tokenSwaps.length; i += batchSize) {
-    tokenBatches.push(body.tokenSwaps.slice(i, i + batchSize));
+  const adminFeeInSol = await getTokenFeeFromUsd(
+    SOL_MINT,
+    0.5,
+    walletPublicKey.toString()
+  );
+
+  const tokenBatches: SwapTokenData[][] = [];
+  for (let i = 0; i < tokenSwaps.length; i += batchSize) {
+    tokenBatches.push(tokenSwaps.slice(i, i + batchSize));
   }
 
   console.log(`Created ${tokenBatches.length} batches`);
 
-  const batchTransactions: BatchTransaction[] = [];
+  const batchTransactions: BatchTransactionResult[] = [];
   const allSwapResults: SwapResult[] = [];
   let totalExpectedSolOutput = 0;
 
@@ -116,7 +122,7 @@ async function prepareBatchedSwapTransactions(body: MultiSwapToSolRequestBody) {
     try {
       const batchResult = await createBatchTransaction(
         batch,
-        userPublicKey,
+        walletPublicKey,
         batchIndex,
         isLastBatch ? adminFeeInSol : 0
       );
@@ -125,29 +131,23 @@ async function prepareBatchedSwapTransactions(body: MultiSwapToSolRequestBody) {
       allSwapResults.push(...batchResult.swapResults);
       totalExpectedSolOutput += batchResult.expectedSolOutput;
     } catch (error) {
-      return NextResponse.json(
-        {
-          error: `Failed to create batch ${batchIndex + 1}`,
-          details: error instanceof Error ? error.message : "Unknown error",
-        },
-        { status: 400 }
+      throw new Error(
+        `Failed to create batch ${batchIndex + 1}: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
       );
     }
   }
 
-  const userSolBalance = await connectionMainnet.getBalance(userPublicKey);
+  const userSolBalance = await connectionMainnet.getBalance(walletPublicKey);
   const estimatedGasFeePerTx = 0.001;
   const totalEstimatedGasFee = estimatedGasFeePerTx * batchTransactions.length;
 
   if (userSolBalance < totalEstimatedGasFee * LAMPORTS_PER_SOL) {
-    return NextResponse.json(
-      {
-        error: "Insufficient SOL balance for multiple transactions",
-        userSolBalance: userSolBalance / LAMPORTS_PER_SOL,
-        estimatedTotalGasFee: totalEstimatedGasFee,
-        transactionCount: batchTransactions.length,
-      },
-      { status: 400 }
+    throw new Error(
+      `Insufficient SOL balance for multiple transactions. Required: ${totalEstimatedGasFee} SOL, Available: ${
+        userSolBalance / LAMPORTS_PER_SOL
+      } SOL`
     );
   }
 
@@ -155,12 +155,11 @@ async function prepareBatchedSwapTransactions(body: MultiSwapToSolRequestBody) {
     `All ${batchTransactions.length} batch transactions created successfully`
   );
 
-  return NextResponse.json({
-    success: true,
+  return {
     transactions: batchTransactions,
     metadata: {
       totalBatches: batchTransactions.length,
-      totalTokenSwaps: body.tokenSwaps.length,
+      totalTokenSwaps: tokenSwaps.length,
       batchSize: batchSize,
       totalInstructions: batchTransactions.reduce(
         (sum, batch) => sum + batch.metadata.instructionCount,
@@ -170,7 +169,7 @@ async function prepareBatchedSwapTransactions(body: MultiSwapToSolRequestBody) {
       feeChargedInLastBatch: true,
     },
     breakdown: {
-      totalTokenSwaps: body.tokenSwaps.length,
+      totalTokenSwaps: tokenSwaps.length,
       totalExpectedSolOutput: totalExpectedSolOutput,
       adminFeeInSol: adminFeeInSol,
       netSolAfterFee: totalExpectedSolOutput - adminFeeInSol,
@@ -184,16 +183,16 @@ async function prepareBatchedSwapTransactions(body: MultiSwapToSolRequestBody) {
       })),
     },
     allSwapResults,
-  });
+  };
 }
 
 async function createBatchTransaction(
-  tokenBatch: MultiSwapToSolRequestBody["tokenSwaps"],
+  tokenBatch: SwapTokenData[],
   userPublicKey: PublicKey,
   batchIndex: number,
   adminFeeInSol: number = 0
 ): Promise<{
-  transaction: BatchTransaction;
+  transaction: BatchTransactionResult;
   swapResults: SwapResult[];
   expectedSolOutput: number;
 }> {
@@ -234,11 +233,12 @@ async function createBatchTransaction(
   }
 
   const adminFeeInLamports = Math.round(adminFeeInSol * LAMPORTS_PER_SOL);
+  const ADMIN_PUBLIC_KEY = process.env.NEXT_PUBLIC_ADMIN_PUBLIC_KEY!;
 
   if (adminFeeInLamports > 0) {
     const solTransferIx = SystemProgram.transfer({
       fromPubkey: userPublicKey,
-      toPubkey: adminKeypair.publicKey,
+      toPubkey: new PublicKey(ADMIN_PUBLIC_KEY),
       lamports: adminFeeInLamports,
     });
     instructions.push(solTransferIx);
@@ -248,7 +248,6 @@ async function createBatchTransaction(
   }
 
   const { blockhash } = await connectionMainnet.getLatestBlockhash();
-
   const messageV0 = new TransactionMessage({
     payerKey: userPublicKey,
     recentBlockhash: blockhash,
@@ -256,9 +255,6 @@ async function createBatchTransaction(
   }).compileToV0Message(lookupTableAccounts);
 
   const versionedTransaction = new VersionedTransaction(messageV0);
-  const serializedTransaction = Buffer.from(
-    versionedTransaction.serialize()
-  ).toString("base64");
   const transactionSize = versionedTransaction.serialize().length;
 
   console.log(
@@ -266,8 +262,8 @@ async function createBatchTransaction(
     } instructions, ${transactionSize} bytes`
   );
 
-  const batchTransaction: BatchTransaction = {
-    transaction: serializedTransaction,
+  const batchTransaction: BatchTransactionResult = {
+    transaction: versionedTransaction,
     tokenSwaps: tokenBatch.map((t) => t.inputTokenMint),
     expectedSolOutput: batchExpectedSolOutput,
     metadata: {
@@ -286,7 +282,7 @@ async function createBatchTransaction(
 }
 
 async function processTokenToSolSwap(
-  tokenSwap: MultiSwapToSolRequestBody["tokenSwaps"][0],
+  tokenSwap: SwapTokenData,
   userPublicKey: PublicKey,
   instructions: TransactionInstruction[],
   lookupTableAccounts: AddressLookupTableAccount[]
@@ -327,6 +323,11 @@ async function processTokenToSolSwap(
     quoteResponse: quote,
     dynamicComputeUnitLimit: true,
   });
+
+  console.log(
+    "Full Jupiter Response:",
+    JSON.stringify(swapInstructionsResponse, null, 2)
+  );
 
   await collectLookupTables(
     swapInstructionsResponse.addressLookupTableAddresses,
@@ -383,9 +384,9 @@ async function collectLookupTables(
 }
 
 async function validateTokenBalances(
-  tokenSwaps: MultiSwapToSolRequestBody["tokenSwaps"],
+  tokenSwaps: SwapTokenData[],
   userPublicKey: PublicKey
-) {
+): Promise<{ success: boolean; error?: string }> {
   for (const tokenSwap of tokenSwaps) {
     const tokenPublicKey = new PublicKey(tokenSwap.inputTokenMint);
     const tokenProgram = await getTokenProgram(tokenPublicKey);
@@ -407,19 +408,13 @@ async function validateTokenBalances(
       if (account.amount === BigInt(0)) {
         return {
           success: false,
-          error: {
-            error: "No token balance to swap",
-            tokenMint: tokenSwap.inputTokenMint,
-          },
+          error: `No token balance to swap for ${tokenSwap.inputTokenMint}`,
         };
       }
     } catch {
       return {
         success: false,
-        error: {
-          error: "Token account not found",
-          tokenMint: tokenSwap.inputTokenMint,
-        },
+        error: `Token account not found for ${tokenSwap.inputTokenMint}`,
       };
     }
   }

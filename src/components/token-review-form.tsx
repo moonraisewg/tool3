@@ -53,7 +53,7 @@ const TokenReviewForm = () => {
                 <p className="text-sm font-medium text-gray-500">Token Address</p>
                 <p className="text-base font-mono break-all">{createdTokenMint}</p>
               </div>
-              
+
               {transactionSignature && (
                 <div className="p-4 bg-gray-50 rounded-lg">
                   <p className="text-sm font-medium text-gray-500">Transaction</p>
@@ -63,17 +63,17 @@ const TokenReviewForm = () => {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button 
+              <Button
                 variant="outline"
                 onClick={goToHome}
               >
                 Return to Home
               </Button>
-              
-              <Button 
+
+              <Button
                 onClick={() => {
                   window.open(
-                    `https://explorer.solana.com/address/${createdTokenMint}?cluster=devnet`, 
+                    `https://explorer.solana.com/address/${createdTokenMint}?cluster=devnet`,
                     "_blank"
                   );
                 }}
@@ -95,7 +95,7 @@ const TokenReviewForm = () => {
           <CardContent className="pt-6">
             <h2 className="text-2xl font-bold mb-4 text-red-600">Token Creation Failed</h2>
             <p className="text-gray-700 mb-6">{creationError}</p>
-            
+
             <div className="flex gap-4">
               <Button variant="outline" onClick={handleBack}>Go Back</Button>
               <Button onClick={() => handleConfirmCreate()}>Try Again</Button>
@@ -109,7 +109,7 @@ const TokenReviewForm = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex items-center mb-6">
-        <button 
+        <button
           className="flex items-center text-gray-500 hover:text-gray-700 mr-4"
           onClick={handleBack}
         >
@@ -126,9 +126,9 @@ const TokenReviewForm = () => {
               <div className="flex items-center space-x-4 mb-6">
                 {imageUrl && (
                   <div className="h-16 w-16 rounded-lg overflow-hidden relative">
-                    <Image 
-                      src={imageUrl} 
-                      alt="Token" 
+                    <Image
+                      src={imageUrl}
+                      alt="Token"
                       fill
                       className="object-cover"
                       sizes="64px"
@@ -160,49 +160,49 @@ const TokenReviewForm = () => {
                 )}
               </div>
 
-              {(tokenData?.websiteUrl || tokenData?.twitterUrl || 
+              {(tokenData?.websiteUrl || tokenData?.twitterUrl ||
                 tokenData?.telegramUrl || tokenData?.discordUrl) && (
-                <>
-                  <Separator className="my-4" />
-                  <div className="space-y-3">
-                    <h3 className="font-medium">Social Links</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
-                      {tokenData?.websiteUrl && (
-                        <div className="flex items-center">
-                          <span className="text-sm font-medium text-gray-500 mr-2">Website:</span>
-                          <a href={tokenData.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline truncate">
-                            {tokenData.websiteUrl}
-                          </a>
-                        </div>
-                      )}
-                      {tokenData?.twitterUrl && (
-                        <div className="flex items-center">
-                          <span className="text-sm font-medium text-gray-500 mr-2">Twitter:</span>
-                          <a href={tokenData.twitterUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline truncate">
-                            {tokenData.twitterUrl}
-                          </a>
-                        </div>
-                      )}
-                      {tokenData?.telegramUrl && (
-                        <div className="flex items-center">
-                          <span className="text-sm font-medium text-gray-500 mr-2">Telegram:</span>
-                          <a href={tokenData.telegramUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline truncate">
-                            {tokenData.telegramUrl}
-                          </a>
-                        </div>
-                      )}
-                      {tokenData?.discordUrl && (
-                        <div className="flex items-center">
-                          <span className="text-sm font-medium text-gray-500 mr-2">Discord:</span>
-                          <a href={tokenData.discordUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline truncate">
-                            {tokenData.discordUrl}
-                          </a>
-                        </div>
-                      )}
+                  <>
+                    <Separator className="my-4" />
+                    <div className="space-y-3">
+                      <h3 className="font-medium">Social Links</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
+                        {tokenData?.websiteUrl && (
+                          <div className="flex items-center">
+                            <span className="text-sm font-medium text-gray-500 mr-2">Website:</span>
+                            <a href={tokenData.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline truncate">
+                              {tokenData.websiteUrl}
+                            </a>
+                          </div>
+                        )}
+                        {tokenData?.twitterUrl && (
+                          <div className="flex items-center">
+                            <span className="text-sm font-medium text-gray-500 mr-2">Twitter:</span>
+                            <a href={tokenData.twitterUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline truncate">
+                              {tokenData.twitterUrl}
+                            </a>
+                          </div>
+                        )}
+                        {tokenData?.telegramUrl && (
+                          <div className="flex items-center">
+                            <span className="text-sm font-medium text-gray-500 mr-2">Telegram:</span>
+                            <a href={tokenData.telegramUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline truncate">
+                              {tokenData.telegramUrl}
+                            </a>
+                          </div>
+                        )}
+                        {tokenData?.discordUrl && (
+                          <div className="flex items-center">
+                            <span className="text-sm font-medium text-gray-500 mr-2">Discord:</span>
+                            <a href={tokenData.discordUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline truncate">
+                              {tokenData.discordUrl}
+                            </a>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </>
-              )}
+                  </>
+                )}
             </CardContent>
           </Card>
         </div>
@@ -214,14 +214,14 @@ const TokenReviewForm = () => {
               <div className="space-y-3">
                 {selectedExtensions.map((extId) => {
                   const extension = tokenExtensionsMap[extId];
-                  const extensionDetails = tokenData?.extensionOptions?.[extId] ? 
+                  const extensionDetails = tokenData?.extensionOptions?.[extId] ?
                     getExtensionDetails(extId, tokenData.extensionOptions[extId]) : null;
-                  
+
                   if (!extension) return null;
-                  
+
                   return (
-                    <div 
-                      key={extId} 
+                    <div
+                      key={extId}
                       className={cn(
                         "p-3 border rounded-lg",
                         extension.bgColor
@@ -231,7 +231,7 @@ const TokenReviewForm = () => {
                         {extension.icon && <extension.icon className={`w-4 h-4 ${extension.color}`} />}
                         <span className="font-medium">{extension.name}</span>
                       </div>
-                      
+
                       {extensionDetails && (
                         <div className="mt-2 text-sm">
                           {extensionDetails.displayItems?.map((item, i) => (
@@ -240,7 +240,7 @@ const TokenReviewForm = () => {
                               <span className="font-medium">{item.value}</span>
                             </div>
                           ))}
-                          
+
                           {extensionDetails.truncatedAddress && (
                             <div className="flex justify-between text-gray-600">
                               <span>Address:</span>
@@ -264,8 +264,8 @@ const TokenReviewForm = () => {
               <p className="text-sm text-gray-500 mb-4">
                 Once you confirm, your wallet will be prompted to sign a transaction to create the token.
               </p>
-              <Button 
-                className="w-full"
+              <Button
+                className="w-full cursor-pointer"
                 onClick={handleConfirmCreate}
                 disabled={isCreating}
               >

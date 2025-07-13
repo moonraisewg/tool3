@@ -23,6 +23,7 @@ import { useWatch } from "react-hook-form";
 import { UserToken } from "@/hooks/useUserTokens";
 import { WSOL_MINT } from "@/utils/constants";
 import { getTokenFeeFromUsd } from "@/service/jupiter/calculate-fee";
+import { connectionMainnet } from "../../service/solana/connection";
 
 const formSchema = z.object({
   recipient: z
@@ -149,39 +150,34 @@ export default function TransferForm() {
       const transaction = Transaction.from(
         Buffer.from(prepareResult.transaction, "base64")
       );
-      const signedTransaction = await signTransaction(transaction);
+      const signedTx = await signTransaction(transaction);
 
-      const executeData = {
-        walletPublicKey: publicKey.toString(),
-        tokenAmount: amountValue,
-        receiverWalletPublicKey: values.recipient,
-        tokenMint: selectedToken.address,
-        signedTransaction: Array.from(signedTransaction.serialize()),
-      };
+      const signature = await connectionMainnet.sendRawTransaction(
+        signedTx.serialize(),
+        {
+          skipPreflight: false,
+          preflightCommitment: "confirmed",
+          maxRetries: 3,
+        }
+      );
 
-      const executeResponse = await fetch("/api/transfer", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(executeData),
-      });
+      const confirmation = await connectionMainnet.confirmTransaction(
+        signature
+      );
 
-      const executeResult = await executeResponse.json();
-
-      if (!executeResponse.ok) {
-        throw new Error(executeResult.error || "Failed to execute transaction");
+      if (confirmation.value.err) {
+        throw new Error(
+          `Transaction failed: ${JSON.stringify(confirmation.value.err)}`
+        );
       }
 
       toast.success("🎉 Gasless Transfer Successful!", {
-        description: `Transferred ${values.amount} ${
-          selectedToken.symbol || selectedToken.name
-        } to ${values.recipient.slice(0, 8)}...${values.recipient.slice(-8)}`,
+        description: `Transferred ${values.amount} ${selectedToken.symbol || selectedToken.name
+          } to ${values.recipient.slice(0, 8)}...${values.recipient.slice(-8)}`,
         action: {
           label: "View Transaction",
           onClick: () =>
-            window.open(
-              `https://solscan.io/tx/${executeResult.signature}`,
-              "_blank"
-            ),
+            window.open(`https://solscan.io/tx/${signature}`, "_blank"),
         },
       });
 
@@ -201,15 +197,14 @@ export default function TransferForm() {
 
   return (
     <div
-      className={`md:p-2 max-w-[550px] mx-auto my-2 ${
-        !isMobile && "border-gear"
-      }`}
+      className={`md:p-2 max-w-[550px] mx-auto my-2 flex flex-col items-center ${!isMobile && "border-gear"
+        }`}
     >
       <h1 className="text-2xl font-bold text-gray-900 mb-6 text-center">
         Gasless SPL Token Transfer
       </h1>
 
-      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+      <div className="mb-2 p-[8px] bg-blue-50 border-gear-blue w-[calc(100%-10px)]">
         <p className="text-sm text-blue-800">
           💰 <strong>Estimated Fee:</strong>{" "}
           {feeLoading ? (
@@ -222,14 +217,14 @@ export default function TransferForm() {
         </p>
       </div>
 
-      <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+      <div className="mb-6 p-[8px] bg-green-50 border-gear-green-200 mt-4 w-[calc(100%-10px)]" >
         <p className="text-sm text-green-800">
           ⚡ <strong>100% Gasless:</strong> No SOL needed!
         </p>
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 w-full">
           <div className="px-[5px] space-y-6">
             <FormField
               control={form.control}
@@ -241,7 +236,7 @@ export default function TransferForm() {
                   </FormLabel>
                   <FormControl>
                     <Input
-                      className="border-gray-300 bg-white text-gray-900 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 rounded-lg"
+                      className="border-gear-gray bg-white text-gray-900 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 rounded-lg !h-[30px] mt-1"
                       placeholder="Enter recipient Solana address"
                       {...field}
                       disabled={loading}
@@ -266,7 +261,7 @@ export default function TransferForm() {
 
           <Button
             type="submit"
-            className="w-full text-white font-semibold py-2 rounded-lg transition-colors duration-200"
+            className="w-full text-white font-semibold py-2 rounded-lg transition-colors duration-200 cursor-pointer"
             variant="default"
             disabled={loading || !selectedToken || !publicKey}
           >

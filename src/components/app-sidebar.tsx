@@ -30,7 +30,8 @@ import {
   Trash,
   Wallet,
   Trophy,
-  AddBoxMultiple
+  AddBoxMultiple,
+  Trophy,
 } from "@nsmr/pixelart-react";
 import { useState } from "react";
 
@@ -57,6 +58,10 @@ export const route = {
       title: "Utilities",
       icon: CreditCard,
       submenu: [
+        {
+          title: "Gasless Transfer",
+          url: "/transfer-spl-token",
+        },
         {
           title: "Gasless Transfer",
           url: "/transfer-spl-token",

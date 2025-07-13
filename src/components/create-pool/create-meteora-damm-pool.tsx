@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useMemo } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -12,9 +12,9 @@ import { useIsMobile } from "@/hooks/use-mobile"
 import { Loader2, Info, ChevronRight } from "lucide-react"
 import { Transaction } from "@solana/web3.js"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip"
-import SelectToken from "../transfer/select-token"
-import { UserToken } from "@/hooks/useUserTokens"
-import { CREATE_POOL_FEE } from "@/utils/constants"
+import { UserToken, useUserTokens } from "@/hooks/useUserTokens"
+import { CREATE_POOL_FEE, TOKEN2022 } from "@/utils/constants"
+import SelectTokenCreatePool from "./select-token-create-pool"
 
 const formSchema = z.object({
     amountToken1: z.string().refine((val) => !isNaN(Number.parseFloat(val)) && Number.parseFloat(val) > 0, {
@@ -27,6 +27,8 @@ const formSchema = z.object({
 
 export default function CreateMeteoraDammPool() {
     const isMobile = useIsMobile()
+    const excludeToken = useMemo(() => [TOKEN2022], []);
+    const { tokens } = useUserTokens("devnet", excludeToken);
     const [selectedToken1, setSelectedToken1] = useState<UserToken | null>(null)
     const [selectedToken2, setSelectedToken2] = useState<UserToken | null>(null)
     const [loading, setLoading] = useState(false)
@@ -300,24 +302,24 @@ export default function CreateMeteoraDammPool() {
                 <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
                     {currentStep === 1 && (
                         <div className="space-y-6 px-1">
-                            <SelectToken
+                            <SelectTokenCreatePool
                                 selectedToken={selectedToken1}
                                 setSelectedToken={setSelectedToken1}
                                 onAmountChange={(v) => form.setValue("amountToken1", v)}
-                                cluster="devnet"
                                 amount={form.watch("amountToken1")}
+                                tokens={tokens}
                             />
                             {form.formState.errors.amountToken1 && (
                                 <p className="text-sm text-red-500 mt-1">
                                     {form.formState.errors.amountToken1.message}
                                 </p>
                             )}
-                            <SelectToken
+                            <SelectTokenCreatePool
                                 selectedToken={selectedToken2}
                                 setSelectedToken={setSelectedToken2}
                                 onAmountChange={(v) => form.setValue("amountToken2", v)}
-                                cluster="devnet"
                                 amount={form.watch("amountToken2")}
+                                tokens={tokens}
                             />
                             {form.formState.errors.amountToken2 && (
                                 <p className="text-sm text-red-500 mt-1">
@@ -356,12 +358,12 @@ export default function CreateMeteoraDammPool() {
                     {currentStep === 3 && (
                         <div className="space-y-6 px-1">
                             <div className="text-sm">
-                                <p className="mt-1"><strong>Token Pair:</strong> {selectedToken1?.symbol || "UNKNOW"} / {selectedToken2?.symbol || "UNKNOW"}</p>
-                                <p className="mt-1"><strong>Amount A:</strong> {form.watch("amountToken1")}</p>
-                                <p className="mt-1"><strong>Amount B:</strong> {form.watch("amountToken2")}</p>
-                                <p className="mt-1"><strong>Initial Price:</strong> {price} {selectedToken1?.symbol || "UNKNOW"}/{selectedToken2?.symbol || "UNKNOW"}</p>
-                                <p className="mt-1"><strong>Fee:</strong> {CREATE_POOL_FEE} SOL</p>
-                                <div className="mt-2 bg-blue-50 border border-blue-200 rounded-lg p-2">⚡Switch your wallet to Devnet, then click Create Pool to transfer tokens and finalize the pool creation.</div>
+                                <p className="mt-2"><strong>Token Pair:</strong> {selectedToken1?.symbol || "UNKNOW"} / {selectedToken2?.symbol || "UNKNOW"}</p>
+                                <p className="mt-2"><strong>Amount A:</strong> {form.watch("amountToken1")}</p>
+                                <p className="mt-2"><strong>Amount B:</strong> {form.watch("amountToken2")}</p>
+                                <p className="mt-2"><strong>Initial Price:</strong> {price} {selectedToken1?.symbol || "UNKNOW"}/{selectedToken2?.symbol || "UNKNOW"}</p>
+                                <p className="mt-2"><strong>Fee:</strong> {CREATE_POOL_FEE} SOL</p>
+                                <div className="mt-3 bg-blue-50 border-gear-blue p-2 w-[calc(100%-8px)] ml-1">⚡ Switch your wallet to Devnet, then click Create Pool to transfer tokens and finalize the pool creation.</div>
                             </div>
                         </div>
                     )}

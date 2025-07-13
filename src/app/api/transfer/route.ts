@@ -18,17 +18,13 @@ interface TransferRequestBody {
   tokenAmount: number;
   receiverWalletPublicKey: string;
   tokenMint: string;
-  signedTransaction: number[];
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body: TransferRequestBody = await req.json();
-    if (body.signedTransaction) {
-      return await executeSignedTransaction(body);
-    } else {
-      return await prepareTransaction(body);
-    }
+
+    return await prepareTransaction(body);
   } catch (error: unknown) {
     return NextResponse.json(
       {
@@ -80,12 +76,11 @@ async function prepareTransaction(
     feeUsdt,
     body.walletPublicKey
   );
-  const feeAmount = Math.round(feeInTokens * Math.pow(10, decimals));
-
+  let feeAmount = Math.round(feeInTokens * Math.pow(10, decimals));
   const netAmount = Math.round(
     parseFloat(body.tokenAmount.toString()) * Math.pow(10, decimals)
   );
-  const totalAmount = netAmount + feeAmount;
+  let totalAmount = netAmount + feeAmount;
 
   try {
     const senderAccount = await getAccount(
@@ -95,14 +90,21 @@ async function prepareTransaction(
       tokenProgram
     );
     if (senderAccount.amount < BigInt(totalAmount)) {
-      return NextResponse.json(
-        {
-          error: "Insufficient token balance",
-          required: totalAmount.toString(),
-          available: senderAccount.amount.toString(),
-        },
-        { status: 400 }
+      const reducedFeeAmount = Math.round(
+        feeInTokens * 0.98 * Math.pow(10, decimals)
       );
+      totalAmount = netAmount + reducedFeeAmount;
+
+      if (senderAccount.amount >= BigInt(totalAmount)) {
+        feeAmount = reducedFeeAmount;
+      } else {
+        return NextResponse.json(
+          {
+            error: "Token price has change. Please try again.",
+          },
+          { status: 400 }
+        );
+      }
     }
   } catch {
     return NextResponse.json(
@@ -171,8 +173,7 @@ async function prepareTransaction(
   );
   transaction.add(netTransferIx);
 
-  const { blockhash, lastValidBlockHeight } =
-    await connectionMainnet.getLatestBlockhash();
+  const { blockhash } = await connectionMainnet.getLatestBlockhash();
   transaction.recentBlockhash = blockhash;
   transaction.feePayer = adminKeypair.publicKey;
   transaction.partialSign(adminKeypair);
@@ -184,59 +185,5 @@ async function prepareTransaction(
   return NextResponse.json({
     success: true,
     transaction: serializedTransaction,
-    blockhash,
-    lastValidBlockHeight,
-    breakdown: {
-      transferAmount: body.tokenAmount,
-      feeAmount: feeAmount / Math.pow(10, decimals),
-      totalRequired: totalAmount / Math.pow(10, decimals),
-    },
   });
-}
-
-async function executeSignedTransaction(body: TransferRequestBody) {
-  try {
-    const signedTransaction = Transaction.from(
-      Buffer.from(body.signedTransaction)
-    );
-
-    const hasValidSignatures = signedTransaction.signatures.some(
-      (sig) => sig.signature !== null
-    );
-
-    if (!hasValidSignatures) {
-      throw new Error("No valid signatures found");
-    }
-
-    const signature = await connectionMainnet.sendRawTransaction(
-      signedTransaction.serialize(),
-      {
-        skipPreflight: false,
-        preflightCommitment: "confirmed",
-        maxRetries: 3,
-      }
-    );
-
-    const confirmation = await connectionMainnet.confirmTransaction(signature);
-
-    if (confirmation.value.err) {
-      throw new Error(
-        `Transaction failed: ${JSON.stringify(confirmation.value.err)}`
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      signature: signature,
-      message: "Gasless transfer completed successfully",
-    });
-  } catch (error) {
-    return NextResponse.json(
-      {
-        error: "Failed to execute transaction",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
-  }
 }

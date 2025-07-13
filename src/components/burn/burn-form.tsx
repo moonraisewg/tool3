@@ -47,7 +47,7 @@ export function BurnForm({ }: BurnFormProps) {
   const handleTokensLoaded = () => {
     setIsLoading(false);
   };
-  
+
   useEffect(() => {
     const urlCluster = window.location.href.includes('cluster=devnet') ? 'devnet' : 'mainnet';
     setCluster(urlCluster);
@@ -203,28 +203,32 @@ export function BurnForm({ }: BurnFormProps) {
         Burn Token Extensions
       </h1>
       <div>
-        <Alert className="bg-amber-50 border-amber-200 mb-6">
+        <Alert className="bg-amber-50 border-gear-orange mb-6 w-[calc(100%-8px)] ml-1 flex gap-3">
           <Flame className="h-4 w-4 text-amber-500" />
-          <AlertTitle>Warning: Irreversible Action</AlertTitle>
-          <AlertDescription>
-            Burning tokens permanently removes them from circulation. This action cannot be undone.
-          </AlertDescription>
+          <div>
+            <AlertTitle>Warning: Irreversible Action</AlertTitle>
+            <AlertDescription>
+              Burning tokens permanently removes them from circulation. This action cannot be undone.
+            </AlertDescription>
+          </div>
         </Alert>
 
         <form onSubmit={(e) => { e.preventDefault(); openConfirmDialog(); }} className="space-y-6">
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label htmlFor="token">Select Token</Label>
-            <SelectToken
-              selectedToken={selectedToken}
-              setSelectedToken={setSelectedToken}
-              onAmountChange={handleAmountChange}
-              title="Select Token"
-              disabled={!connected}
-              amount={amount}
-              amountLoading={isLoading}
-              cluster={cluster}
-              onTokensLoaded={handleTokensLoaded}
-            />
+            <div className="w-[calc(100%-8px)] ml-1">
+              <SelectToken
+                selectedToken={selectedToken}
+                setSelectedToken={setSelectedToken}
+                onAmountChange={handleAmountChange}
+                title="Select Token"
+                disabled={!connected}
+                amount={amount}
+                amountLoading={isLoading}
+                cluster={cluster}
+                onTokensLoaded={handleTokensLoaded}
+              />
+            </div>
           </div>
 
           {selectedToken && amount && (
@@ -241,7 +245,7 @@ export function BurnForm({ }: BurnFormProps) {
 
           <Button
             type="submit"
-            className="w-full bg-red-600 hover:bg-red-700 text-white"
+            className="w-full bg-red-600 hover:bg-red-700 text-white cursor-pointer"
             disabled={isLoading || !connected || !selectedToken || burnInProgress || !amount}
           >
             {burnInProgress ? (
@@ -295,7 +299,7 @@ export function BurnForm({ }: BurnFormProps) {
             </Button>
             <Button
               onClick={handleBurn}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-red-600 hover:bg-red-700 cursor-pointer"
             >
               <Flame className="w-4 h-4 mr-2" /> Confirm Burn
             </Button>

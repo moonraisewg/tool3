@@ -4,9 +4,8 @@ import { useEffect, useState, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Info, Upload, ChevronRight, Check} from "lucide-react";
+import { Info, Upload, ChevronRight, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -113,8 +112,8 @@ export const TokenCreationForm = () => {
   const handleOpenExtensions = useCallback(() => {
     setOpenExtensions(prevState => {
       const newOpenState = { ...prevState };
-    selectedExtensions.forEach(extId => {
-      newOpenState[extId] = true;
+      selectedExtensions.forEach(extId => {
+        newOpenState[extId] = true;
       });
       return newOpenState;
     });
@@ -183,17 +182,16 @@ export const TokenCreationForm = () => {
   };
 
   return (
-    <div className={`md:p-3 max-w-[1000px] mx-auto my-2 ${!isMobile && "border-gear"}`}>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6 flex items-center justify-center">
+    <div className={`md:p-3 mx-auto my-2`}>
+      <h1 className="text-2xl font-bold text-gray-900 sm:mb-6 flex items-center justify-center">
         Create Token
       </h1>
-      <div className="max-h-[calc(100vh-162px)] overflow-y-auto pb-4">
+      <div className="pb-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="md:col-span-2">
-            <Card>
-            <CardContent className="pt-6">
+            <div className={`pt-6 px-1 pb-2 ${!isMobile && "border-gear"}`}>
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <form onSubmit={form.handleSubmit(onSubmit)} className={`space-y-6 ${!isMobile && "max-h-[calc(100vh-200px)] overflow-y-auto px-2"}`}>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
@@ -202,7 +200,7 @@ export const TokenCreationForm = () => {
                         <FormItem>
                           <FormLabel>Token Name</FormLabel>
                           <FormControl>
-                              <Input placeholder="e.g. Moon Token" {...field} className="focus:border-purple-500 focus:ring-purple-500" />
+                            <Input placeholder="e.g. Moon Token" {...field} className="w-[calc(100%-8px)] border-gear-gray !h-[28px] ml-1 mt-1" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -216,7 +214,7 @@ export const TokenCreationForm = () => {
                         <FormItem>
                           <FormLabel>Token Symbol</FormLabel>
                           <FormControl>
-                              <Input placeholder="e.g. MOON" {...field} className="focus:border-purple-500 focus:ring-purple-500" />
+                            <Input placeholder="e.g. MOON" {...field} className="w-[calc(100%-8px)] border-gear-gray !h-[28px] ml-1 mt-1" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -232,7 +230,7 @@ export const TokenCreationForm = () => {
                         <FormItem>
                           <FormLabel>Decimals</FormLabel>
                           <FormControl>
-                              <Input type="number" min="0" max="9" {...field} className="focus:border-purple-500 focus:ring-purple-500" />
+                            <Input type="number" min="0" max="9" {...field} className="w-[calc(100%-8px)] border-gear-gray !h-[28px] ml-1 mt-1" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -246,7 +244,7 @@ export const TokenCreationForm = () => {
                         <FormItem>
                           <FormLabel>Initial Supply</FormLabel>
                           <FormControl>
-                              <Input type="text" placeholder="e.g. 1000000" {...field} className="focus:border-purple-500 focus:ring-purple-500" />
+                            <Input type="text" placeholder="e.g. 1000000" {...field} className="w-[calc(100%-8px)] border-gear-gray !h-[28px] ml-1 mt-1" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -261,7 +259,7 @@ export const TokenCreationForm = () => {
                       <FormItem>
                         <FormLabel>Token Description (Optional)</FormLabel>
                         <FormControl>
-                            <Textarea placeholder="A brief description of your token" {...field} className="focus:border-purple-500 focus:ring-purple-500" />
+                          <Textarea placeholder="A brief description of your token" {...field} className="w-[calc(100%-8px)] border-gear-gray !h-[28px] ml-1 mt-1" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -271,7 +269,7 @@ export const TokenCreationForm = () => {
                   <div className="space-y-2">
                     <FormLabel>Token Image</FormLabel>
                     <div className="flex items-start gap-4">
-                        <div className="w-24 h-24 border border-gear-gray rounded-lg flex items-center justify-center overflow-hidden">
+                      <div className="w-24 h-24 border border-gear-gray rounded-lg flex items-center justify-center overflow-hidden">
                         {imagePreview ? (
                           <Image src={imagePreview} alt="Token preview" width={96} height={96} className="w-full h-full object-cover" />
                         ) : (
@@ -317,7 +315,7 @@ export const TokenCreationForm = () => {
                           <FormItem>
                             <FormLabel>Website URL</FormLabel>
                             <FormControl>
-                              <Input placeholder="https://example.com" {...field} />
+                              <Input placeholder="https://example.com" {...field} className="w-[calc(100%-8px)] border-gear-gray !h-[28px] ml-1 mt-1" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -331,7 +329,7 @@ export const TokenCreationForm = () => {
                           <FormItem>
                             <FormLabel>Twitter URL</FormLabel>
                             <FormControl>
-                              <Input placeholder="https://twitter.com/username" {...field} />
+                              <Input placeholder="https://twitter.com/username" {...field} className="w-[calc(100%-8px)] border-gear-gray !h-[28px] ml-1 mt-1" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -347,7 +345,7 @@ export const TokenCreationForm = () => {
                           <FormItem>
                             <FormLabel>Telegram URL</FormLabel>
                             <FormControl>
-                              <Input placeholder="https://t.me/groupname" {...field} />
+                              <Input placeholder="https://t.me/groupname" {...field} className="w-[calc(100%-8px)] border-gear-gray !h-[28px] ml-1 mt-1" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -361,7 +359,7 @@ export const TokenCreationForm = () => {
                           <FormItem>
                             <FormLabel>Discord URL</FormLabel>
                             <FormControl>
-                              <Input placeholder="https://discord.gg/invite" {...field} />
+                              <Input placeholder="https://discord.gg/invite" {...field} className="w-[calc(100%-8px)] border-gear-gray !h-[28px] ml-1 mt-1" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -370,19 +368,17 @@ export const TokenCreationForm = () => {
                     </div>
                   </div>
 
-                  <Button type="submit" className="w-full">Continue to Review</Button>
+                  <Button type="submit" className="w-full cursor-pointer">Continue to Review</Button>
                 </form>
               </Form>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </div>
 
-        <div className="space-y-4">
-          <div className="sticky top-4">
-              <Card>
-              <CardContent className="pt-6">
-                <h3 className="text-lg font-medium mb-4">Token Extensions</h3>
-                <div className="space-y-3 max-h-[min(624px,_calc(100vh-280px))] overflow-y-auto pr-2">
+          <div className="space-y-4 mb-8">
+            <div className="sticky top-4">
+              <div className={`pt-2 px-1 pb-1 ${!isMobile && "border-gear"}`}>
+                <h3 className="text-lg text-center font-medium mb-4">Token Extensions</h3>
+                <div className="space-y-3 max-h-[min(624px,_calc(100vh-224px))] overflow-y-auto">
                   {tokenExtensions.map((extension) => {
                     const isSelected = selectedExtensions.includes(extension.id);
                     const isExpanded = openExtensions[extension.id] || false;
@@ -439,7 +435,7 @@ export const TokenCreationForm = () => {
                               )}
                               <div className="flex-shrink-0 ml-2">
                                 {isSelected ? (
-                                  <div 
+                                  <div
                                     className="w-5 h-5 border rounded-sm bg-purple-600 flex items-center justify-center cursor-pointer"
                                     onClick={(e: React.MouseEvent) => {
                                       e.stopPropagation();
@@ -449,7 +445,7 @@ export const TokenCreationForm = () => {
                                     <Check className="w-4 h-4 text-white" />
                                   </div>
                                 ) : (
-                                  <div 
+                                  <div
                                     className="w-5 h-5 border rounded-sm border-gray-300 hover:border-purple-500 cursor-pointer"
                                     onClick={(e: React.MouseEvent) => {
                                       e.stopPropagation();
@@ -616,8 +612,7 @@ export const TokenCreationForm = () => {
                     );
                   })}
                 </div>
-              </CardContent>
-            </Card>
+              </div>
             </div>
           </div>
         </div>
