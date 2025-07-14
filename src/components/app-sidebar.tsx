@@ -30,8 +30,7 @@ import {
   Trash,
   Wallet,
   Trophy,
-  AddBoxMultiple,
-  Trophy,
+  AddBoxMultiple
 } from "@nsmr/pixelart-react";
 import { useState } from "react";
 

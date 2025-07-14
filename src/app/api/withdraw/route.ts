@@ -219,13 +219,8 @@ export async function POST(req: NextRequest) {
     let errorMessage = "Failed to process withdraw";
 
     if (error instanceof SendTransactionError) {
-      const logs = await error.getLogs(connectionDevnet);
-      console.error("SendTransactionError:", {
-        message: error.message,
-        logs,
-      });
       errorMessage = `Transaction failed: ${error.message
-        }. Logs: ${JSON.stringify(logs)}`;
+        }}`;
     } else if (error instanceof Error) {
       if (error.message.includes("LockNotYetExpired")) {
         errorMessage = "Lock period has not yet expired";

@@ -59,7 +59,7 @@ export const useAllTokens = (cluster: ClusterType = "mainnet") => {
     };
 
     fetchJupiterTokens();
-  }, [cluster]);
+  }, [cluster, CACHE_TTL]);
 
   return { tokens, loading, error };
 };

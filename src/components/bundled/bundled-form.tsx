@@ -5,44 +5,45 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { Button } from "@/components/ui/button"
-import { Form } from "@/components/ui/form"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { toast } from "sonner"
 import { useWallet } from "@solana/wallet-adapter-react"
-import { Loader2, Info } from "lucide-react"
-import { Transaction, PublicKey, TransactionInstruction, TransactionMessage, VersionedTransaction } from "@solana/web3.js"
+import { Info, Loader2 } from "lucide-react"
+import { Transaction, PublicKey, TransactionMessage, VersionedTransaction } from "@solana/web3.js"
 import { getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, TOKEN_PROGRAM_ID, NATIVE_MINT } from "@solana/spl-token"
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Input } from "@/components/ui/input"
 import WalletList from "./wallet-list"
 import SelectTokenBundled from "./select-token-bundled"
 import { Token } from "@/types/types"
-import { connectionDevnet } from "@/service/solana/connection"
-import {
-  CpmmSwapParams,
-  Raydium,
-  TxVersion,
-  CurveCalculator,
-} from "@raydium-io/raydium-sdk-v2"
-import { BN } from "bn.js"
+import { connectionMainnet } from "@/service/solana/connection"
+
 import { Keypair } from "@solana/web3.js"
-import { SystemProgram } from "@solana/web3.js"
-import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes"
+import { createInstructionFromJupiter, getJupiterQuote, getJupiterSwapInstructions, SwapInstructionsRequest } from "@/service/jupiter/swap"
+import Image from "next/image"
+import BN from "bn.js"
 
 const formSchema = z.object({
   amount: z.string().refine((val) => !isNaN(Number.parseFloat(val)) && Number.parseFloat(val) >= 0, {
     message: "Amount must be a valid non-negative number",
-  }),
+  }).optional(),
+  buyAmountMode: z.enum(["fixed", "random"]),
+  randomMin: z.string().refine((val) => !isNaN(Number(val)) && Number(val) > 0, {
+    message: "Amount must be a positive number",
+  }).optional(),
+  randomMax: z.string().refine((val) => !isNaN(Number(val)) && Number(val) > 0, {
+    message: "Amount must be a positive number",
+  }).optional(),
   action: z.enum(["bundledSell", "bundledBuy", "sellAndBundledBuy"], {
     required_error: "Please select a transaction type",
   }),
-  dex: z.enum(["raydium", "pump"], { required_error: "Please select a DEX" }),
+  dex: z.enum(["Raydium,Meteora,Orca+V2", "Raydium Launchlab", "Pump.fun", "Pump.fun Amm"], {
+    required_error: "Please select a DEX"
+  }),
   chain: z.enum(["solana"], { required_error: "Please select a chain" }),
-  jitoFee: z.string().refine((val) => !isNaN(Number.parseFloat(val)) && Number.parseFloat(val) >= 0, {
-    message: "Jito fee must be a valid non-negative number",
-  }),
-  amountType: z.enum(["allAmount", "randomAmount", "percentAmount", "fixedAmount", "fixedRetention"], {
-    required_error: "Please select an amount type",
-  }),
+  jitoFee: z.enum(["0.00006", "0.0001", "0.0003"]),
 })
 
 interface TokenAccount {
@@ -68,15 +69,22 @@ export default function BundledForm() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      amount: "0.0001",
-      action: "bundledSell",
-      dex: "raydium",
+      amount: "0.001",
+      buyAmountMode: "fixed",
+      randomMin: "0.001",
+      randomMax: "0.01",
+      action: "bundledBuy",
+      dex: "Raydium,Meteora,Orca+V2",
       chain: "solana",
-      jitoFee: "0.000001",
-      amountType: "allAmount",
+      jitoFee: "0.00006",
     },
   })
 
+  const feeOptions = [
+    { value: "0.00006", label: "0.00006 SOL" },
+    { value: "0.0001", label: "0.0001 SOL" },
+    { value: "0.0003", label: "0.0003 SOL" },
+  ] as const
 
   const toLamports = useCallback((amountStr: string, decimals: number): string => {
     const amount = Number.parseFloat(amountStr)
@@ -85,7 +93,7 @@ export default function BundledForm() {
   }, [])
 
   const fetchTokenAccountData = async (wallet: PublicKey): Promise<{ tokenAccounts: TokenAccount[] }> => {
-    const accounts = await connectionDevnet.getParsedTokenAccountsByOwner(wallet, { programId: TOKEN_PROGRAM_ID })
+    const accounts = await connectionMainnet.getParsedTokenAccountsByOwner(wallet, { programId: TOKEN_PROGRAM_ID })
     const tokenAccounts = accounts.value.map(({ pubkey, account }) => ({
       mint: new PublicKey(account.data.parsed.info.mint),
       publicKey: pubkey,
@@ -110,12 +118,12 @@ export default function BundledForm() {
         allPubKeys.push(pubKey)
 
         if (selectedToken) {
-          const ata = await getAssociatedTokenAddress(new PublicKey("Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr"), pubKey)
+          const ata = await getAssociatedTokenAddress(new PublicKey(selectedToken.address), pubKey)
           allPubKeys.push(ata)
         }
       }
 
-      const response = await connectionDevnet.getMultipleParsedAccounts(allPubKeys, { commitment: "confirmed" })
+      const response = await connectionMainnet.getMultipleParsedAccounts(allPubKeys, { commitment: "confirmed" })
       const accountInfos = response.value
 
       const updatedWallets = await Promise.all(
@@ -166,90 +174,84 @@ export default function BundledForm() {
     return `${address.slice(0, 6)}...${address.slice(-4)}`
   }
 
-
-  // const getRandomTipAccountAddress = async (searcherClient: searcher.SearcherClient): Promise<PublicKey> => {
-  //   const accounts = await searcherClient.getTipAccounts();
-  //   return new PublicKey(accounts[Math.floor(Math.random() * accounts.length)]);
-  // };
-
-
-
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      setLoading(true);
-      setLoadingMessage("Chuẩn bị giao dịch...");
+      setLoading(true)
+      setLoadingMessage("Prepare transaction...")
 
       if (!selectedToken || !selectedToken.decimals) {
-        throw new Error("Vui lòng chọn token hợp lệ");
+        throw new Error("Please select a valid token")
       }
 
-      const selectedWallets = walletAddresses.filter((w) => w.selected);
+      const selectedWallets = walletAddresses.filter((w) => w.selected)
       if (selectedWallets.length === 0) {
-        throw new Error("Vui lòng chọn ít nhất một ví");
-      }
-      if (selectedWallets.length > 5) {
-        throw new Error("Jito bundle chỉ hỗ trợ tối đa 5 giao dịch");
+        throw new Error("Please select at least one wallet")
       }
 
-      const jitoFeeInLamports = new BN(toLamports(values.jitoFee, 9));
-      const amountInLamports = new BN(toLamports(values.amount, selectedToken.decimals));
-      const tokenMint = new PublicKey("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU");
-      const solMint = NATIVE_MINT;
-      const slippage = 0.1;
-      const txVersion = TxVersion.LEGACY;
-      const poolId = "2HyNe5a32uVoB4BybXCLak41QrejZLqF9hZM6KBMQ1V2";
-      const tipAccount = new PublicKey("84DrGKhycCUGfLzw8hXsUYX9SnWdh2wW3ozsTPrC5xyg");
+      let amountInLamports: BN
+      if (values.buyAmountMode === "fixed") {
+        const amount = parseFloat(values.amount || "0")
+        if (!amount || amount <= 0) {
+          throw new Error("Please enter a valid fixed SOL amount")
+        }
+        amountInLamports = new BN(toLamports(values.amount || "0", selectedToken.decimals))
+      } else {
+        const min = parseFloat(values.randomMin || "0")
+        const max = parseFloat(values.randomMax || "0")
+        if (!min || !max || min <= 0 || max <= 0 || min > max) {
+          throw new Error("Please enter valid random SOL amounts (min should be less than max)")
+        }
+        const randomAmount = (Math.random() * (max - min) + min).toFixed(6)
+        amountInLamports = new BN(toLamports(randomAmount, selectedToken.decimals))
+      }
 
-      const { blockhash, lastValidBlockHeight } = await connectionDevnet.getLatestBlockhash("confirmed");
-      const transactions: VersionedTransaction[] = [];
+      const tokenMint = new PublicKey(selectedToken.address)
+      const solMint = NATIVE_MINT
+      const slippageBps = 100
+      const { blockhash, lastValidBlockHeight } = await connectionMainnet.getLatestBlockhash("confirmed")
+
+      const transactions: VersionedTransaction[] = []
 
       for (const wallet of selectedWallets) {
-        const walletPubKey = wallet.keypair.publicKey;
-        const walletKeypair = wallet.keypair;
+        const walletPubKey = wallet.keypair.publicKey
+        const walletKeypair = wallet.keypair
 
-        setLoadingMessage(`Chuẩn bị giao dịch cho ${shortenAddress(walletPubKey.toString())}...`);
-
-        const solBalance = await connectionDevnet.getBalance(walletPubKey);
+        const solBalance = await connectionMainnet.getBalance(walletPubKey)
         if (solBalance < 0.002 * 1_000_000_000) {
-          throw new Error(`Ví ${shortenAddress(walletPubKey.toString())} không đủ SOL (cần ít nhất 0.002 SOL)`);
+          throw new Error(`Wallet ${shortenAddress(walletPubKey.toString())} does not have enough SOL (needs at least 0.002 SOL)`)
         }
-
-        const raydium = await Raydium.load({
-          connection: connectionDevnet,
-          owner: walletPubKey,
-        });
 
         const transaction = new Transaction({
           recentBlockhash: blockhash,
           feePayer: walletPubKey,
-        });
+        })
 
-        const { tokenAccounts } = await fetchTokenAccountData(walletPubKey);
-        const isInputSol = values.action === "bundledBuy" || values.action === "sellAndBundledBuy";
-        const isOutputSol = values.action === "bundledSell" || values.action === "sellAndBundledBuy";
+        const { tokenAccounts } = await fetchTokenAccountData(walletPubKey)
+        const isInputSol = values.action === "bundledBuy"
+        const isOutputSol = values.action === "bundledSell"
 
-        const inputMint = isInputSol ? solMint : tokenMint;
-        const outputMint = isOutputSol ? solMint : tokenMint;
-        const inputTokenAcc = tokenAccounts.find((a) => a.mint.toBase58() === inputMint.toBase58())?.publicKey;
+        const inputMint = isInputSol ? solMint : tokenMint
+        const outputMint = isOutputSol ? solMint : tokenMint
+        const inputTokenAcc = tokenAccounts.find((a) => a.mint.toBase58() === inputMint.toBase58())?.publicKey
+
+        if (!isInputSol && !inputTokenAcc) {
+          throw new Error(`Input token account not found for ${inputMint.toBase58()} in wallet ${shortenAddress(walletPubKey.toString())}`)
+        }
 
         if (!isInputSol && inputTokenAcc) {
-          const tokenAccountInfo = await connectionDevnet.getParsedAccountInfo(inputTokenAcc);
+          const tokenAccountInfo = await connectionMainnet.getParsedAccountInfo(inputTokenAcc)
           if (!tokenAccountInfo.value || !("parsed" in tokenAccountInfo.value.data)) {
-            throw new Error(`Tài khoản token ${inputMint.toBase58()} không tồn tại cho ví ${shortenAddress(walletPubKey.toString())}`);
+            throw new Error(`Token account ${inputMint.toBase58()} does not exist for wallet ${shortenAddress(walletPubKey.toString())}`)
           }
-          const tokenAmount = new BN(tokenAccountInfo.value.data.parsed.info.tokenAmount.amount);
+          const tokenAmount = new BN(tokenAccountInfo.value.data.parsed.info.tokenAmount.amount)
           if (tokenAmount.lt(amountInLamports)) {
-            throw new Error(`Ví ${shortenAddress(walletPubKey.toString())} không đủ token ${inputMint.toBase58()} (cần ${values.amount}, có ${tokenAmount.toString()})`);
+            throw new Error(`Wallet ${shortenAddress(walletPubKey.toString())} does not have enough tokens ${inputMint.toBase58()} (needs ${amountInLamports.toString()}, has ${tokenAmount.toString()})`)
           }
         }
 
-        if (!inputTokenAcc && !isInputSol) {
-          throw new Error(`Không tìm thấy tài khoản token đầu vào cho ${inputMint.toBase58()} trong ví ${shortenAddress(walletPubKey.toString())}`);
-        }
-
-        const outputTokenAcc = tokenAccounts.find((a) => a.mint.toBase58() === outputMint.toBase58())?.publicKey;
+        const outputTokenAcc = tokenAccounts.find((a) => a.mint.toBase58() === outputMint.toBase58())?.publicKey
         if (!outputTokenAcc && !isOutputSol) {
-          const outputATA = await getAssociatedTokenAddress(outputMint, walletPubKey);
+          const outputATA = await getAssociatedTokenAddress(outputMint, walletPubKey)
           transaction.add(
             createAssociatedTokenAccountInstruction(
               walletPubKey,
@@ -257,156 +259,112 @@ export default function BundledForm() {
               walletPubKey,
               outputMint
             )
-          );
+          )
         }
 
-        if (values.action === "bundledSell") {
-          if (values.dex === "raydium") {
-            const data = await raydium.cpmm.getPoolInfoFromRpc(poolId);
-            const { poolInfo, poolKeys, rpcData } = data;
-            const baseIn = inputMint.toBase58() === poolInfo.mintA.address;
+        if (["bundledSell", "bundledBuy"].includes(values.action)) {
+          const quote = await getJupiterQuote(
+            inputMint.toBase58(),
+            outputMint.toBase58(),
+            Number(amountInLamports),
+            slippageBps,
+            values.dex.split(",")
+          )
 
-            const swapResult = CurveCalculator.swap(
-              amountInLamports,
-              baseIn ? rpcData.baseReserve : rpcData.quoteReserve,
-              baseIn ? rpcData.quoteReserve : rpcData.baseReserve,
-              rpcData.configInfo!.tradeFeeRate
-            );
-
-            const swapParams: CpmmSwapParams = {
-              poolInfo,
-              poolKeys,
-              inputAmount: amountInLamports,
-              swapResult,
-              slippage,
-              baseIn,
-              txVersion,
-            };
-
-            const { transaction: swapTx } = await raydium.cpmm.swap(swapParams);
-            transaction.add(...swapTx.instructions);
-          } else {
-            const pumpProgramId = new PublicKey("PUMP_PROGRAM_ID");
-            const poolIdKey = new PublicKey("PUMP_POOL_ID");
-            transaction.add(
-              new TransactionInstruction({
-                keys: [
-                  { pubkey: walletPubKey, isSigner: true, isWritable: true },
-                  { pubkey: inputTokenAcc || walletPubKey, isSigner: false, isWritable: true },
-                  { pubkey: solMint, isSigner: false, isWritable: true },
-                  { pubkey: poolIdKey, isSigner: false, isWritable: true },
-                ],
-                programId: pumpProgramId,
-                data: Buffer.from([]),
-              })
-            );
+          const swapInstructionsRequest: SwapInstructionsRequest = {
+            userPublicKey: walletPubKey.toBase58(),
+            quoteResponse: quote,
+            prioritizationFeeLamports: {
+              priorityLevelWithMaxLamports: {
+                maxLamports: Number(values.jitoFee) * 1_000_000_000,
+                priorityLevel: "medium",
+              },
+            },
+            dynamicComputeUnitLimit: true,
           }
-        }
 
-        if (wallet === selectedWallets[selectedWallets.length - 1] && jitoFeeInLamports.gtn(0)) {
-          transaction.add(
-            SystemProgram.transfer({
-              fromPubkey: walletPubKey,
-              toPubkey: tipAccount,
-              lamports: jitoFeeInLamports.toNumber(),
-            })
-          );
+          const swapInstructions = await getJupiterSwapInstructions(swapInstructionsRequest)
+
+          swapInstructions.computeBudgetInstructions.forEach((instruction) => {
+            transaction.add(createInstructionFromJupiter(instruction))
+          })
+          swapInstructions.setupInstructions.forEach((instruction) => {
+            transaction.add(createInstructionFromJupiter(instruction))
+          })
+          transaction.add(createInstructionFromJupiter(swapInstructions.swapInstruction))
+          if (swapInstructions.cleanupInstruction) {
+            transaction.add(createInstructionFromJupiter(swapInstructions.cleanupInstruction))
+          }
+          if (swapInstructions.tokenLedgerInstruction) {
+            transaction.add(createInstructionFromJupiter(swapInstructions.tokenLedgerInstruction))
+          }
         }
 
         const messageV0 = new TransactionMessage({
           payerKey: walletPubKey,
           recentBlockhash: blockhash,
           instructions: transaction.instructions,
-        }).compileToV0Message();
-        const versionedTx = new VersionedTransaction(messageV0);
+        }).compileToV0Message()
 
-        // Kiểm tra serialize trước khi ký
-        try {
-          versionedTx.serialize();
-        } catch (error) {
-          throw new Error(`Giao dịch cho ví ${shortenAddress(walletPubKey.toString())} không hợp lệ: ${error}`);
+        const versionedTx = new VersionedTransaction(messageV0)
+        versionedTx.sign([walletKeypair])
+
+        const simulation = await connectionMainnet.simulateTransaction(versionedTx)
+        if (simulation.value.err) {
+          throw new Error(`Simulation failed for wallet ${shortenAddress(walletPubKey.toString())}: ${JSON.stringify(simulation.value.err)}`)
         }
 
-        versionedTx.sign([walletKeypair]);
-        transactions.push(versionedTx);
+        transactions.push(versionedTx)
       }
 
-      // Chuyển các giao dịch thành base64
-      const base64Transactions = transactions.map((tx) => Buffer.from(tx.serialize()).toString('base64'));
+      setLoadingMessage("Send transaction...")
+      const signatures: string[] = []
 
-      // Log để debug
-      base64Transactions.forEach((tx, index) => {
-        const buffer = Buffer.from(tx, 'base64');
-        console.log(`Giao dịch ${index}: ${buffer.length} bytes`);
-      });
+      for (const tx of transactions) {
+        const serializedTx = tx.serialize()
+        const signature = await connectionMainnet.sendRawTransaction(serializedTx, {
+          skipPreflight: false,
+          preflightCommitment: "confirmed",
+        })
+        signatures.push(signature)
+        console.log(`Transaction sent: ${signature}`)
+      }
 
-      // Gửi yêu cầu tới Jito Bundle API
-      setLoadingMessage("Gửi Jito bundle...");
-      const jitoEndpoint = "https://singapore.mainnet.block-engine.jito.wtf";
-      const response = await fetch(jitoEndpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          jsonrpc: "2.0",
-          id: 1,
-          method: "sendBundle",
-          params: [
-            base64Transactions,
+      setLoadingMessage("Confirm transaction...")
+      for (const signature of signatures) {
+        try {
+          await connectionMainnet.confirmTransaction(
             {
-              encoding: "base64",
-            },
-          ],
-        }),
-      });
-
-      const result = await response.json();
-      console.log(result);
-
-      if (response.ok && result.result) {
-        const bundleId = result.result;
-        toast.success(`Bundle đã được gửi: ${bundleId}`, {
-          action: {
-            label: "Xem chi tiết",
-            onClick: () => console.log("Bundle ID:", bundleId),
-          },
-        });
-
-        for (const tx of transactions) {
-          const signature = bs58.encode(tx.signatures[0]);
-          try {
-            await connectionDevnet.confirmTransaction({
               signature,
               blockhash,
               lastValidBlockHeight,
-            });
-            toast.success(`Giao dịch ${signature} hoàn tất`, {
-              action: {
-                label: "Xem giao dịch",
-                onClick: () => window.open(`https://solscan.io/tx/${signature}?cluster=devnet`, "_blank"),
-              },
-            });
-          } catch (confirmError) {
-            console.error(`Lỗi xác nhận giao dịch ${signature}:`, confirmError);
-            toast.error(`Lỗi xác nhận giao dịch ${signature}`);
-          }
+            },
+            "confirmed"
+          )
+          toast.success(`Transaction ${signature} completed`, {
+            action: {
+              label: "View transaction",
+              onClick: () => window.open(`https://solscan.io/tx/${signature}`, "_blank"),
+            },
+          })
+        } catch (confirmError) {
+          console.error(`Transaction confirmation error ${signature}:`, confirmError)
+          toast.error(`Transaction confirmation error ${signature}`)
         }
-      } else {
-        throw new Error(result.error?.message || "Không thể gửi bundle");
       }
 
-      form.reset();
-      setSelectedToken(null);
-      setWalletAddresses([]);
+      form.reset()
+      setSelectedToken(null)
+      setWalletAddresses([])
+      toast.success("All transactions have been sent and confirmed!")
     } catch (error) {
-      console.error("Lỗi BundledForm:", error);
-      toast.error(error instanceof Error ? error.message : `Không thể thực hiện ${values.action}`);
+      console.error("Error BundledForm:", error)
+      toast.error(error instanceof Error ? error.message : `Cannot be done ${values.action}`)
     } finally {
-      setLoading(false);
-      setLoadingMessage("");
+      setLoading(false)
+      setLoadingMessage("")
     }
-  };
+  }
 
   return (
     <div className="max-w-6xl mx-auto p-4 space-y-6 max-h-[calc(100vh-200px)] overflow-y-auto">
@@ -417,35 +375,63 @@ export default function BundledForm() {
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <Card>
-            <CardContent className="pt-6">
-              <div className="flex gap-4">
-                <div className="space-y-2 w-[40%]">
-                  <label className="text-lg font-bold text-gray-700">DEX</label>
-                  <div className="flex gap-2 mt-1">
-                    <Button
-                      type="button"
-                      variant={form.watch("dex") === "raydium" ? "default" : "outline"}
-                      onClick={() => form.setValue("dex", "raydium")}
-                      className="flex-1 !w-[120px]"
-                    >
-                      🌊 Raydium
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={form.watch("dex") === "pump" ? "default" : "outline"}
-                      onClick={() => form.setValue("dex", "pump")}
-                      className="flex-1 !w-[120px]"
-                    >
-                      🔥 Pump
-                    </Button>
-                    <div className="flex justify-center">
-                      <Button variant="outline" size="sm" className="text-xs">
-                        🔍 Find LP
-                      </Button>
-                    </div>
-                  </div>
-                </div>
+            <CardHeader>
+              <CardTitle>DEX</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <FormField
+                control={form.control}
+                name="dex"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <Tabs
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        className="w-full"
+                      >
+                        <TabsList className="grid grid-flow-col auto-cols-max gap-2 overflow-x-auto scrollbar-hide px-1">
+                          <TabsTrigger
+                            value="Raydium,Meteora,Orca+V2"
+                            className="min-w-[250px] lg:min-w-[300px] truncate text-sm"
+                          >
+                            Jup / Raydium / Meteora / Orca
+                          </TabsTrigger>
+                          <TabsTrigger
+                            value="Raydium Launchlab"
+                            className="min-w-[140px] truncate text-sm"
+                          >
+                            Raydium Launchpad
+                          </TabsTrigger>
+                          <TabsTrigger
+                            value="Pump.fun"
+                            className="min-w-[100px] text-sm"
+                          >
+                            Pump
+                          </TabsTrigger>
+                          <TabsTrigger
+                            value="Pump.fun Amm"
+                            className="min-w-[150px] text-sm"
+                          >
+                            PumpSwap (AMM)
+                          </TabsTrigger>
+                        </TabsList>
+                      </Tabs>
 
+
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent>
+              <div className="flex justify-between">
                 <div className="space-y-2 w-[40%]">
                   <label className="text-lg font-bold text-gray-700">Transaction Type</label>
                   <div className="flex gap-2 mt-1">
@@ -490,7 +476,13 @@ export default function BundledForm() {
                   <label className="text-lg font-bold text-gray-700">Chain</label>
                   <Button type="button" variant="outline" className="w-full justify-start mt-1" disabled>
                     <div className="flex items-center gap-2">
-                      <div className="w-5 h-5 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full"></div>
+                      <Image
+                        src={"https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png"}
+                        alt={"solana"}
+                        className="rounded-full !w-[20px] !h-[20px]"
+                        width={20}
+                        height={20}
+                      />
                       Solana
                     </div>
                   </Button>
@@ -498,7 +490,6 @@ export default function BundledForm() {
               </div>
             </CardContent>
           </Card>
-
           <WalletList
             walletAddresses={walletAddresses}
             setWalletAddresses={setWalletAddresses}
@@ -510,54 +501,107 @@ export default function BundledForm() {
             <CardHeader>
               <CardTitle className="text-lg">
                 {form.watch("action") === "bundledSell"
-                  ? "Sell Amount (USDC)"
+                  ? "Sell Amount"
                   : form.watch("action") === "bundledBuy"
-                    ? "Buy Amount (USDC)"
-                    : "Buy Amount (USDC)"}
+                    ? "Buy Amount"
+                    : "Buy Amount"}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant={form.watch("amountType") === "allAmount" ? "default" : "outline"}
-                  onClick={() => form.setValue("amountType", "allAmount")}
-                  size="sm"
-                >
-                  All Amount
-                </Button>
-                <Button
-                  type="button"
-                  variant={form.watch("amountType") === "randomAmount" ? "default" : "outline"}
-                  onClick={() => form.setValue("amountType", "randomAmount")}
-                  size="sm"
-                >
-                  Random Amount
-                </Button>
-                <Button
-                  type="button"
-                  variant={form.watch("amountType") === "percentAmount" ? "default" : "outline"}
-                  onClick={() => form.setValue("amountType", "percentAmount")}
-                  size="sm"
-                >
-                  Percent Amount %
-                </Button>
-                <Button
-                  type="button"
-                  variant={form.watch("amountType") === "fixedAmount" ? "default" : "outline"}
-                  onClick={() => form.setValue("amountType", "fixedAmount")}
-                  size="sm"
-                >
-                  Fixed Amount
-                </Button>
-                <Button
-                  type="button"
-                  variant={form.watch("amountType") === "fixedRetention" ? "default" : "outline"}
-                  onClick={() => form.setValue("amountType", "fixedRetention")}
-                  size="sm"
-                >
-                  Fixed Retention
-                </Button>
+              <FormField
+                control={form.control}
+                name="buyAmountMode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Buy Amount Mode</FormLabel>
+                    <FormControl>
+                      <Tabs
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        className="w-full"
+                      >
+                        <TabsList className="grid w-full grid-cols-2">
+                          <TabsTrigger value="fixed">
+                            Fixed Amount
+                          </TabsTrigger>
+                          <TabsTrigger value="random">
+                            Random Amount
+                          </TabsTrigger>
+                        </TabsList>
+                      </Tabs>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="amount"
+                render={({ field }) => (
+                  <FormItem
+                    className={
+                      form.watch("buyAmountMode") === "fixed"
+                        ? ""
+                        : "hidden"
+                    }
+                  >
+                    <FormLabel>Fixed Amount (SOL)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="0.01"
+                        step="0.001"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div
+                className={`grid grid-cols-2 gap-4 ${form.watch("buyAmountMode") === "random"
+                  ? ""
+                  : "hidden"
+                  }`}
+              >
+                <FormField
+                  control={form.control}
+                  name="randomMin"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Min Amount (SOL)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          placeholder="0.001"
+                          step="0.001"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="randomMax"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Max Amount (SOL)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          placeholder="0.01"
+                          step="0.001"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
             </CardContent>
           </Card>
@@ -579,50 +623,40 @@ export default function BundledForm() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant={form.watch("jitoFee") === "0.0003" ? "default" : "outline"}
-                  onClick={() => form.setValue("jitoFee", "0.0003")}
-                  size="sm"
-                >
-                  0.0003 SOL
-                </Button>
-                <Button
-                  type="button"
-                  variant={form.watch("jitoFee") === "0.003" ? "default" : "outline"}
-                  onClick={() => form.setValue("jitoFee", "0.003")}
-                  size="sm"
-                >
-                  0.003 SOL
-                </Button>
-                <Button
-                  type="button"
-                  variant={form.watch("jitoFee") === "0.01" ? "default" : "outline"}
-                  onClick={() => form.setValue("jitoFee", "0.01")}
-                  size="sm"
-                >
-                  0.01 SOL
-                </Button>
-                <Button
-                  type="button"
-                  variant={form.watch("jitoFee") === "0.1" ? "default" : "outline"}
-                  onClick={() => form.setValue("jitoFee", "0.1")}
-                  size="sm"
-                >
-                  0.1 SOL
-                </Button>
-                <div className="flex items-center gap-2 ml-4">
-                  <input
-                    type="number"
-                    step="0.0001"
-                    placeholder="0.0003"
-                    className="border rounded px-2 py-1 text-sm w-20"
-                    onChange={(e) => form.setValue("jitoFee", e.target.value)}
-                  />
-                  <span className="text-sm text-gray-500">SOL</span>
-                </div>
-              </div>
+              <FormField
+                control={form.control}
+                name="jitoFee"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Jito Priority Fee</FormLabel>
+                    <FormControl>
+                      <div className="grid grid-cols-3 gap-2">
+                        {feeOptions.map((fee) => (
+                          <Button
+                            key={fee.value}
+                            variant={
+                              field.value === fee.value
+                                ? "default"
+                                : "outline"
+                            }
+                            size="sm"
+                            type="button"
+                            onClick={() => field.onChange(fee.value)}
+                            className={
+                              field.value === fee.value
+                                ? "bg-black hover:bg-gray-600"
+                                : ""
+                            }
+                          >
+                            {fee.label}
+                          </Button>
+                        ))}
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </CardContent>
           </Card>
 
@@ -658,6 +692,6 @@ export default function BundledForm() {
           </Button>
         </form>
       </Form>
-    </div>
+    </div >
   )
 }
