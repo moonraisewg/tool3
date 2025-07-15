@@ -1,15 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { BarChart3, Download, ExternalLink, Play } from "lucide-react";
+import {
+  BarChart3,
+  Download,
+  Play,
+  CheckCircle,
+  XCircle,
+  Clock,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Switch } from "@/components/ui/switch";
+import { fetchSolAndTokenBalancesBatched } from "@/utils/increase/check-wallets";
 import {
   Table,
   TableHead,
@@ -32,13 +39,21 @@ import Image from "next/image";
 import TokenSearchModal, {
   TokenInfo,
 } from "@/components/increase/search-token";
-import { generateSolanaWallets, type WalletInfo } from "@/utils/create-wallets";
+import {
+  generateSolanaWallets,
+  saveWalletsToLocalStorage,
+  loadWalletsFromLocalStorage,
+  removeWalletsFromLocalStorage,
+  type WalletInfo,
+} from "@/utils/create-wallets";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { buildAirdropTransactions } from "@/lib/increase/airdrop";
-import { connectionMainnet } from "@/service/solana/connection";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { Keypair } from "@solana/web3.js";
+import { checkRPCSpeed, createConnection, RPCStatus } from "@/lib/increase/rpc";
+import { getJupiterQuote } from "@/service/jupiter/swap";
+import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 
 const formSchema = z.object({
   rpcUrl: z.string().url("Invalid RPC URL").optional().or(z.literal("")),
@@ -63,7 +78,6 @@ const formSchema = z.object({
     })
     .optional(),
 
-  jitoFee: z.enum(["0.00006", "0.0001", "0.0003"]),
   autoSell: z.boolean(),
 
   dexType: z.enum([
@@ -110,7 +124,6 @@ export default function Component() {
       fixedAmount: "0.001",
       randomMin: "0.001",
       randomMax: "0.01",
-      jitoFee: "0.00006",
       autoSell: false,
       dexType: "Raydium,Meteora,Orca+V2",
       quantity: "50",
@@ -126,65 +139,167 @@ export default function Component() {
   const [generatedWallets, setGeneratedWallets] = useState<WalletInfo[] | null>(
     null
   );
-
   const quantityOptions = ["4", "50", "100", "500", "1000"];
-  const feeOptions = [
-    { value: "0.00006", label: "0.00006 SOL" },
-    { value: "0.0001", label: "0.0001 SOL" },
-    { value: "0.0003", label: "0.0003 SOL" },
-  ] as const;
+  const showNewRun =
+    !isLoading && generatedWallets && generatedWallets.length > 0;
+
+  const [rpcStatus, setRpcStatus] = useState<RPCStatus | null>(null);
+  const [isCheckingRPC, setIsCheckingRPC] = useState(false);
+  const isFormDisabled = showNewRun || isLoading;
+  const [, setQuoteStatus] = useState<{
+    isValid: boolean;
+    error?: string;
+    isChecking: boolean;
+  }>({
+    isValid: false,
+    isChecking: false,
+  });
+
+  const getDexDisplayName = (dexType: string) => {
+    switch (dexType) {
+      case "Raydium,Meteora,Orca+V2":
+        return "Raydium/Meteora/Orca";
+      case "Raydium Launchlab":
+        return "Raydium Launchpad";
+      case "Pump.fun":
+        return "Pump.fun";
+      case "Pump.fun Amm":
+        return "PumpSwap (AMM)";
+      default:
+        return dexType;
+    }
+  };
+
+  const validateQuote = async (tokenMint: string, dexType: string) => {
+    setQuoteStatus({ isValid: false, isChecking: true });
+
+    try {
+      const SOL_MINT = "So11111111111111111111111111111111111111112";
+      const testAmount = Math.round(0.001 * LAMPORTS_PER_SOL);
+
+      let dexes: string[] | undefined;
+      let allowFallback = false;
+
+      if (dexType === "Raydium,Meteora,Orca+V2") {
+        allowFallback = true;
+        dexes = dexType.split(",").map((d) => d.trim());
+      } else {
+        dexes = [dexType];
+      }
+
+      try {
+        const quote = await getJupiterQuote(
+          SOL_MINT,
+          tokenMint,
+          testAmount,
+          undefined,
+          dexes
+        );
+
+        if (quote?.routePlan?.length > 0) {
+          setQuoteStatus({ isValid: true, isChecking: false });
+        } else {
+          throw new Error("No route found");
+        }
+      } catch {
+        if (allowFallback) {
+          const fallbackQuote = await getJupiterQuote(
+            SOL_MINT,
+            tokenMint,
+            testAmount,
+            undefined,
+            undefined
+          );
+
+          if (fallbackQuote?.routePlan?.length > 0) {
+            setQuoteStatus({
+              isValid: true,
+              isChecking: false,
+            });
+          } else {
+            throw new Error("No fallback route");
+          }
+        } else {
+          const dexName = getDexDisplayName(dexType);
+          toast.message("Incompatible DEX selected. Please choose another.");
+          setQuoteStatus({
+            isValid: false,
+            isChecking: false,
+            error: `No route available for ${dexName}`,
+          });
+        }
+      }
+    } catch {
+      setQuoteStatus({
+        isValid: false,
+        isChecking: false,
+        error: "Failed to check quote",
+      });
+    }
+  };
+  const rpcUrl = form.watch("rpcUrl");
+  useEffect(() => {
+    if (rpcUrl && rpcUrl.trim()) {
+      setIsCheckingRPC(true);
+
+      const timeoutId = setTimeout(async () => {
+        const status = await checkRPCSpeed(rpcUrl);
+        setRpcStatus(status);
+        setIsCheckingRPC(false);
+      }, 1000);
+
+      return () => clearTimeout(timeoutId);
+    } else {
+      setRpcStatus(null);
+    }
+  }, [rpcUrl]);
+
+  const dexType = form.watch("dexType");
+  useEffect(() => {
+    const token = selectedToken;
+    const dexType = form.watch("dexType");
+
+    if (token && dexType && !isFormDisabled) {
+      const timeoutId = setTimeout(() => {
+        validateQuote(token.id, dexType);
+      }, 1000);
+
+      return () => clearTimeout(timeoutId);
+    } else {
+      setQuoteStatus({ isValid: false, isChecking: false });
+    }
+  }, [selectedToken, dexType, isFormDisabled, validateQuote]);
+
+  useEffect(() => {
+    const saved = loadWalletsFromLocalStorage();
+    if (saved) {
+      setGeneratedWallets(saved);
+    }
+  }, []);
+
+  const handleNewRun = (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    removeWalletsFromLocalStorage();
+    setGeneratedWallets(null);
+  };
 
   const handleDownloadWallets = () => {
-    const formValues = form.getValues();
+    const wallets = generatedWallets;
 
-    const qty =
-      formValues.customQuantity && !isNaN(Number(formValues.customQuantity))
-        ? parseInt(formValues.customQuantity)
-        : parseInt(formValues.quantity);
-
-    const buyAmountMode = formValues.buyAmountMode;
-    const fixedAmount = formValues.fixedAmount;
-    const randomMin = formValues.randomMin;
-    const randomMax = formValues.randomMax;
-
-    if (!qty || qty <= 0) {
-      toast.error("Please enter a valid quantity");
+    if (!wallets || wallets.length === 0) {
+      toast.error("No wallets to download. Please run first.");
       return;
-    }
-
-    let wallets = generatedWallets;
-
-    if (!wallets || wallets.length !== qty) {
-      if (buyAmountMode === "fixed") {
-        const amount = parseFloat(fixedAmount || "0.01");
-        if (amount <= 0) {
-          toast.error("Please enter a valid fixed amount");
-          return;
-        }
-        console.log("Creating fixed wallets with amount:", amount);
-        wallets = generateSolanaWallets(qty, "fixed", amount);
-      } else {
-        const min = parseFloat(randomMin || "0.001");
-        const max = parseFloat(randomMax || "0.01");
-        if (min <= 0 || max <= 0 || min > max) {
-          toast.error(
-            "Please enter valid random amounts (min should be less than max)"
-          );
-          return;
-        }
-        wallets = generateSolanaWallets(qty, "random", min, max);
-      }
-      setGeneratedWallets(wallets);
     }
 
     const data = wallets.map((w) => ({
       Address: w.publicKey,
       PrivateKey: w.secretKey,
-      SOLAmount: w.solAmount,
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(data);
-    worksheet["!cols"] = [{ wch: 42 }, { wch: 64 }, { wch: 15 }];
+    worksheet["!cols"] = [{ wch: 42 }, { wch: 64 }];
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Wallets");
@@ -198,10 +313,7 @@ export default function Component() {
       type: "application/octet-stream",
     });
 
-    const fileName =
-      buyAmountMode === "fixed"
-        ? `wallets-${qty}-${fixedAmount}SOL.xlsx`
-        : `wallets-${qty}-${randomMin}-${randomMax}SOL.xlsx`;
+    const fileName = "wallets.xlsx";
 
     saveAs(blob, fileName);
   };
@@ -268,11 +380,13 @@ export default function Component() {
         throw new Error("Please select the token you want to use.");
       }
 
+      const connection = createConnection(data.rpcUrl);
+
       const { initialTransaction, childTransactions } =
         await buildAirdropTransactions(
           publicKey,
           fullList,
-          connectionMainnet,
+          connection,
           selectedToken?.id,
           [data.dexType]
         );
@@ -283,19 +397,47 @@ export default function Component() {
 
       const signedTx = await signTransaction(initialTransaction);
 
-      const sig1 = await connectionMainnet.sendRawTransaction(
-        signedTx.serialize()
-      );
-      await connectionMainnet.confirmTransaction(sig1, "confirmed");
+      const sig1 = await connection.sendTransaction(signedTx);
+      await connection.confirmTransaction(sig1, "confirmed");
 
-      for (const child of childTransactions) {
-        const signed = await connectionMainnet.sendTransaction(
-          child.transaction,
-          child.signers
-        );
+      console.log("wallets.length:", wallets.length);
+      console.log("childTransactions.length:", childTransactions.length);
 
-        await connectionMainnet.confirmTransaction(signed, "confirmed");
+      for (let i = 0; i < childTransactions.length; i++) {
+        const child = childTransactions[i];
+
+        try {
+          const signed = await connection.sendTransaction(child.transaction);
+          await connection.confirmTransaction(signed, "confirmed");
+
+          const walletIndex = child.walletIndex - 1;
+          if (walletIndex >= 0 && walletIndex < wallets.length) {
+            wallets[walletIndex].result = "success";
+          }
+        } catch {
+          const walletIndex = child.walletIndex - 1;
+          if (walletIndex >= 0 && walletIndex < wallets.length) {
+            wallets[walletIndex].result = "failed";
+          }
+        }
       }
+
+      await new Promise((r) => setTimeout(r, 2000));
+
+      const updatedWallets = await fetchSolAndTokenBalancesBatched(
+        wallets,
+        connection
+      );
+
+      console.log("update", updatedWallets);
+
+      const finalWallets = updatedWallets.map((w, idx) => ({
+        ...w,
+        result: wallets[idx].result,
+      }));
+      console.log("final", finalWallets);
+      saveWalletsToLocalStorage(finalWallets);
+      setGeneratedWallets(finalWallets);
 
       toast.success(" Success! ", {
         action: {
@@ -305,6 +447,7 @@ export default function Component() {
       });
     } catch (error) {
       console.error("Error:", error);
+      toast.error("An error occurred while processing the transaction.");
     } finally {
       setIsLoading(false);
     }
@@ -356,7 +499,7 @@ export default function Component() {
                               <TableCell>{index + 1}</TableCell>
                               <TableCell className="font-mono text-xs break-all">
                                 <a
-                                  href={`https://solscan.io/account/${wallet.publicKey}?cluster=devnet`}
+                                  href={`https://solscan.io/account/${wallet.publicKey}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="text-blue-600 hover:underline"
@@ -365,10 +508,20 @@ export default function Component() {
                                 </a>
                               </TableCell>
                               <TableCell>
-                                {wallet.solAmount ?? "0"} SOL
+                                {wallet.solAmount?.toFixed(4) ?? "0"} SOL
                               </TableCell>
-                              <TableCell>-</TableCell>
-                              <TableCell>-</TableCell>
+                              <TableCell>
+                                {wallet.tokenBalances
+                                  ?.find((t) => t.mint === selectedToken?.id)
+                                  ?.amount?.toFixed(4) ?? "-"}
+                              </TableCell>
+                              <TableCell>
+                                {wallet.result === "success"
+                                  ? "Success"
+                                  : wallet.result === "failed"
+                                  ? "Failed"
+                                  : "-"}
+                              </TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
@@ -382,7 +535,7 @@ export default function Component() {
                     </CardHeader>
                     <CardContent>
                       <div className="grid grid-cols-12 gap-4 items-end">
-                        <div className="col-span-3">
+                        <div className="col-span-4">
                           <div className="flex items-center gap-2 p-3 border rounded-lg bg-gray-50 h-11">
                             <Image
                               src="https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png"
@@ -395,11 +548,16 @@ export default function Component() {
                           </div>
                         </div>
 
-                        <div className="col-span-3">
+                        <div className="col-span-4">
                           <button
                             type="button"
                             onClick={() => setTokenModalOpen(true)}
-                            className="w-full flex items-center gap-2 p-3 border rounded-lg bg-gray-50 h-11 hover:bg-gray-100"
+                            disabled={isFormDisabled}
+                            className={`w-full flex items-center gap-2 p-3 border rounded-lg h-11 ${
+                              isFormDisabled
+                                ? "bg-gray-200 cursor-not-allowed"
+                                : "bg-gray-50 hover:bg-gray-100"
+                            }`}
                           >
                             {selectedToken ? (
                               <>
@@ -429,27 +587,44 @@ export default function Component() {
                             render={({ field }) => (
                               <FormItem>
                                 <FormControl>
-                                  <Input
-                                    placeholder="Enter RPC URL"
-                                    className="h-11"
-                                    {...field}
-                                  />
+                                  <div className="relative">
+                                    <Input
+                                      placeholder="Enter RPC URL (optional)"
+                                      className="h-11 pr-24"
+                                      disabled={isFormDisabled}
+                                      {...field}
+                                    />
+                                    <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
+                                      {isCheckingRPC && (
+                                        <Clock className="h-4 w-4 text-gray-400 animate-spin" />
+                                      )}
+                                      {rpcStatus && !isCheckingRPC && (
+                                        <>
+                                          {rpcStatus.isValid ? (
+                                            <CheckCircle className="h-4 w-4 text-green-500" />
+                                          ) : (
+                                            <XCircle className="h-4 w-4 text-red-500" />
+                                          )}
+                                          <span
+                                            className={`text-xs font-mono ${
+                                              rpcStatus.isValid
+                                                ? "text-green-600"
+                                                : "text-red-600"
+                                            }`}
+                                          >
+                                            {rpcStatus.isValid
+                                              ? `${rpcStatus.latency}ms`
+                                              : "Error"}
+                                          </span>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
                             )}
                           />
-                        </div>
-
-                        <div className="col-span-2">
-                          <Button
-                            variant="outline"
-                            className="w-full h-11"
-                            type="button"
-                          >
-                            More RPC
-                            <ExternalLink className="h-4 w-4 ml-1" />
-                          </Button>
                         </div>
                       </div>
                     </CardContent>
@@ -469,10 +644,18 @@ export default function Component() {
                             <FormControl>
                               <Tabs
                                 value={field.value}
-                                onValueChange={field.onChange}
+                                onValueChange={
+                                  isFormDisabled ? undefined : field.onChange
+                                }
                                 className="w-full"
                               >
-                                <TabsList className="grid w-full grid-cols-2">
+                                <TabsList
+                                  className={`grid w-full grid-cols-2 ${
+                                    isFormDisabled
+                                      ? "opacity-50 pointer-events-none"
+                                      : ""
+                                  }`}
+                                >
                                   <TabsTrigger value="fixed">
                                     Fixed Amount
                                   </TabsTrigger>
@@ -487,7 +670,6 @@ export default function Component() {
                         )}
                       />
 
-                      {/* Fixed Amount Field - luôn render, chỉ ẩn/hiện */}
                       <FormField
                         control={form.control}
                         name="fixedAmount"
@@ -505,6 +687,7 @@ export default function Component() {
                                 type="number"
                                 placeholder="0.01"
                                 step="0.001"
+                                disabled={isFormDisabled}
                                 {...field}
                               />
                             </FormControl>
@@ -513,7 +696,6 @@ export default function Component() {
                         )}
                       />
 
-                      {/* Random Amount Fields - luôn render, chỉ ẩn/hiện */}
                       <div
                         className={`grid grid-cols-2 gap-4 ${
                           form.watch("buyAmountMode") === "random"
@@ -548,8 +730,9 @@ export default function Component() {
                               <FormControl>
                                 <Input
                                   type="number"
-                                  placeholder="0.01"
+                                  placeholder="0.001"
                                   step="0.001"
+                                  disabled={isFormDisabled}
                                   {...field}
                                 />
                               </FormControl>
@@ -558,57 +741,6 @@ export default function Component() {
                           )}
                         />
                       </div>
-
-                      <FormField
-                        control={form.control}
-                        name="jitoFee"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Jito Priority Fee</FormLabel>
-                            <FormControl>
-                              <div className="grid grid-cols-3 gap-2">
-                                {feeOptions.map((fee) => (
-                                  <Button
-                                    key={fee.value}
-                                    variant={
-                                      field.value === fee.value
-                                        ? "default"
-                                        : "outline"
-                                    }
-                                    size="sm"
-                                    type="button"
-                                    onClick={() => field.onChange(fee.value)}
-                                    className={
-                                      field.value === fee.value
-                                        ? "bg-black hover:bg-gray-600"
-                                        : ""
-                                    }
-                                  >
-                                    {fee.label}
-                                  </Button>
-                                ))}
-                              </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="autoSell"
-                        render={({ field }) => (
-                          <FormItem className="flex items-center justify-between">
-                            <FormLabel>Auto sell</FormLabel>
-                            <FormControl>
-                              <Switch
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
                     </CardContent>
                   </Card>
 
@@ -625,10 +757,18 @@ export default function Component() {
                             <FormControl>
                               <Tabs
                                 value={field.value}
-                                onValueChange={field.onChange}
+                                onValueChange={
+                                  isFormDisabled ? undefined : field.onChange
+                                }
                                 className="w-full"
                               >
-                                <TabsList className="grid grid-flow-col auto-cols-max gap-2 overflow-x-auto scrollbar-hide px-1">
+                                <TabsList
+                                  className={`grid grid-flow-col auto-cols-max gap-2 overflow-x-auto scrollbar-hide px-1 ${
+                                    isFormDisabled
+                                      ? "opacity-50 pointer-events-none"
+                                      : ""
+                                  }`}
+                                >
                                   <TabsTrigger
                                     value="Raydium,Meteora,Orca+V2"
                                     className="min-w-[250px] lg:min-w-[300px] truncate text-sm"
@@ -689,6 +829,7 @@ export default function Component() {
                                       }
                                       size="sm"
                                       type="button"
+                                      disabled={isFormDisabled}
                                       onClick={() => field.onChange(qty)}
                                       className={
                                         field.value === qty
@@ -713,7 +854,11 @@ export default function Component() {
                         render={({ field }) => (
                           <FormItem>
                             <FormControl>
-                              <Input placeholder="Custom quantity" {...field} />
+                              <Input
+                                placeholder="Custom quantity"
+                                disabled={isFormDisabled}
+                                {...field}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -777,24 +922,36 @@ export default function Component() {
                         Download wallet address info
                       </Button>
 
-                      <Button
-                        type="submit"
-                        className="w-full bg-black hover:bg-gray-600 disabled:bg-gray-400"
-                        size="lg"
-                        disabled={isLoading}
-                      >
-                        {isLoading ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                            Running...
-                          </>
-                        ) : (
-                          <>
-                            <Play className="h-4 w-4 mr-2" />
-                            RUN
-                          </>
-                        )}
-                      </Button>
+                      {showNewRun ? (
+                        <Button
+                          type="button"
+                          className="w-full bg-black hover:bg-gray-600"
+                          size="lg"
+                          onClick={handleNewRun}
+                        >
+                          <Play className="h-4 w-4 mr-2" />
+                          New
+                        </Button>
+                      ) : (
+                        <Button
+                          type="submit"
+                          className="w-full bg-black hover:bg-gray-600 disabled:bg-gray-400"
+                          size="lg"
+                          disabled={isLoading}
+                        >
+                          {isLoading ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                              Running...
+                            </>
+                          ) : (
+                            <>
+                              <Play className="h-4 w-4 mr-2" />
+                              RUN
+                            </>
+                          )}
+                        </Button>
+                      )}
                     </CardContent>
                   </Card>
                 </div>
@@ -805,11 +962,13 @@ export default function Component() {
       </div>
 
       <TokenSearchModal
-        open={tokenModalOpen}
+        open={tokenModalOpen && !isFormDisabled}
         onClose={() => setTokenModalOpen(false)}
         onSelect={(token) => {
-          setSelectedToken(token);
-          setTokenModalOpen(false);
+          if (!isFormDisabled) {
+            setSelectedToken(token);
+            setTokenModalOpen(false);
+          }
         }}
       />
     </div>

@@ -7,6 +7,11 @@ export interface WalletInfo {
   secretKey: string;
   solAmount: number;
   transferAmount: number;
+  result?: "success" | "failed";
+  tokenBalances?: {
+    mint: string;
+    amount: number;
+  }[];
 }
 
 export function generateSolanaWallets(
@@ -40,4 +45,24 @@ export function generateSolanaWallets(
   }
 
   return wallets;
+}
+
+const LOCAL_STORAGE_KEY = "generatedWallets";
+export function saveWalletsToLocalStorage(wallets: WalletInfo[]) {
+  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(wallets));
+}
+
+export function removeWalletsFromLocalStorage() {
+  localStorage.removeItem(LOCAL_STORAGE_KEY);
+}
+
+export function loadWalletsFromLocalStorage(): WalletInfo[] | null {
+  const data = localStorage.getItem(LOCAL_STORAGE_KEY);
+  if (!data) return null;
+  try {
+    return JSON.parse(data);
+  } catch (e) {
+    console.error("Failed to parse wallets from localStorage", e);
+    return null;
+  }
 }

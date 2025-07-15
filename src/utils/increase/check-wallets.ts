@@ -1,28 +1,90 @@
-import { Connection, PublicKey } from "@solana/web3.js";
+import { Connection, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { WalletInfo } from "../create-wallets";
 
-export async function checkBalances(
-  wallets: WalletInfo[],
-  connection: Connection
-): Promise<WalletInfo[]> {
-  const results = await Promise.allSettled(
-    wallets.map(async (wallet) => {
-      const pubkey = new PublicKey(wallet.publicKey);
-      const balanceLamports = await connection.getBalance(pubkey);
-      const balanceSOL = balanceLamports / 1_000_000_000;
-      return {
-        ...wallet,
-        solAmount: balanceSOL,
-      };
-    })
-  );
+export interface SimpleTokenBalance {
+  mint: string;
+  amount: number;
+}
 
-  return results.map((result, i) => {
-    if (result.status === "fulfilled") return result.value;
-    console.error(
-      ` Failed to get balance for ${wallets[i].publicKey}`,
-      result.reason
+function delay(ms: number) {
+  return new Promise((res) => setTimeout(res, ms));
+}
+
+export async function fetchSolAndTokenBalancesBatched(
+  wallets: WalletInfo[],
+  connection: Connection,
+  batchSize = 10,
+  delayMs = 300
+): Promise<
+  (WalletInfo & {
+    solAmount: number;
+    tokenBalances: SimpleTokenBalance[];
+  })[]
+> {
+  const results: (WalletInfo & {
+    solAmount: number;
+    tokenBalances: SimpleTokenBalance[];
+  })[] = [];
+
+  for (let i = 0; i < wallets.length; i += batchSize) {
+    const batch = wallets.slice(i, i + batchSize);
+
+    const batchResults = await Promise.allSettled(
+      batch.map(async (wallet) => {
+        try {
+          const pubkey = new PublicKey(wallet.publicKey);
+          const solLamports = await connection.getBalance(pubkey);
+          const solAmount = solLamports / LAMPORTS_PER_SOL;
+
+          const tokenAccounts = await connection.getParsedTokenAccountsByOwner(
+            pubkey,
+            {
+              programId: TOKEN_PROGRAM_ID,
+            }
+          );
+
+          const tokenBalances: SimpleTokenBalance[] = tokenAccounts.value.map(
+            (acc) => {
+              const info = acc.account.data.parsed.info;
+              const mint = info.mint;
+              const amount = parseFloat(info.tokenAmount.uiAmountString || "0");
+              return { mint, amount };
+            }
+          );
+
+          return {
+            ...wallet,
+            solAmount,
+            tokenBalances,
+          };
+        } catch (err) {
+          console.error(`Error with wallet ${wallet.publicKey}`, err);
+          return {
+            ...wallet,
+            solAmount: 0,
+            tokenBalances: [],
+          };
+        }
+      })
     );
-    return wallets[i];
-  });
+
+    results.push(
+      ...batchResults.map((res, idx) =>
+        res.status === "fulfilled"
+          ? res.value
+          : {
+              ...batch[idx],
+              solAmount: 0,
+              tokenBalances: [],
+            }
+      )
+    );
+
+    if (i + batchSize < wallets.length) {
+      await delay(delayMs);
+    }
+  }
+
+  return results;
 }
