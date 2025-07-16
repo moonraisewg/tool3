@@ -124,19 +124,14 @@ export const route = {
       url: "/close-account",
     },
     {
-      title: "Buy SOL devnet",
-      icon: Wallet,
-      url: "/sell-sol-devnet",
-    },
-    // {
-    //   title: "Increase Holders",
-    //   icon: Wallet,
-    //   url: "/increase-holders",
-    // },
-    {
       icon: Trophy,
       title: "Launch Token DBC Meteora",
       url: "/dbc/token",
+    },
+    {
+      title: "Increase Holders",
+      icon: Wallet,
+      url: "/increase-holders",
     },
   ],
 

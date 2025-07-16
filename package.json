@@ -56,6 +56,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "file-saver": "^2.0.5",
     "lodash": "^4.17.21",
     "lucide-react": "^0.509.0",
     "next": "15.3.2",
@@ -70,12 +71,14 @@
     "solana-token-extension-boost": "^3.4.3",
     "sonner": "^2.0.3",
     "tailwind-merge": "^3.3.0",
+    "xlsx": "^0.18.5",
     "zod": "^3.24.4"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/bn.js": "^5.1.6",
+    "@types/file-saver": "^2.0.7",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

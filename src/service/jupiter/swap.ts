@@ -84,7 +84,7 @@ export async function getJupiterQuote(
   outputMint: string,
   amount: number,
   slippageBps: number = 100,
-  onlyDirectRoutes: boolean = true
+  dexes?: string[]
 ): Promise<QuoteResponse> {
   try {
     const params = new URLSearchParams({
@@ -95,8 +95,8 @@ export async function getJupiterQuote(
       swapMode: "ExactIn",
     });
 
-    if (onlyDirectRoutes) {
-      params.append("onlyDirectRoutes", "true");
+    if (dexes && dexes.length > 0) {
+      params.append("dexes", dexes.join(","));
     }
 
     const response = await fetch(
