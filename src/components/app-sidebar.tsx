@@ -59,7 +59,7 @@ export const route = {
       submenu: [
         {
           title: "Gasless Transfer",
-          url: "/transfer-spl-token",
+          url: "/",
         },
         {
           title: "Swap to SOL ",

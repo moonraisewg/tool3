@@ -1,14 +1,18 @@
-import ListPools from "@/components/list-pool";
+import TransferForm from "@/components/transfer/transfer-form";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Your Locked Liquidity Pools",
+  title: "Solana Gasless Token Transfer",
   description:
-    "View and manage all your currently locked liquidity pools in one place. Track LP tokens, lock status, and take control of your decentralized finance positions easily.",
+    "Easily transfer tokens without requiring SOL in your wallet. Fast, secure and convenient token transfers designed for all Web3 users.",
 };
 
-export default function Dashboard() {
+export default function WithdrawLP() {
   return (
-    <div className="max-h-[calc(100vh-60px)] overflow-y-auto"> <ListPools /></div>
+    <div className="h-full flex md:items-center mt-10 md:mt-0">
+      <div className="container mx-auto px-4">
+        <TransferForm />
+      </div>
+    </div>
   );
 }
