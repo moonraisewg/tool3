@@ -69,6 +69,10 @@ export const route = {
           title: "Swap All Token to SOL ",
           url: "/swap-all",
         },
+        {
+          title: "Buy Sol Devnet ",
+          url: "/sell-sol-devnet",
+        },
       ],
     },
 
