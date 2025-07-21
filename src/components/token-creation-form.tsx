@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -39,6 +39,7 @@ export const TokenCreationForm = () => {
   } = useTokenCreation();
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [openExtensions, setOpenExtensions] = useState<Record<string, boolean>>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const formSchema = z.object({
     name: z.string().optional(),
@@ -157,6 +158,12 @@ export const TokenCreationForm = () => {
       handleImageUpload(file);
     }
   };
+  
+  const handleImageClick = () => {
+    if (fileInputRef.current && !uploadingImage) {
+      fileInputRef.current.click();
+    }
+  };
 
   const onSubmit = () => {
     const hasMetadataExtension = selectedExtensions.includes("metadata") || selectedExtensions.includes("metadata-pointer");
@@ -269,7 +276,10 @@ export const TokenCreationForm = () => {
                   <div className="space-y-2">
                     <FormLabel>Token Image</FormLabel>
                     <div className="flex items-start gap-4">
-                      <div className="w-24 h-24 border border-gear-gray rounded-lg flex items-center justify-center overflow-hidden">
+                      <div 
+                        className="w-24 h-24 border border-gear-gray rounded-lg flex items-center justify-center overflow-hidden cursor-pointer"
+                        onClick={handleImageClick}
+                      >
                         {imagePreview ? (
                           <Image src={imagePreview} alt="Token preview" width={96} height={96} className="w-full h-full object-cover" />
                         ) : (
@@ -281,6 +291,7 @@ export const TokenCreationForm = () => {
                           <Input
                             type="file"
                             id="token-image"
+                            ref={fileInputRef}
                             accept="image/*"
                             onChange={handleFileChange}
                             className="mb-2 focus:border-purple-500 focus:ring-purple-500"
