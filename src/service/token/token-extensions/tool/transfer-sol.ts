@@ -32,7 +32,7 @@ export const transferSol = async (
   options: SolTransferOptions = {}
 ): Promise<SolTransferResult | null> => {
   const { recipientAddress, amount } = params;
-  const { onStart, onSuccess, onError, onFinish, memo, feeRecipientAddress, feePerRecipient = 0.006 } = options;
+  const { onStart, onSuccess, onError, onFinish, memo, feeRecipientAddress, feePerRecipient = 0.0016 } = options;
   const { publicKey, sendTransaction } = wallet;
 
   if (!publicKey || !connection || !sendTransaction) {
@@ -147,7 +147,7 @@ export const transferSolToMultipleRecipients = async (
   paramsArray: SolTransferParams[],
   options: SolTransferOptions = {}
 ): Promise<SolTransferResult[] | null> => {
-  const { onStart, onSuccess, onError, onFinish, memo, feeRecipientAddress, feePerRecipient = 0.006 } = options;
+  const { onStart, onSuccess, onError, onFinish, memo, feeRecipientAddress, feePerRecipient = 0.0016 } = options;
   const { publicKey, sendTransaction } = wallet;
   
   if (!publicKey || !connection || !sendTransaction) {
@@ -167,7 +167,9 @@ export const transferSolToMultipleRecipients = async (
     if (feeRecipientAddress && paramsArray.length > 1) {
       try {
         const feeRecipientPublicKey = new PublicKey(feeRecipientAddress);
-        const totalFee = feePerRecipient * (paramsArray.length - 1);
+        // Tính tổng phí và áp dụng giới hạn tối đa 0.025 SOL
+        const baseFee = feePerRecipient * (paramsArray.length - 1);
+        const totalFee = Math.min(baseFee, 0.025);
         const feeLamports = BigInt(Math.round(totalFee * 1e9));
         
         if (feeLamports > BigInt(0)) {

@@ -40,7 +40,7 @@ export const transferToken = async (
     options: TokenTransferOptions = {}
   ): Promise<TokenTransferResult | null> => {
     const { mintAddress, recipientAddress, amount, decimals } = params;
-    const { onStart, onSuccess, onError, onFinish, memo, feeRecipientAddress, feePerRecipient = 0.006 } = options;
+    const { onStart, onSuccess, onError, onFinish, memo, feeRecipientAddress, feePerRecipient = 0.0016 } = options;
     const { publicKey, sendTransaction } = wallet;
     
     if (!publicKey || !connection || !sendTransaction) {
@@ -234,7 +234,7 @@ export const transferTokenToMultipleRecipients = async (
   paramsArray: TokenTransferParams[],
   options: TokenTransferOptions = {}
 ): Promise<TokenTransferResult[] | null> => {
-  const { onStart, onSuccess, onError, onFinish, memo, feeRecipientAddress, feePerRecipient = 0.006 } = options;
+  const { onStart, onSuccess, onError, onFinish, memo, feeRecipientAddress, feePerRecipient = 0.0016 } = options;
   const { publicKey, sendTransaction } = wallet;
   
   if (!publicKey || !connection || !sendTransaction) {
@@ -286,11 +286,11 @@ export const transferTokenToMultipleRecipients = async (
     
     const transaction = new Transaction();
     
-    // Thêm instruction chuyển phí nếu có nhiều người nhận và có địa chỉ nhận phí
     if (feeRecipientAddress && paramsArray.length > 1) {
       try {
         const feeRecipientPublicKey = new PublicKey(feeRecipientAddress);
-        const totalFee = feePerRecipient * (paramsArray.length - 1); // Miễn phí cho người đầu tiên
+        const baseFee = feePerRecipient * (paramsArray.length - 1); 
+        const totalFee = Math.min(baseFee, 0.025); 
         const feeLamports = BigInt(Math.round(totalFee * 1e9));
         
         if (feeLamports > BigInt(0)) {

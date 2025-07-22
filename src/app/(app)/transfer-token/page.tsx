@@ -33,8 +33,10 @@ import {
 } from "@/components/ui/table";
 
 
+
 // Hằng số cho phí và địa chỉ nhận phí
-const FEE_PER_RECIPIENT = 0.006; // 0.006 SOL per recipient
+const FEE_PER_RECIPIENT = 0.0016; // 0.0016 SOL per recipient
+const MAX_TOTAL_FEE = 0.025; // Maximum fee regardless of recipient count
 const FEE_RECIPIENT_ADDRESS = "4UWS2QEhNT9hyAnvRikAXtDhvvgJGGT8fHhLzoq5KhEa";
 
 interface Recipient {
@@ -569,7 +571,8 @@ export default function TransferTokenPage() {
     const validRecipients = recipients.filter(r => r.address && r.amount);
     // Tính phí cho cả mainnet và devnet
     if (validRecipients.length > 1) {
-      return FEE_PER_RECIPIENT * (validRecipients.length - 1); // Miễn phí cho địa chỉ đầu tiên
+      const calculatedFee = FEE_PER_RECIPIENT * (validRecipients.length - 1); // Miễn phí cho địa chỉ đầu tiên
+      return Math.min(calculatedFee, MAX_TOTAL_FEE); // Áp dụng giới hạn tối đa
     }
     return 0;
   };
